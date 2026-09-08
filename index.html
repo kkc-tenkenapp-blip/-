@@ -3,41 +3,91 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <!-- Google等の検索エンジンから除外する設定 -->
+  <meta name="robots" content="noindex, nofollow">
   <title>点検管理アプリ</title>
   <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <style>
     body { margin: 0; padding: 0; font-family: sans-serif; display: flex; height: 100vh; overflow: hidden; }
     
+    /* --- Supabase Auth ログインモーダル --- */
+    #login-overlay {
+      position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+      background: rgba(0, 0, 0, 0.85); z-index: 10000;
+      display: flex; justify-content: center; align-items: center;
+    }
+    .login-card {
+      background: #ffffff; padding: 30px 25px; border-radius: 12px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.3); width: 320px; max-width: 90vw; text-align: center;
+    }
+    .login-card h2 { margin: 0 0 8px 0; font-size: 18px; color: #333; }
+    .login-card p { font-size: 12px; color: #666; margin-bottom: 20px; }
+    .login-field { width: 100%; padding: 10px; margin-bottom: 12px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: 13px; }
+    .login-btn { width: 100%; padding: 10px; background: #007bff; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 14px; }
+    .login-btn:hover { background: #0056b3; }
+    #login-error { color: #dc3545; font-size: 12px; margin-top: 10px; display: none; word-break: break-all; }
+
     #sidebar {
       width: 420px; background: #f8f9fa; border-right: 1px solid #ccc;
       display: flex; flex-direction: column; z-index: 1000; box-shadow: 2px 0 5px rgba(0,0,0,0.1); flex-shrink: 0;
     }
-    #sidebar-header { padding: 12px 15px; background: #007bff; color: white; display: flex; justify-content: space-between; align-items: center; }
-    #sidebar-header h3 { margin: 0; font-size: 15px; }
+    #sidebar-header { padding: 10px 12px; background: #007bff; color: white; display: flex; flex-direction: column; gap: 6px; }
+    .header-top { display: flex; justify-content: space-between; align-items: center; }
+    .header-top h3 { margin: 0; font-size: 15px; }
+
+    /* Supabase 無料枠使用量プログレスバーのスタイル */
+    .usage-container {
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 6px;
+      padding: 6px 8px;
+      font-size: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .usage-row { display: flex; justify-content: space-between; align-items: center; }
+    .progress-bar-bg {
+      width: 100%; background: rgba(255, 255, 255, 0.3); height: 6px; border-radius: 3px; overflow: hidden;
+    }
+    .progress-bar-fill {
+      height: 100%; background: #28a745; width: 0%; transition: width 0.3s ease;
+    }
+    
+    .btn-logout { background: #dc3545; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; }
     
     #share-bar { padding: 8px 12px; background: #e7f1ff; border-bottom: 1px solid #b6d4fe; display: flex; justify-content: space-between; align-items: center; gap: 4px; }
     .btn-bar { border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; color: white; }
+    #btn-add-group-bar { background: #0d6efd; }
     #btn-share-selected { background: #198754; }
     #btn-delete-selected { background: #dc3545; }
 
-    #filter-bar { padding: 8px 12px; background: #f1f3f5; border-bottom: 1px solid #ddd; display: flex; flex-direction: column; gap: 6px; }
-    .filter-row { display: flex; gap: 6px; align-items: center; }
-    .filter-input { flex: 1; padding: 6px 8px; font-size: 12px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
-    .filter-select { flex: 1; padding: 6px 6px; font-size: 12px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; background: white; }
-    #search-count-badge { font-size: 11px; color: #666; font-weight: bold; white-space: nowrap; }
-    
+    /* Excelインポートエリア */
     #import-area { padding: 8px 12px; background: #e9ecef; border-bottom: 1px solid #ddd; display: flex; gap: 8px; align-items: center; }
     #drop-zone { flex: 1; border: 2px dashed #007bff; background: #fff; padding: 8px; text-align: center; border-radius: 4px; font-size: 11px; cursor: pointer; }
     #btn-download-template { background: #6c757d; color: white; border: none; padding: 8px 10px; border-radius: 4px; cursor: pointer; font-size: 11px; white-space: nowrap; }
 
+    /* 検索・フィルタバー */
+    #filter-bar { padding: 8px 12px; background: #f1f3f5; border-bottom: 1px solid #ddd; display: flex; flex-direction: column; gap: 6px; }
+    .filter-row { display: flex; gap: 6px; align-items: center; }
+    .filter-input { flex: 1.2; padding: 6px 8px; font-size: 12px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; min-width: 0; }
+    .filter-select { flex: 1; padding: 6px 6px; font-size: 12px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; background: white; min-width: 0; }
+    #search-count-badge { font-size: 11px; color: #666; font-weight: bold; white-space: nowrap; }
+
     #tree-container { flex: 1; overflow-y: auto; padding: 10px; }
-    .group-item { margin-bottom: 8px; border: 1px solid #dee2e6; border-radius: 4px; background: #fff; }
-    .group-header { font-weight: bold; background: #f1f3f5; padding: 8px 10px; display: flex; align-items: center; gap: 8px; font-size: 13px; user-select: none; }
-    .group-title-text { flex: 1; cursor: pointer; }
+    .parent-group-item { margin-bottom: 10px; border: 1px solid #cbd5e1; border-radius: 6px; background: #ffffff; }
+    .parent-group-header { font-weight: bold; background: #e2e8f0; padding: 8px 10px; display: flex; align-items: center; gap: 6px; font-size: 13px; border-bottom: 1px solid #cbd5e1; }
     
+    .child-group-item { margin: 6px 8px; border: 1px solid #e2e8f0; border-radius: 4px; background: #f8fafc; }
+    .child-group-header { font-weight: bold; background: #f1f5f9; padding: 6px 8px; display: flex; align-items: center; gap: 6px; font-size: 12px; }
+    .group-title-text { flex: 1; cursor: pointer; user-select: none; }
+    
+    .btn-group-del { background: transparent; border: none; color: #dc3545; cursor: pointer; font-size: 12px; padding: 0 4px; }
+    .btn-group-del:hover { font-weight: bold; }
+
     .point-list { list-style: none; padding: 0; margin: 0; border-top: 1px solid #eee; }
     .point-list.collapsed { display: none; }
+    .child-container.collapsed { display: none; }
     
     .point-item { padding: 8px; display: flex; align-items: center; justify-content: space-between; font-size: 12px; border-bottom: 1px solid #f8f9fa; cursor: grab; gap: 4px; flex-wrap: wrap; }
     .point-item.dragging { opacity: 0.5; background: #e2e6ea; }
@@ -54,22 +104,6 @@
     .tab-select-dropdown { font-size: 11px; padding: 3px 2px; border: 1px solid #ccc; border-radius: 3px; max-width: 95px; }
 
     #map { flex: 1; height: 100%; position: relative; }
-
-    /* ★国交省「全国道路基盤地図」完全準拠スタイルの距離標バッジ★ */
-    .mlit-kp-label {
-      background: #ffffff !important;
-      color: #000000 !important;
-      border: 1.5px solid #28a745 !important;
-      border-radius: 3px !important;
-      font-size: 11px !important;
-      font-family: sans-serif !important;
-      font-weight: bold !important;
-      padding: 1px 4px !important;
-      text-align: center !important;
-      white-space: nowrap !important;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.3) !important;
-      line-height: 1.1 !important;
-    }
 
     .leaflet-popup-content-wrapper { padding: 10px; max-width: 320px !important; }
     .leaflet-popup-content { margin: 8px; width: auto !important; }
@@ -114,9 +148,34 @@
 </head>
 <body>
 
+<!-- Supabase Auth ログインモーダル -->
+<div id="login-overlay">
+  <div class="login-card">
+    <h2>🔒 社内ログイン</h2>
+    <p>共有のメールアドレスとパスワードを入力してください。</p>
+    <input type="email" id="login-email" class="login-field" placeholder="メールアドレス" />
+    <input type="password" id="login-pw" class="login-field" placeholder="パスワード" />
+    <button class="login-btn" onclick="loginWithSupabase()">ログイン</button>
+    <div id="login-error"></div>
+  </div>
+</div>
+
 <div id="sidebar">
   <div id="sidebar-header">
-    <h3>点検管理アプリ</h3>
+    <div class="header-top">
+      <h3>点検管理アプリ</h3>
+      <button class="btn-logout editable-only" onclick="logoutSupabase()">ログアウト</button>
+    </div>
+    <!-- Supabase 無料枠使用状況メーター -->
+    <div class="usage-container" title="Supabase無料枠（500MB）に対する推定使用量">
+      <div class="usage-row">
+        <span>📊 容量使用状況 (推定)</span>
+        <span id="usage-text">0 MB / 500 MB (0%)</span>
+      </div>
+      <div class="progress-bar-bg">
+        <div id="usage-bar-fill" class="progress-bar-fill"></div>
+      </div>
+    </div>
   </div>
 
   <div id="readonly-banner">🔒 共有閲覧モード (編集不可)</div>
@@ -126,29 +185,32 @@
       <input type="checkbox" id="chk-all" onchange="toggleSelectAll(this.checked)" /> 全選択
     </label>
     <div>
+      <button id="btn-add-group-bar" class="btn-bar editable-only" onclick="addNewGroupModal()">➕ グループ追加</button>
       <button id="btn-share-selected" class="btn-bar" onclick="shareSelectedPoints()">🔗 選択共有</button>
       <button id="btn-delete-selected" class="btn-bar editable-only" onclick="deleteSelectedPoints()">🗑️ 選択削除</button>
     </div>
   </div>
 
-  <div id="filter-bar">
-    <div class="filter-row">
-      <input type="text" id="search-keyword" class="filter-input" placeholder="🔍 スポット名で検索..." oninput="onFilterChange()" />
-      <span id="search-count-badge">0 / 0 件</span>
-    </div>
-    <div class="filter-row">
-      <select id="filter-tab-select" class="filter-select" onchange="onFilterChange()">
-        <option value="">🏷️ 全てのタブを表示</option>
-      </select>
-    </div>
-  </div>
-
+  <!-- 上側：Excelドロップエリア -->
   <div id="import-area" class="editable-only">
     <div id="drop-zone" onclick="document.getElementById('excel-input').click()">
       📂 Excelをドロップ
       <input type="file" id="excel-input" accept=".xlsx, .xls, .csv" style="display:none" onchange="handleFileSelect(event)" />
     </div>
     <button id="btn-download-template" onclick="downloadExcelTemplate()">📥 テンプレート</button>
+  </div>
+
+  <!-- 下側：検索・フィルタバー -->
+  <div id="filter-bar">
+    <div class="filter-row">
+      <input type="text" id="search-keyword" class="filter-input" placeholder="🔍 スポット名で検索..." oninput="onFilterChange()" />
+      <select id="filter-tab-select" class="filter-select" onchange="onFilterChange()">
+        <option value="">🏷️ 全てのタブを表示</option>
+      </select>
+    </div>
+    <div style="text-align: right;">
+      <span id="search-count-badge">0 / 0 件</span>
+    </div>
   </div>
 
   <div id="tree-container">
@@ -201,7 +263,7 @@
 <div id="form-container" class="modal">
   <h4>新しいポイントを追加</h4>
   <input type="text" id="spot-title" placeholder="スポット名を入力" />
-  <input type="text" id="spot-group" placeholder="グループ名（任意）" />
+  <input type="text" id="spot-group" placeholder="グループ名（例: 三陸 / 1工区）" />
   <input type="text" id="spot-tab" placeholder="タブの内容（任意）" />
   <input type="file" id="spot-image" accept="image/*" multiple />
   <div style="display: flex; justify-content: space-between;">
@@ -227,9 +289,87 @@
   const markers = {};   
   let allPoints = [];   
   let tabRules = []; 
+  let customGroups = new Set();
   let isReadOnly = false;
   let targetPointIdForImage = null;
 
+  // ★折りたたみの開閉状態を記録するSet★
+  const openGroupIds = new Set();
+
+  // --- Supabase Auth 認証ロジック ---
+  async function checkSession() {
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    if (session) {
+      document.getElementById('login-overlay').style.display = 'none';
+      loadInitialPoints();
+    } else {
+      document.getElementById('login-overlay').style.display = 'flex';
+    }
+  }
+
+  async function loginWithSupabase() {
+    const email = document.getElementById('login-email').value.trim();
+    const password = document.getElementById('login-pw').value;
+    const errDiv = document.getElementById('login-error');
+    errDiv.style.display = 'none';
+
+    if (!email || !password) {
+      errDiv.textContent = 'メールアドレスとパスワードを入力してください';
+      errDiv.style.display = 'block';
+      return;
+    }
+
+    const { data, error } = await supabaseClient.auth.signInWithPassword({
+      email: email,
+      password: password,
+    });
+
+    if (error) {
+      errDiv.textContent = 'ログインエラー: ' + error.message;
+      errDiv.style.display = 'block';
+    } else {
+      document.getElementById('login-overlay').style.display = 'none';
+      loadInitialPoints();
+    }
+  }
+
+  async function logoutSupabase() {
+    if (confirm('ログアウトしますか？')) {
+      await supabaseClient.auth.signOut();
+      window.location.reload();
+    }
+  }
+
+  // --- Supabase無料枠容量計算プログレスバー更新 ---
+  async function updateDatabaseUsageMeter() {
+    const { data, error } = await supabaseClient.from('points').select('image_url');
+    if (error || !data) return;
+
+    let totalBytes = 0;
+    data.forEach(item => {
+      if (item.image_url) {
+        totalBytes += new Blob([item.image_url]).size;
+      }
+    });
+
+    const totalMB = totalBytes / (1024 * 1024);
+    const limitMB = 500;
+    const percent = Math.min(100, ((totalMB / limitMB) * 100)).toFixed(1);
+
+    const usageText = document.getElementById('usage-text');
+    const usageBar = document.getElementById('usage-bar-fill');
+
+    if (usageText && usageBar) {
+      usageText.textContent = `${totalMB.toFixed(2)} MB / ${limitMB} MB (${percent}%)`;
+      usageBar.style.width = `${percent}%`;
+
+      if (percent >= 90) usageBar.style.background = '#dc3545';
+      else if (percent >= 80) usageBar.style.background = '#fd7e14';
+      else usageBar.style.background = '#28a745';
+    }
+  }
+
+  // --- 地図初期化 ---
   const map = L.map('map', { minZoom: 5, maxZoom: 18 }).setView([40.220360, 141.781950], 13);
 
   const gsiPale = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png', {
@@ -249,84 +389,13 @@
 
   gsiPale.addTo(map);
 
-  // ★全国道路基盤地図等データベース (国交省MLIT API) 動的距離標レイヤー★
-  const kpLayerGroup = L.layerGroup();
-  kpLayerGroup.addTo(map);
-
-  async function fetchMLITDistanceMarkers() {
-    if (!map.hasLayer(kpLayerGroup)) return;
-    if (map.getZoom() < 10) {
-      kpLayerGroup.clearLayers();
-      return;
-    }
-
-    const bounds = map.getBounds();
-    const bbox = `${bounds.getSouth()},${bounds.getWest()},${bounds.getNorth()},${bounds.getEast()}`;
-    const rawUrl = `https://road-basemap.mlit.go.jp/JapanRoadMapWeb/api/geojson/drawingKp?bbox=${bbox}`;
-    const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(rawUrl)}`;
-
-    try {
-      let res = await fetch(rawUrl).catch(() => null);
-      if (!res || !res.ok) {
-        res = await fetch(proxyUrl).catch(() => null);
-      }
-      
-      if (!res || !res.ok) return;
-      const data = await res.json();
-
-      kpLayerGroup.clearLayers();
-
-      if (data && data.features) {
-        data.features.forEach(feat => {
-          const coords = feat.geometry?.coordinates;
-          const props = feat.properties || {};
-          const kpText = props.kp_name || props.kp || props.name || (props.kp_num ? `${props.kp_num}k` : 'KP');
-          const routeName = props.route_name || props.road_name || '';
-
-          if (coords && coords.length >= 2) {
-            const lat = coords[1];
-            const lng = coords[0];
-
-            // 国交省Webアプリと同等のデザイン（白背景・緑枠・文字サイズ11px）
-            const customIcon = L.divIcon({
-              className: 'mlit-kp-label',
-              html: `<span>${kpText}</span>`,
-              iconSize: null
-            });
-
-            const kpMarker = L.marker([lat, lng], { icon: customIcon })
-              .bindPopup(`<b>距離標: ${kpText}</b><br><small>${routeName}</small>`);
-            
-            kpLayerGroup.addLayer(kpMarker);
-          }
-        });
-      }
-    } catch (e) {
-      console.warn("距離標取得スキップ", e);
-    }
-  }
-
-  map.on('moveend', () => fetchMLITDistanceMarkers());
-  fetchMLITDistanceMarkers();
-
-  // 地理院標準距離標タイル（予備用）
-  const gsiKpTileLayer = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/experimental_kp/{z}/{x}/{y}.png', {
-    opacity: 0.95, maxZoom: 18, maxNativeZoom: 16,
-    attribution: "国土地理院 (距離標)"
-  });
-
   const baseMaps = {
     "🌍 地理院地図 (淡色)": gsiPale,
     "🗺️ 地理院地図 (標準)": gsiStandard,
     "📄 地理院地図 (白地図)": gsiBlank
   };
 
-  const overlayMaps = {
-    "📍 国土交通省 距離標 (全道路対応)": kpLayerGroup,
-    "📍 国土地理院 距離標 (標準)": gsiKpTileLayer
-  };
-
-  L.control.layers(baseMaps, overlayMaps, { position: 'topright' }).addTo(map);
+  L.control.layers(baseMaps, null, { position: 'topright' }).addTo(map);
 
   function createCustomIcon(color = 'blue') {
     const validColors = ['blue', 'red', 'green', 'orange', 'violet', 'gold', 'black', 'grey', 'cyan'];
@@ -568,6 +637,7 @@
       alert('コメントの保存に失敗しました: ' + error.message);
     } else {
       loadImagesForPopup(pointId);
+      updateDatabaseUsageMeter();
     }
   }
 
@@ -609,6 +679,40 @@
     renderSidebarTree();
   }
 
+  function addNewGroupModal() {
+    const input = prompt("新しいグループ名を入力してください。\n親グループと子グループを分ける場合は '/' で区切ってください。\n（例: '三陸 / 1工区'）");
+    if (!input) return;
+    const groupName = input.trim();
+    if (groupName) {
+      customGroups.add(groupName);
+      renderSidebarTree();
+    }
+  }
+
+  function deleteGroupUI(groupPath) {
+    if (confirm(`グループ「${groupPath}」を削除しますか？\n（所属するポイントのグループ設定は「未分類」になります）`)) {
+      customGroups.delete(groupPath);
+      allPoints.forEach(async p => {
+        if (p.group_name === groupPath || p.group_name?.startsWith(groupPath + ' /')) {
+          p.group_name = '未分類';
+          await supabaseClient.from('points').update({ group_name: '未分類' }).eq('id', p.id);
+        }
+      });
+      renderSidebarTree();
+    }
+  }
+
+  function toggleGroupVisibilityByPath(groupPath, isChecked) {
+    allPoints.forEach(p => {
+      const gName = p.group_name || '未分類';
+      if (gName === groupPath || gName.startsWith(groupPath + ' /')) {
+        const chk = document.getElementById(`chk-point-${p.id}`);
+        if (chk) chk.checked = isChecked;
+        togglePointVisibility(p.id, isChecked);
+      }
+    });
+  }
+
   function renderSidebarTree() {
     const treeContainer = document.getElementById('point-tree');
     treeContainer.innerHTML = '';
@@ -620,88 +724,173 @@
       countBadge.textContent = `${filteredPoints.length} / ${allPoints.length} 件`;
     }
 
-    const groups = {};
-    filteredPoints.forEach(p => {
-      const gName = p.group_name || '未分類';
-      if (!groups[gName]) groups[gName] = [];
-      groups[gName].push(p);
+    const groupTree = {};
+
+    function ensureGroupPath(parent, child) {
+      if (!groupTree[parent]) groupTree[parent] = { _items: [], _children: {} };
+      if (child && !groupTree[parent]._children[child]) {
+        groupTree[parent]._children[child] = [];
+      }
+    }
+
+    customGroups.forEach(gPath => {
+      const parts = gPath.split('/').map(s => s.trim());
+      const p = parts[0] || '未分類';
+      const c = parts[1] || null;
+      ensureGroupPath(p, c);
     });
 
-    if (Object.keys(groups).length === 0) {
+    filteredPoints.forEach(p => {
+      const rawG = p.group_name || '未分類';
+      const parts = rawG.split('/').map(s => s.trim());
+      const parentName = parts[0] || '未分類';
+      const childName = parts[1] || null;
+
+      ensureGroupPath(parentName, childName);
+
+      if (childName) {
+        groupTree[parentName]._children[childName].push(p);
+      } else {
+        groupTree[parentName]._items.push(p);
+      }
+    });
+
+    if (Object.keys(groupTree).length === 0) {
       treeContainer.innerHTML = '<div style="font-size:12px; color:#888; text-align:center; padding:20px;">該当するスポットが見つかりません</div>';
       return;
     }
 
-    Object.keys(groups).forEach(gName => {
-      const groupDiv = document.createElement('div');
-      groupDiv.className = 'group-item';
+    Object.keys(groupTree).forEach(parentName => {
+      const parentData = groupTree[parentName];
+      const parentDiv = document.createElement('div');
+      parentDiv.className = 'parent-group-item';
 
-      if (!isReadOnly) {
-        groupDiv.addEventListener('dragover', e => { e.preventDefault(); groupDiv.style.borderColor = '#007bff'; });
-        groupDiv.addEventListener('dragleave', e => { groupDiv.style.borderColor = '#dee2e6'; });
-        groupDiv.addEventListener('drop', async e => {
-          e.preventDefault();
-          groupDiv.style.borderColor = '#dee2e6';
-          const pointId = e.dataTransfer.getData('text/plain');
-          if (pointId && pointId !== 'null') await updatePointGroup(pointId, gName);
-        });
+      const parentHeader = document.createElement('div');
+      parentHeader.className = 'parent-group-header';
+      const parentSafeId = encodeURIComponent(parentName).replace(/%/g, '_');
+      const isParentOpen = openGroupIds.has(`p-${parentSafeId}`);
+
+      parentHeader.innerHTML = `
+        <input type="checkbox" onchange="toggleGroupVisibilityByPath('${parentName}', this.checked)" title="親グループ内を一括表示/非表示" />
+        <span class="group-title-text" onclick="toggleParentFold('${parentSafeId}')">
+          <span id="fold-icon-p-${parentSafeId}">${isParentOpen ? '📂' : '📁'}</span> <strong>${parentName}</strong>
+        </span>
+        ${!isReadOnly ? `<button class="btn-group-del" onclick="deleteGroupUI('${parentName}')" title="グループ削除">✕</button>` : ''}
+      `;
+      parentDiv.appendChild(parentHeader);
+
+      const childContainer = document.createElement('div');
+      childContainer.className = `child-container ${isParentOpen ? '' : 'collapsed'}`;
+      childContainer.id = `parent-child-container-${parentSafeId}`;
+
+      if (parentData._items.length > 0) {
+        const ul = renderPointList(parentData._items, parentName);
+        childContainer.appendChild(ul);
       }
 
-      const groupHeader = document.createElement('div');
-      groupHeader.className = 'group-header';
-      groupHeader.innerHTML = `
-        <input type="checkbox" id="chk-group-all-${gName}" onchange="toggleGroupVisibility('${gName}', this.checked)" title="グループを一括表示/非表示" />
-        <span class="group-title-text" onclick="toggleGroupFold('${gName}')">
-          <span id="fold-icon-${gName}">📂</span> <strong>${gName}</strong> (${groups[gName].length})
-        </span>
-      `;
-      groupDiv.appendChild(groupHeader);
+      Object.keys(parentData._children).forEach(childName => {
+        const childPoints = parentData._children[childName];
+        const childDiv = document.createElement('div');
+        childDiv.className = 'child-group-item';
+        const childPath = `${parentName} / ${childName}`;
+        const childSafeId = encodeURIComponent(childPath).replace(/%/g, '_');
+        const isChildOpen = openGroupIds.has(`c-${childSafeId}`);
 
-      const ul = document.createElement('ul');
-      ul.className = 'point-list';
-      ul.id = `list-group-${gName}`;
+        const childHeader = document.createElement('div');
+        childHeader.className = 'child-group-header';
+        
+        childHeader.innerHTML = `
+          <input type="checkbox" onchange="toggleGroupVisibilityByPath('${childPath}', this.checked)" title="子グループ内を一括表示/非表示" />
+          <span class="group-title-text" onclick="toggleChildFold('${childSafeId}')">
+            <span id="fold-icon-c-${childSafeId}">${isChildOpen ? '📂' : '📁'}</span> 📂 ${childName} (${childPoints.length})
+          </span>
+          ${!isReadOnly ? `<button class="btn-group-del" onclick="deleteGroupUI('${childPath}')" title="子グループ削除">✕</button>` : ''}
+        `;
+        childDiv.appendChild(childHeader);
 
-      groups[gName].forEach(p => {
-        const li = document.createElement('li');
-        li.className = 'point-item';
-        if (!isReadOnly) li.draggable = true;
-
-        li.addEventListener('dragstart', e => {
-          e.dataTransfer.setData('text/plain', String(p.id));
-          li.classList.add('dragging');
-        });
-        li.addEventListener('dragend', () => li.classList.remove('dragging'));
-
-        const tabBadgeHtml = p.tab_name ? `<span class="tab-badge" style="background:${colorHexMap[p.color]||'#0d6efd'};">${p.tab_name}</span>` : '';
-        const isChecked = markers[p.id] && map.hasLayer(markers[p.id]);
-
-        let actionsHtml = '';
-        if (!isReadOnly) {
-          const optionsHtml = tabRules.map(r => `<option value="${r.tab_name}" ${p.tab_name === r.tab_name ? 'selected' : ''}>${r.tab_name}</option>`).join('');
-          
-          actionsHtml = `
-            <div class="btn-group-actions">
-              <select class="tab-select-dropdown" onchange="changePointTabDirect(${p.id}, this.value)">
-                <option value="">タブ選択...</option>
-                ${optionsHtml}
-              </select>
-              <button class="btn-item-action btn-checked-done" onclick="markPointAsChecked(${p.id})">点検済</button>
-              <button class="btn-item-action" onclick="openImageUploader(${p.id})">画像</button>
-            </div>
-          `;
+        const childUl = renderPointList(childPoints, childPath);
+        childUl.id = `list-child-${childSafeId}`;
+        if (!isChildOpen) {
+          childUl.classList.add('collapsed');
         }
 
-        li.innerHTML = `
-          <input type="checkbox" ${isChecked ? 'checked' : ''} id="chk-point-${p.id}" value="${p.id}" class="chk-point chk-group-${gName}" onchange="togglePointVisibility(${p.id}, this.checked)" />
-          <span class="point-name" onclick="focusToPoint(${p.id})">${p.title} ${tabBadgeHtml}</span>
-          ${actionsHtml}
-        `;
-        ul.appendChild(li);
+        childDiv.appendChild(childUl);
+        childContainer.appendChild(childDiv);
       });
 
-      groupDiv.appendChild(ul);
-      treeContainer.appendChild(groupDiv);
+      parentDiv.appendChild(childContainer);
+      treeContainer.appendChild(parentDiv);
     });
+  }
+
+  function renderPointList(points, groupPath) {
+    const ul = document.createElement('ul');
+    ul.className = 'point-list';
+
+    points.forEach(p => {
+      const li = document.createElement('li');
+      li.className = 'point-item';
+      if (!isReadOnly) li.draggable = true;
+
+      li.addEventListener('dragstart', e => {
+        e.dataTransfer.setData('text/plain', String(p.id));
+        li.classList.add('dragging');
+      });
+      li.addEventListener('dragend', () => li.classList.remove('dragging'));
+
+      const tabBadgeHtml = p.tab_name ? `<span class="tab-badge" style="background:${colorHexMap[p.color]||'#0d6efd'};">${p.tab_name}</span>` : '';
+      const isChecked = markers[p.id] && map.hasLayer(markers[p.id]);
+
+      let actionsHtml = '';
+      if (!isReadOnly) {
+        const optionsHtml = tabRules.map(r => `<option value="${r.tab_name}" ${p.tab_name === r.tab_name ? 'selected' : ''}>${r.tab_name}</option>`).join('');
+        
+        actionsHtml = `
+          <div class="btn-group-actions">
+            <select class="tab-select-dropdown" onchange="changePointTabDirect(${p.id}, this.value)">
+              <option value="">タブ選択...</option>
+              ${optionsHtml}
+            </select>
+            <button class="btn-item-action btn-checked-done" onclick="markPointAsChecked(${p.id})">点検済</button>
+            <button class="btn-item-action" onclick="openImageUploader(${p.id})">画像</button>
+          </div>
+        `;
+      }
+
+      li.innerHTML = `
+        <input type="checkbox" ${isChecked ? 'checked' : ''} id="chk-point-${p.id}" value="${p.id}" class="chk-point" onchange="togglePointVisibility(${p.id}, this.checked)" />
+        <span class="point-name" onclick="focusToPoint(${p.id})">${p.title} ${tabBadgeHtml}</span>
+        ${actionsHtml}
+      `;
+      ul.appendChild(li);
+    });
+
+    return ul;
+  }
+
+  // ★グループ開閉の記録保持ロジック★
+  function toggleParentFold(safeId) {
+    const container = document.getElementById(`parent-child-container-${safeId}`);
+    const icon = document.getElementById(`fold-icon-p-${safeId}`);
+    if (container) {
+      container.classList.toggle('collapsed');
+      const isCollapsed = container.classList.contains('collapsed');
+      icon.innerText = isCollapsed ? '📁' : '📂';
+      if (isCollapsed) openGroupIds.delete(`p-${safeId}`);
+      else openGroupIds.add(`p-${safeId}`);
+    }
+  }
+
+  function toggleChildFold(safeId) {
+    const ul = document.getElementById(`list-child-${safeId}`);
+    const icon = document.getElementById(`fold-icon-c-${safeId}`);
+    if (ul) {
+      ul.classList.toggle('collapsed');
+      const isCollapsed = ul.classList.contains('collapsed');
+      icon.innerText = isCollapsed ? '📁' : '📂';
+      if (isCollapsed) openGroupIds.delete(`c-${safeId}`);
+      else openGroupIds.add(`c-${safeId}`);
+    }
   }
 
   async function changePointTabDirect(pointId, newTabName) {
@@ -732,15 +921,6 @@
     await changePointTabDirect(pointId, '点検済');
   }
 
-  function toggleGroupFold(gName) {
-    const list = document.getElementById(`list-group-${gName}`);
-    const icon = document.getElementById(`fold-icon-${gName}`);
-    if (list) {
-      list.classList.toggle('collapsed');
-      icon.innerText = list.classList.contains('collapsed') ? '📁' : '📂';
-    }
-  }
-
   function togglePointVisibility(id, isVisible) {
     const point = allPoints.find(p => Number(p.id) === Number(id));
     if (!point) return;
@@ -756,21 +936,10 @@
     }
   }
 
-  function toggleGroupVisibility(gName, isVisible) {
-    const checkboxes = document.querySelectorAll(`.chk-group-${gName}`);
-    checkboxes.forEach(chk => {
-      chk.checked = isVisible;
-      togglePointVisibility(chk.value, isVisible);
-    });
-  }
-
   function toggleSelectAll(isChecked) {
     document.querySelectorAll('.chk-point').forEach(chk => {
       chk.checked = isChecked;
       togglePointVisibility(chk.value, isChecked);
-    });
-    document.querySelectorAll('[id^="chk-group-all-"]').forEach(chk => {
-      chk.checked = isChecked;
     });
   }
 
@@ -792,14 +961,15 @@
         allPoints = allPoints.filter(p => !selectedIds.includes(Number(p.id)));
         updateFilterTabOptions();
         renderSidebarTree();
+        updateDatabaseUsageMeter();
       }
     }
   }
 
   function downloadExcelTemplate() {
     const templateData = [
-      { 'スポット名': 'D360425L3', '緯度': 40.220360, '経度': 141.781950, 'グループ': '三陸', 'タブ': '標識', '基本画像': '' },
-      { 'スポット名': 'D360471L1', '緯度': 40.220653, '経度': 141.781794, 'グループ': '三陸', 'タブ': '点検済', '基本画像': '' }
+      { 'スポット名': 'D360425L3', '緯度': 40.220360, '経度': 141.781950, 'グループ': '三陸 / 1工区', 'タブ': '標識', '基本画像': '' },
+      { 'スポット名': 'D360471L1', '緯度': 40.220653, '経度': 141.781794, 'グループ': '三陸 / 2工区', 'タブ': '点検済', '基本画像': '' }
     ];
     const ws = XLSX.utils.json_to_sheet(templateData);
     const wb = XLSX.utils.book_new();
@@ -865,6 +1035,7 @@
       if (point) point.image_url = jsonImageString;
 
       loadImagesForPopup(targetPointIdForImage);
+      updateDatabaseUsageMeter();
       alert(`${files.length} 枚の画像を軽量化保存しました！`);
     } catch (err) {
       alert('アップロード処理中にエラーが発生しました');
@@ -915,7 +1086,12 @@
       document.querySelectorAll('.editable-only').forEach(el => el.style.display = 'none');
     }
 
-    const { data: points, error } = await supabaseClient.from('points').select('id, title, lat, lng, group_name, tab_name, color');
+    // ★idの昇順で並び順を固定取得★
+    const { data: points, error } = await supabaseClient
+      .from('points')
+      .select('id, title, lat, lng, group_name, tab_name, color')
+      .order('id', { ascending: true });
+
     if (error) return;
 
     allPoints = points || [];
@@ -935,6 +1111,7 @@
 
     updateFilterTabOptions();
     renderSidebarTree();
+    updateDatabaseUsageMeter();
 
     if (sharedIds && bounds.length > 0) {
       map.fitBounds(bounds, { padding: [50, 50] });
@@ -1095,7 +1272,7 @@
     .on('postgres_changes', { event: '*', schema: 'public', table: 'points' }, () => loadInitialPoints())
     .subscribe();
 
-  loadInitialPoints();
+  checkSession();
 </script>
 </body>
 </html>
