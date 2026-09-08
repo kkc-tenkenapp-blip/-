@@ -11,7 +11,7 @@
   <style>
     body { margin: 0; padding: 0; font-family: sans-serif; display: flex; height: 100vh; overflow: hidden; }
     
-    /* --- Supabase Auth ログインモーダル --- */
+    /* Supabase Auth ログインモーダル */
     #login-overlay {
       position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
       background: rgba(0, 0, 0, 0.85); z-index: 10000;
@@ -75,15 +75,17 @@
     #search-count-badge { font-size: 11px; color: #666; font-weight: bold; white-space: nowrap; }
 
     #tree-container { flex: 1; overflow-y: auto; padding: 10px; }
-    .parent-group-item { margin-bottom: 10px; border: 1px solid #cbd5e1; border-radius: 6px; background: #ffffff; }
-    .parent-group-header { font-weight: bold; background: #e2e8f0; padding: 8px 10px; display: flex; align-items: center; gap: 6px; font-size: 13px; border-bottom: 1px solid #cbd5e1; }
+    .parent-group-item { margin-bottom: 10px; border: 1px solid #cbd5e1; border-radius: 6px; background: #ffffff; transition: background 0.2s; }
+    .parent-group-header { font-weight: bold; background: #e2e8f0; padding: 8px 10px; display: flex; align-items: center; gap: 6px; font-size: 13px; border-bottom: 1px solid #cbd5e1; cursor: grab; }
     
-    .child-group-item { margin: 6px 8px; border: 1px solid #e2e8f0; border-radius: 4px; background: #f8fafc; }
-    .child-group-header { font-weight: bold; background: #f1f5f9; padding: 6px 8px; display: flex; align-items: center; gap: 6px; font-size: 12px; }
+    .child-group-item { margin: 6px 8px; border: 1px solid #e2e8f0; border-radius: 4px; background: #f8fafc; transition: background 0.2s; }
+    .child-group-header { font-weight: bold; background: #f1f5f9; padding: 6px 8px; display: flex; align-items: center; gap: 6px; font-size: 12px; cursor: grab; }
     .group-title-text { flex: 1; cursor: pointer; user-select: none; }
     
     .btn-group-del { background: transparent; border: none; color: #dc3545; cursor: pointer; font-size: 12px; padding: 0 4px; }
     .btn-group-del:hover { font-weight: bold; }
+
+    .drag-over-active { background: #e0f2fe !important; border-color: #0284c7 !important; }
 
     .point-list { list-style: none; padding: 0; margin: 0; border-top: 1px solid #eee; }
     .point-list.collapsed { display: none; }
@@ -293,7 +295,7 @@
   let isReadOnly = false;
   let targetPointIdForImage = null;
 
-  // ★折りたたみの開閉状態を記録するSet★
+  // 折りたたみの開閉状態を記録するSet
   const openGroupIds = new Set();
 
   // --- Supabase Auth 認証ロジック ---
@@ -713,6 +715,30 @@
     });
   }
 
+  // ★グループ一括移動用関数★
+  async function moveGroupPathToNewParent(sourceGroupPath, targetParentName) {
+    const targets = allPoints.filter(p => {
+      const g = p.group_name || '未分類';
+      return g === sourceGroupPath || g.startsWith(sourceGroupPath + ' /');
+    });
+
+    if (targets.length === 0) return;
+
+    for (const p of targets) {
+      let newGroupName = '未分類';
+      const parts = (p.group_name || '').split('/').map(s => s.trim());
+      if (parts.length > 1) {
+        newGroupName = `${targetParentName} / ${parts.slice(1).join(' / ')}`;
+      } else {
+        newGroupName = targetParentName;
+      }
+      p.group_name = newGroupName;
+      await supabaseClient.from('points').update({ group_name: newGroupName }).eq('id', p.id);
+    }
+
+    renderSidebarTree();
+  }
+
   function renderSidebarTree() {
     const treeContainer = document.getElementById('point-tree');
     treeContainer.innerHTML = '';
@@ -765,8 +791,34 @@
       const parentDiv = document.createElement('div');
       parentDiv.className = 'parent-group-item';
 
+      // ★親グループへのドロップ受付（ピンまたは子グループをドロップ可能）★
+      if (!isReadOnly) {
+        parentDiv.addEventListener('dragover', e => { e.preventDefault(); parentDiv.classList.add('drag-over-active'); });
+        parentDiv.addEventListener('dragleave', () => parentDiv.classList.remove('drag-over-active'));
+        parentDiv.addEventListener('drop', async e => {
+          e.preventDefault();
+          e.stopPropagation();
+          parentDiv.classList.remove('drag-over-active');
+
+          const pointId = e.dataTransfer.getData('text/point-id');
+          const groupPath = e.dataTransfer.getData('text/group-path');
+
+          if (pointId) {
+            await updatePointGroup(pointId, parentName);
+          } else if (groupPath) {
+            await moveGroupPathToNewParent(groupPath, parentName);
+          }
+        });
+      }
+
       const parentHeader = document.createElement('div');
       parentHeader.className = 'parent-group-header';
+      if (!isReadOnly) parentHeader.draggable = true;
+
+      parentHeader.addEventListener('dragstart', e => {
+        e.dataTransfer.setData('text/group-path', parentName);
+      });
+
       const parentSafeId = encodeURIComponent(parentName).replace(/%/g, '_');
       const isParentOpen = openGroupIds.has(`p-${parentSafeId}`);
 
@@ -796,9 +848,31 @@
         const childSafeId = encodeURIComponent(childPath).replace(/%/g, '_');
         const isChildOpen = openGroupIds.has(`c-${childSafeId}`);
 
+        // ★子グループエリアへのドロップ受付（ピンおよびグループの移動）★
+        if (!isReadOnly) {
+          childDiv.addEventListener('dragover', e => { e.preventDefault(); childDiv.classList.add('drag-over-active'); });
+          childDiv.addEventListener('dragleave', () => childDiv.classList.remove('drag-over-active'));
+          childDiv.addEventListener('drop', async e => {
+            e.preventDefault();
+            e.stopPropagation();
+            childDiv.classList.remove('drag-over-active');
+
+            const pointId = e.dataTransfer.getData('text/point-id');
+            if (pointId) {
+              await updatePointGroup(pointId, childPath);
+            }
+          });
+        }
+
         const childHeader = document.createElement('div');
         childHeader.className = 'child-group-header';
-        
+        if (!isReadOnly) childHeader.draggable = true;
+
+        childHeader.addEventListener('dragstart', e => {
+          e.stopPropagation();
+          e.dataTransfer.setData('text/group-path', childPath);
+        });
+
         childHeader.innerHTML = `
           <input type="checkbox" onchange="toggleGroupVisibilityByPath('${childPath}', this.checked)" title="子グループ内を一括表示/非表示" />
           <span class="group-title-text" onclick="toggleChildFold('${childSafeId}')">
@@ -833,7 +907,8 @@
       if (!isReadOnly) li.draggable = true;
 
       li.addEventListener('dragstart', e => {
-        e.dataTransfer.setData('text/plain', String(p.id));
+        e.stopPropagation();
+        e.dataTransfer.setData('text/point-id', String(p.id));
         li.classList.add('dragging');
       });
       li.addEventListener('dragend', () => li.classList.remove('dragging'));
@@ -868,7 +943,7 @@
     return ul;
   }
 
-  // ★グループ開閉の記録保持ロジック★
+  // グループ開閉の記録保持ロジック
   function toggleParentFold(safeId) {
     const container = document.getElementById(`parent-child-container-${safeId}`);
     const icon = document.getElementById(`fold-icon-p-${safeId}`);
@@ -1086,7 +1161,6 @@
       document.querySelectorAll('.editable-only').forEach(el => el.style.display = 'none');
     }
 
-    // ★idの昇順で並び順を固定取得★
     const { data: points, error } = await supabaseClient
       .from('points')
       .select('id, title, lat, lng, group_name, tab_name, color')
