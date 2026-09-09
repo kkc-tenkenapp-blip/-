@@ -110,7 +110,7 @@
 
     #map { flex: 1; height: 100%; position: relative; }
 
-    /* ポップアップ関連CSS修正 */
+    /* ポップアップ関連CSS */
     .leaflet-popup {
       margin-bottom: 0px !important;
     }
@@ -152,7 +152,7 @@
     .modal { display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 2000; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); width: 360px; max-width: 90vw; box-sizing: border-box; }
     .modal h4 { margin: 0 0 12px 0; }
     .modal input, .modal select { width: 100%; margin-bottom: 10px; box-sizing: border-box; padding: 6px; font-size: 12px; }
-
+    
     #tab-rule-table { width: 100%; font-size: 12px; margin-bottom: 10px; border-collapse: collapse; }
     #tab-rule-table th, #tab-rule-table td { border: 1px solid #ddd; padding: 6px; text-align: left; }
     #readonly-banner { display: none; background: #ffc107; color: #333; text-align: center; padding: 6px; font-size: 12px; font-weight: bold; }
@@ -190,11 +190,40 @@
         transform: scale(0.8);
         transform-origin: bottom right;
       }
-      
-      .point-item { padding: 10px 8px; }
-      .btn-group-actions { width: 100%; justify-content: flex-end; margin-top: 4px; }
-      .tab-select-dropdown { max-width: 110px; padding: 4px 2px; }
-      .btn-item-action { padding: 5px 10px; }
+
+      /* ★ポップアップサイズ＆画像サイズの75%縮小調整★ */
+      .leaflet-popup-content-wrapper {
+        max-width: 250px !important;
+      }
+      .popup-img-container {
+        max-width: 210px;
+        gap: 8px;
+      }
+      .img-card {
+        width: 165px; /* 220pxの75% */
+        padding: 4px;
+      }
+      .popup-img {
+        height: 105px; /* 140pxの75% */
+      }
+
+      /* ★リストのグループ・項目名変更・画像・消去ボタンを非表示にし、1行に収めるスタイル★ */
+      .btn-group-action,
+      .btn-item-action:not(.btn-checked-done) {
+        display: none !important;
+      }
+      .point-item {
+        padding: 8px 6px;
+        flex-wrap: nowrap; /* 折返しを防止し1行固定 */
+        gap: 2px;
+      }
+      .point-name {
+        min-width: 0;
+      }
+      .btn-group-actions {
+        width: auto;
+        margin-top: 0;
+      }
     }
   </style>
 </head>
@@ -498,7 +527,6 @@
 
   L.control.layers(baseMaps, null, { position: 'topright' }).addTo(map);
 
-  // マーカーアイコンとポップアップアンカーの位置定義
   function createCustomIcon(color = 'blue') {
     const validColors = ['blue', 'red', 'green', 'orange', 'violet', 'gold', 'black', 'grey', 'cyan'];
     const c = validColors.includes(color) ? color : 'blue';
@@ -889,6 +917,7 @@
     }
   }
 
+  // グループ名の編集・変更
   async function editGroupUI(oldGroupPath) {
     if (isReadOnly) return;
 
@@ -925,6 +954,7 @@
     renderSidebarTree();
   }
 
+  // スポット名の編集・変更
   async function editPointTitle(pointId) {
     if (isReadOnly) return;
     const point = allPoints.find(p => Number(p.id) === Number(pointId));
@@ -961,6 +991,7 @@
     });
   }
 
+  // ドラッグ＆ドロップによるグループの直下（親子階層化）移動処理
   async function moveGroupPathToNewParent(sourceGroupPath, targetParentName) {
     if (sourceGroupPath === targetParentName || sourceGroupPath.startsWith(targetParentName + ' /')) return;
 
@@ -989,6 +1020,7 @@
     renderSidebarTree();
   }
 
+  // サイドバー描画＆チェック状態・レイヤー・吹き出し（ポップアップ）状態の自動同期
   function renderSidebarTree() {
     const treeContainer = document.getElementById('point-tree');
     treeContainer.innerHTML = '';
