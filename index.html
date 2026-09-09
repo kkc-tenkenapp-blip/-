@@ -107,24 +107,43 @@
     .point-list.collapsed { display: none; }
     .child-container.collapsed { display: none; }
     
-    .point-item { padding: 8px; display: flex; align-items: center; justify-content: space-between; font-size: 12px; border-bottom: 1px solid #f8f9fa; cursor: grab; gap: 4px; flex-wrap: nowrap; }
+    .point-item { padding: 6px 8px; display: flex; align-items: center; justify-content: space-between; font-size: 12px; border-bottom: 1px solid #f8f9fa; cursor: grab; gap: 4px; flex-wrap: nowrap; }
     .point-item.dragging { opacity: 0.5; background: #e2e6ea; }
     .point-item:hover { background: #f8f9fa; }
-    .point-name { flex: 1; margin-left: 4px; cursor: pointer; color: #212529; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; display: flex; align-items: center; }
+    .point-name { flex: 1; margin-left: 4px; cursor: pointer; color: #212529; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; display: flex; align-items: center; gap: 4px; }
     .point-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
     
-    .tab-badge { font-size: 10px; padding: 2px 6px; border-radius: 10px; color: white; margin-left: 4px; font-weight: bold; white-space: nowrap; flex-shrink: 0; }
+    /* ★着色タブ兼プルダウンのカスタムスタイル★ */
+    .tab-badge-select { 
+      font-size: 10px; 
+      padding: 2px 6px; 
+      border-radius: 10px; 
+      color: white; 
+      font-weight: bold; 
+      white-space: nowrap; 
+      flex-shrink: 0; 
+      border: none;
+      outline: none;
+      cursor: pointer;
+      appearance: none;
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      text-align: center;
+    }
+    .tab-badge-select option {
+      background: white;
+      color: #333;
+    }
     
     .btn-group-actions { display: flex; gap: 4px; align-items: center; margin-left: auto; flex-shrink: 0; }
     .btn-item-action { border: 1px solid #6c757d; background: #fff; color: #333; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px; white-space: nowrap; }
     .btn-item-action:hover { background: #e2e6ea; }
     .btn-checked-done { background: #6c757d; color: white; border: 1px solid #5a6268; }
     .btn-checked-done:hover { background: #545b62; }
-    .tab-select-dropdown { font-size: 11px; padding: 3px 2px; border: 1px solid #ccc; border-radius: 3px; max-width: 95px; }
 
     #map { flex: 1; height: 100%; position: relative; }
 
-    /* ポップアップ関連CSS修正（自動リサイズ＆1行表示） */
+    /* ポップアップ関連CSS */
     .leaflet-popup {
       margin-bottom: 0px !important;
     }
@@ -186,58 +205,28 @@
     .btn-confirm-yes { background: #dc3545; color: white; border: none; padding: 6px 16px; border-radius: 4px; cursor: pointer; }
     .btn-confirm-no { background: #6c757d; color: white; border: none; padding: 6px 16px; border-radius: 4px; cursor: pointer; }
 
-    /* ★スマートフォン（幅768px以下）表示時の最適化スタイル★ */
+    /* スマホ表示最適化 */
     @media screen and (max-width: 768px) {
       body { flex-direction: column-reverse; }
       #sidebar { width: 100% !important; max-width: 100%; height: 55vh; border-right: none; border-top: 2px solid #007bff; }
       #resizer { display: none; }
       #map { width: 100%; height: 45vh; }
       
-      /* スマホ非表示項目の隠し処理 */
-      .usage-container,
-      #import-area,
-      #share-bar { display: none !important; }
+      .usage-container, #import-area, #share-bar { display: none !important; }
 
-      /* 凡例サイズを80%に縮小 */
       #legend-box { 
-        bottom: 10px; 
-        right: 10px; 
-        padding: 6px 10px; 
-        font-size: 11px;
-        transform: scale(0.8);
-        transform-origin: bottom right;
+        bottom: 10px; right: 10px; padding: 6px 10px; font-size: 11px;
+        transform: scale(0.8); transform-origin: bottom right;
       }
 
-      /* ポップアップサイズ＆画像サイズの調整 */
-      .popup-img-container {
-        max-width: 210px;
-        gap: 8px;
-      }
-      .img-card {
-        width: 165px;
-        padding: 4px;
-      }
-      .popup-img {
-        height: 105px;
-      }
+      .popup-img-container { max-width: 210px; gap: 8px; }
+      .img-card { width: 165px; padding: 4px; }
+      .popup-img { height: 105px; }
 
-      /* リストのボタン等の非表示設定 */
-      .btn-group-action,
-      .btn-item-action:not(.btn-checked-done) {
-        display: none !important;
-      }
-      .point-item {
-        padding: 8px 6px;
-        flex-wrap: nowrap;
-        gap: 2px;
-      }
-      .point-name {
-        min-width: 0;
-      }
-      .btn-group-actions {
-        width: auto;
-        margin-top: 0;
-      }
+      .btn-group-action, .btn-item-action:not(.btn-checked-done) { display: none !important; }
+      .point-item { padding: 8px 6px; flex-wrap: nowrap; gap: 2px; }
+      .point-name { min-width: 0; }
+      .btn-group-actions { width: auto; margin-top: 0; }
     }
   </style>
 </head>
@@ -575,9 +564,14 @@
 
   L.control.layers(baseMaps, null, { position: 'topright' }).addTo(map);
 
+  /* ★cyan表示エラーを防ぐためフォールバック処理を追加★ */
   function createCustomIcon(color = 'blue') {
     const validColors = ['blue', 'red', 'green', 'orange', 'violet', 'gold', 'black', 'grey', 'cyan'];
-    const c = validColors.includes(color) ? color : 'blue';
+    let c = validColors.includes(color) ? color : 'blue';
+    
+    // cyan画像の読み込みエラーを防ぐためcyan指定時はBlueアイコンまたはフォールバック
+    if (c === 'cyan') c = 'blue';
+
     const iconUrl = `https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-${c}.png`;
     return L.icon({
       iconUrl: iconUrl,
@@ -900,7 +894,6 @@
     const pId = Number(point.id);
     if (markers[pId]) return;
 
-    /* 吹き出し（ポップアップ）内の表示を横1行固定・枠幅を自動変更する構造に修正 */
     const popupContent = `
       <div style="width: auto; white-space: nowrap;">
         <small style="color:#666;">${point.group_name || 'グループなし'}</small>
@@ -1257,7 +1250,19 @@
       });
       li.addEventListener('dragend', () => li.classList.remove('dragging'));
 
-      const tabBadgeHtml = p.tab_name ? `<span class="tab-badge" style="background:${colorHexMap[p.color]||'#0d6efd'};">${p.tab_name}</span>` : '';
+      /* ★着色タブ部分自体を直接クリックで変更できるプルダウン化★ */
+      let tabBadgeHtml = '';
+      if (isReadOnly) {
+        tabBadgeHtml = p.tab_name ? `<span class="tab-badge-select" style="background:${colorHexMap[p.color]||'#0d6efd'}; pointer-events:none;">${p.tab_name}</span>` : '';
+      } else {
+        const optionsHtml = tabRules.map(r => `<option value="${r.tab_name}" ${p.tab_name === r.tab_name ? 'selected' : ''}>${r.tab_name}</option>`).join('');
+        const curTabLabel = p.tab_name || 'タブ未選択';
+        tabBadgeHtml = `
+          <select class="tab-badge-select" style="background:${colorHexMap[p.color]||'#0d6efd'};" onclick="event.stopPropagation()" onchange="changePointTabDirect(${p.id}, this.value)">
+            ${optionsHtml}
+          </select>
+        `;
+      }
       
       const isChecked = checkedPointIds.has(pId);
       if (isChecked) {
@@ -1269,22 +1274,15 @@
 
       let actionsHtml = '';
       if (!isReadOnly) {
-        const optionsHtml = tabRules.map(r => `<option value="${r.tab_name}" ${p.tab_name === r.tab_name ? 'selected' : ''}>${r.tab_name}</option>`).join('');
-        
         actionsHtml = `
           <div class="btn-group-actions">
             <button class="btn-item-action" onclick="editPointTitle(${p.id})" title="スポット名を変更">✏️</button>
-            <select class="tab-select-dropdown" onchange="changePointTabDirect(${p.id}, this.value)">
-              <option value="">タブ選択...</option>
-              ${optionsHtml}
-            </select>
             <button class="btn-item-action btn-checked-done" onclick="markPointAsChecked(${p.id})">点検済</button>
             <button class="btn-item-action" onclick="openImageUploader(${p.id})">画像</button>
           </div>
         `;
       }
 
-      /* スポット名とタブ名をきれいに1行で収めつつ途中非表示化できるよう構造を変更 */
       li.innerHTML = `
         <input type="checkbox" ${isChecked ? 'checked' : ''} id="chk-point-${p.id}" value="${p.id}" class="chk-point" onchange="togglePointVisibility(${p.id}, this.checked)" />
         <span class="point-name" onclick="focusToPoint(${p.id})">
@@ -1536,6 +1534,7 @@
     }).catch(() => { prompt('共有用URL:', shareUrl); });
   }
 
+  /* ★リストクリック時に右側地図の中央に来るようフォーカス関数を強化★ */
   function focusToPoint(id) {
     const point = allPoints.find(p => Number(p.id) === Number(id));
     if (!point) return;
@@ -1543,8 +1542,14 @@
     togglePointVisibility(id, true);
 
     const marker = markers[id];
-    map.setView(marker.getLatLng(), 16, { animate: true });
-    marker.openPopup();
+    if (marker) {
+      const targetLatLng = marker.getLatLng();
+      map.setView(targetLatLng, 16, { animate: true });
+      map.panTo(targetLatLng);
+      setTimeout(() => {
+        marker.openPopup();
+      }, 200);
+    }
   }
 
   async function loadInitialPoints() {
@@ -1594,6 +1599,7 @@
     }
   }
 
+  /* ★Excelセル内画像埋め込み（Drawing/Media）解析の強化★ */
   async function handleFileSelect(e) {
     if (isReadOnly) return;
     const file = e.target.files[0];
@@ -1605,36 +1611,50 @@
 
       try {
         const zip = await JSZip.loadAsync(arrayBuffer);
-        const drawingXml = await zip.files['xl/drawings/drawing1.xml']?.async('text');
-        const relsXml = await zip.files['xl/drawings/_rels/drawing1.xml.rels']?.async('text');
+        
+        // zip内部のdrawings・relsファイルをすべてスキャンして抽出
+        const drawingFiles = Object.keys(zip.files).filter(k => k.startsWith('xl/drawings/drawing') && k.endsWith('.xml'));
+        
+        for (const drawPath of drawingFiles) {
+          const relsPath = drawPath.replace('xl/drawings/', 'xl/drawings/_rels/') + '.rels';
+          const drawingXml = await zip.files[drawPath]?.async('text');
+          const relsXml = zip.files[relsPath] ? await zip.files[relsPath].async('text') : null;
 
-        if (drawingXml && relsXml) {
-          const parser = new DOMParser();
-          const relsDoc = parser.parseFromString(relsXml, 'text/xml');
-          const rels = {};
-          relsDoc.querySelectorAll('Relationship').forEach(r => {
-            rels[r.getAttribute('Id')] = r.getAttribute('Target').replace('../media/', '');
-          });
+          if (drawingXml) {
+            const parser = new DOMParser();
+            const rels = {};
+            
+            if (relsXml) {
+              const relsDoc = parser.parseFromString(relsXml, 'text/xml');
+              relsDoc.querySelectorAll('Relationship').forEach(r => {
+                rels[r.getAttribute('Id')] = r.getAttribute('Target').replace('../media/', '').replace('media/', '');
+              });
+            }
 
-          const drawDoc = parser.parseFromString(drawingXml, 'text/xml');
-          const anchors = drawDoc.querySelectorAll('oneCellAnchor, twoCellAnchor');
-          
-          for (const anchor of anchors) {
-            const rowElem = anchor.querySelector('from > row');
-            const blipElem = anchor.querySelector('blip');
-            if (rowElem && blipElem) {
-              const rowIdx = parseInt(rowElem.textContent, 10);
-              const rId = blipElem.getAttribute('r:embed');
-              const mediaName = rels[rId];
-              if (mediaName && zip.files[`xl/media/${mediaName}`]) {
-                const base64 = await zip.files[`xl/media/${mediaName}`].async('base64');
-                rowImageMap[rowIdx] = `data:image/jpeg;base64,${base64}`;
+            const drawDoc = parser.parseFromString(drawingXml, 'text/xml');
+            const anchors = drawDoc.querySelectorAll('oneCellAnchor, twoCellAnchor');
+            
+            for (const anchor of anchors) {
+              const rowElem = anchor.querySelector('from > row');
+              const blipElem = anchor.querySelector('blip');
+              if (rowElem && blipElem) {
+                const rowIdx = parseInt(rowElem.textContent, 10);
+                const rId = blipElem.getAttribute('r:embed') || blipElem.getAttribute('r:link');
+                const mediaName = rels[rId];
+                
+                const mediaPath = Object.keys(zip.files).find(k => k.endsWith(mediaName));
+                if (mediaPath) {
+                  const base64 = await zip.files[mediaPath].async('base64');
+                  const ext = mediaName.split('.').pop().toLowerCase();
+                  const mime = ext === 'png' ? 'image/png' : 'image/jpeg';
+                  rowImageMap[rowIdx] = `data:${mime};base64,${base64}`;
+                }
               }
             }
           }
         }
       } catch (zipErr) {
-        console.warn('Zip解析スキップ:', zipErr);
+        console.warn('Zip内画像解析エラー:', zipErr);
       }
 
       const workbook = XLSX.read(arrayBuffer, { type: 'array' });
