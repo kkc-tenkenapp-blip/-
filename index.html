@@ -28,13 +28,11 @@
     .login-btn:hover { background: #0056b3; }
     #login-error { color: #dc3545; font-size: 12px; margin-top: 10px; display: none; word-break: break-all; }
 
-    /* ★左側タブの初期表示サイズを画像に合わせて320pxに変更★ */
     #sidebar {
       width: 320px; min-width: 240px; max-width: 800px; background: #f8f9fa; border-right: 1px solid #ccc;
       display: flex; flex-direction: column; z-index: 1000; box-shadow: 2px 0 5px rgba(0,0,0,0.1); flex-shrink: 0;
     }
     
-    /* サイドバーの幅変更用スライダー（リサイザー） */
     #resizer {
       width: 6px;
       background: #ddd;
@@ -50,7 +48,6 @@
     .header-top { display: flex; justify-content: space-between; align-items: center; }
     .header-top h3 { margin: 0; font-size: 15px; }
 
-    /* Supabase 無料枠使用量プログレスバーのスタイル */
     .usage-container {
       background: rgba(255, 255, 255, 0.15);
       border-radius: 6px;
@@ -76,13 +73,11 @@
     #btn-share-selected { background: #198754; }
     #btn-delete-selected { background: #dc3545; }
 
-    /* Excelインポート＆個別登録エリア */
     #import-area { padding: 8px 12px; background: #e9ecef; border-bottom: 1px solid #ddd; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
     #drop-zone { flex: 1; border: 2px dashed #007bff; background: #fff; padding: 8px; text-align: center; border-radius: 4px; font-size: 11px; cursor: pointer; min-width: 120px; }
     .btn-import-sub { background: #6c757d; color: white; border: none; padding: 8px 8px; border-radius: 4px; cursor: pointer; font-size: 11px; white-space: nowrap; }
     .btn-import-manual { background: #17a2b8; color: white; border: none; padding: 8px 8px; border-radius: 4px; cursor: pointer; font-size: 11px; white-space: nowrap; font-weight: bold; }
 
-    /* 検索・フィルタバー */
     #filter-bar { padding: 8px 12px; background: #f1f3f5; border-bottom: 1px solid #ddd; display: flex; flex-direction: column; gap: 6px; }
     .filter-row { display: flex; gap: 6px; align-items: center; }
     .filter-input { flex: 1.2; padding: 6px 8px; font-size: 12px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; min-width: 0; }
@@ -114,7 +109,6 @@
     .point-name { flex: 1; margin-left: 4px; cursor: pointer; color: #212529; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; display: flex; align-items: center; gap: 4px; }
     .point-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
     
-    /* 着色タブ兼プルダウンのカスタムスタイル */
     .tab-badge-select { 
       font-size: 10px; 
       padding: 2px 6px; 
@@ -136,7 +130,6 @@
       color: #333;
     }
     
-    /* 横に並ぶ「点検済」用の静的バッジ */
     .tab-badge-done {
       font-size: 10px; 
       padding: 2px 6px; 
@@ -156,10 +149,7 @@
 
     #map { flex: 1; height: 100%; position: relative; }
 
-    /* ポップアップ関連CSS */
-    .leaflet-popup {
-      margin-bottom: 0px !important;
-    }
+    .leaflet-popup { margin-bottom: 0px !important; }
     .leaflet-popup-content-wrapper { 
       padding: 10px; 
       max-width: none !important; 
@@ -173,7 +163,6 @@
     .img-card { position: relative; display: flex; flex-direction: column; flex-shrink: 0; width: 220px; background: #f8f9fa; border: 1px solid #ddd; border-radius: 6px; padding: 6px; box-sizing: border-box; }
     .popup-img { width: 100%; height: 140px; border-radius: 4px; object-fit: cover; cursor: zoom-in; }
     
-    /* 画像個別削除ボタン */
     .img-delete-btn {
       position: absolute; top: 8px; right: 8px; background: rgba(220, 53, 69, 0.85); color: white; border: none;
       border-radius: 50%; width: 22px; height: 22px; cursor: pointer; font-size: 11px; display: flex;
@@ -205,7 +194,6 @@
     #tab-rule-table th, #tab-rule-table td { border: 1px solid #ddd; padding: 6px; text-align: left; }
     #readonly-banner { display: none; background: #ffc107; color: #333; text-align: center; padding: 6px; font-size: 12px; font-weight: bold; }
 
-    /* アプリ内カスタム確認ダイアログ */
     #custom-confirm-modal {
       display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
       background: rgba(0,0,0,0.5); z-index: 9999; justify-content: center; align-items: center;
@@ -218,7 +206,6 @@
     .btn-confirm-yes { background: #dc3545; color: white; border: none; padding: 6px 16px; border-radius: 4px; cursor: pointer; }
     .btn-confirm-no { background: #6c757d; color: white; border: none; padding: 6px 16px; border-radius: 4px; cursor: pointer; }
 
-    /* スマホ表示最適化 */
     @media screen and (max-width: 768px) {
       body { flex-direction: column-reverse; }
       #sidebar { width: 100% !important; max-width: 100%; height: 55vh; border-right: none; border-top: 2px solid #007bff; }
@@ -274,7 +261,6 @@
       <h3>点検管理アプリ</h3>
       <button class="btn-logout editable-only" onclick="logoutSupabase()">ログアウト</button>
     </div>
-    <!-- Supabase 無料枠使用状況メーター -->
     <div class="usage-container" title="Supabase無料枠（500MB）に対する推定使用量">
       <div class="usage-row">
         <span>📊 容量使用状況 (推定)</span>
@@ -299,7 +285,6 @@
     </div>
   </div>
 
-  <!-- 上側：Excelドロップ＆個別登録エリア -->
   <div id="import-area" class="editable-only">
     <div id="drop-zone" onclick="document.getElementById('excel-input').click()">
       📂 Excelをドロップ
@@ -309,7 +294,6 @@
     <button class="btn-import-sub" onclick="downloadExcelTemplate()">📥 テンプレート</button>
   </div>
 
-  <!-- 下側：検索・フィルタバー -->
   <div id="filter-bar">
     <div class="filter-row">
       <input type="text" id="search-keyword" class="filter-input" placeholder="🔍 スポット名で検索..." oninput="onFilterChange()" />
@@ -327,7 +311,6 @@
   </div>
 </div>
 
-<!-- 幅調整用ドラッグバー -->
 <div id="resizer"></div>
 
 <div id="map">
@@ -354,7 +337,6 @@
     <tbody id="tab-rule-list"></tbody>
   </table>
 
-  <!-- ★cyanを削除し、pink / yellowを追加★ -->
   <div style="border-top:1px solid #eee; pt:10px; margin-top:10px;">
     <input type="text" id="new-tab-name" placeholder="新しいタブ文字（例: 標識）" />
     <select id="new-tab-color">
@@ -374,7 +356,6 @@
   <button onclick="closeTabConfigModal()" style="width:100%; margin-top:10px; background:#6c757d; color:white; border:none; padding:8px; border-radius:4px; cursor:pointer;">閉じる</button>
 </div>
 
-<!-- 新規・個別登録用ダイアログモーダル -->
 <div id="form-container" class="modal">
   <h4 id="form-modal-title">新しいポイントを追加</h4>
   <input type="text" id="spot-title" placeholder="スポット名（必須）" />
@@ -410,13 +391,11 @@
   let isReadOnly = false;
   let targetPointIdForImage = null;
 
-  // 折りたたみの開閉状態・チェック状態・ポップアップ保持用変数
   const openGroupIds = new Set();
   const checkedPointIds = new Set();
   let activePopupPointId = null;
   let isSelfOperating = false;
 
-  // --- サイドバーのリサイズ処理 ---
   const sidebar = document.getElementById('sidebar');
   const resizer = document.getElementById('resizer');
   let isResizing = false;
@@ -447,7 +426,6 @@
     }
   });
 
-  // アプリ内カスタム確認モーダルの呼び出し用関数
   function showCustomConfirm(message) {
     return new Promise((resolve) => {
       const modal = document.getElementById('custom-confirm-modal');
@@ -469,7 +447,6 @@
     });
   }
 
-  // 共有URLアクセス判定＆セッション確認
   async function checkSession() {
     const urlParams = new URLSearchParams(window.location.search);
     const sharedIds = urlParams.get('ids') ? urlParams.get('ids').split(',') : (urlParams.get('id') ? [urlParams.get('id')] : null);
@@ -522,7 +499,6 @@
     }
   }
 
-  // --- Supabase無料枠容量計算プログレスバー更新 ---
   async function updateDatabaseUsageMeter() {
     const { data, error } = await supabaseClient.from('points').select('image_url');
     if (error || !data) return;
@@ -551,7 +527,6 @@
     }
   }
 
-  // --- 地図初期化 ---
   const map = L.map('map', { minZoom: 5, maxZoom: 18 }).setView([40.220360, 141.781950], 13);
 
   const gsiPale = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png', {
@@ -579,7 +554,6 @@
 
   L.control.layers(baseMaps, null, { position: 'topright' }).addTo(map);
 
-  /* ★カラーマッピング追加（cyan削除、pink/yellow追加）★ */
   function createCustomIcon(color = 'blue') {
     const validColors = ['blue', 'red', 'green', 'orange', 'violet', 'gold', 'black', 'grey', 'pink', 'yellow'];
     let c = validColors.includes(color) ? color : 'blue';
@@ -735,7 +709,6 @@
     document.getElementById('lightbox-modal').style.display = 'none';
   }
 
-  // ポップアップ内画像の取得および表示（個別削除ボタン付き）
   async function loadImagesForPopup(pointId) {
     const container = document.getElementById(`popup-img-area-${pointId}`);
     if (!container) return;
@@ -798,7 +771,6 @@
     container.innerHTML = `<div class="popup-img-container">${cardsHtml}</div>`;
   }
 
-  // 個別画像の削除処理
   async function deleteSingleImage(e, pointId, imgIndex) {
     if (e) e.stopPropagation();
     if (isReadOnly) return;
@@ -957,7 +929,6 @@
     }
   }
 
-  /* ★グループ削除時に内部のスポット情報もまとめて完全消去する処理に変更★ */
   async function deleteGroupUI(groupPath) {
     const targetPoints = allPoints.filter(p => {
       const g = p.group_name || '未分類';
@@ -990,7 +961,6 @@
     updateDatabaseUsageMeter();
   }
 
-  // グループ名の編集・変更
   async function editGroupUI(oldGroupPath) {
     if (isReadOnly) return;
 
@@ -1027,7 +997,6 @@
     renderSidebarTree();
   }
 
-  // スポット名の編集・変更
   async function editPointTitle(pointId) {
     if (isReadOnly) return;
     const point = allPoints.find(p => Number(p.id) === Number(pointId));
@@ -1064,7 +1033,6 @@
     });
   }
 
-  // ドラッグ＆ドロップによるグループの直下（親子階層化）移動処理
   async function moveGroupPathToNewParent(sourceGroupPath, targetParentName) {
     if (sourceGroupPath === targetParentName || sourceGroupPath.startsWith(targetParentName + ' /')) return;
 
@@ -1093,178 +1061,181 @@
     renderSidebarTree();
   }
 
-  // サイドバー描画＆チェック状態・レイヤー・吹き出し（ポップアップ）状態の自動同期
   function renderSidebarTree() {
-    const treeContainer = document.getElementById('point-tree');
-    treeContainer.innerHTML = '';
+    try {
+      const treeContainer = document.getElementById('point-tree');
+      treeContainer.innerHTML = '';
 
-    const filteredPoints = getFilteredPoints();
+      const filteredPoints = getFilteredPoints();
 
-    const countBadge = document.getElementById('search-count-badge');
-    if (countBadge) {
-      countBadge.textContent = `${filteredPoints.length} / ${allPoints.length} 件`;
-    }
-
-    const groupTree = {};
-
-    function ensureGroupPath(parent, child) {
-      if (!groupTree[parent]) groupTree[parent] = { _items: [], _children: {} };
-      if (child && !groupTree[parent]._children[child]) {
-        groupTree[parent]._children[child] = [];
-      }
-    }
-
-    customGroups.forEach(gPath => {
-      const parts = gPath.split('/').map(s => s.trim());
-      const p = parts[0] || '未分類';
-      const c = parts[1] || null;
-      ensureGroupPath(p, c);
-    });
-
-    filteredPoints.forEach(p => {
-      const rawG = p.group_name || '未分類';
-      const parts = rawG.split('/').map(s => s.trim());
-      const parentName = parts[0] || '未分類';
-      const childName = parts[1] || null;
-
-      ensureGroupPath(parentName, childName);
-
-      if (childName) {
-        groupTree[parentName]._children[childName].push(p);
-      } else {
-        groupTree[parentName]._items.push(p);
-      }
-    });
-
-    if (Object.keys(groupTree).length === 0) {
-      treeContainer.innerHTML = '<div style="font-size:12px; color:#888; text-align:center; padding:20px;">該当するスポットが見つかりません</div>';
-      return;
-    }
-
-    Object.keys(groupTree).forEach(parentName => {
-      const parentData = groupTree[parentName];
-      const parentDiv = document.createElement('div');
-      parentDiv.className = 'parent-group-item';
-
-      if (!isReadOnly) {
-        parentDiv.addEventListener('dragover', e => { e.preventDefault(); parentDiv.classList.add('drag-over-active'); });
-        parentDiv.addEventListener('dragleave', () => parentDiv.classList.remove('drag-over-active'));
-        parentDiv.addEventListener('drop', async e => {
-          e.preventDefault();
-          e.stopPropagation();
-          parentDiv.classList.remove('drag-over-active');
-
-          const pointId = e.dataTransfer.getData('text/point-id');
-          const groupPath = e.dataTransfer.getData('text/group-path');
-
-          if (pointId) {
-            await updatePointGroup(pointId, parentName);
-          } else if (groupPath) {
-            await moveGroupPathToNewParent(groupPath, parentName);
-          }
-        });
+      const countBadge = document.getElementById('search-count-badge');
+      if (countBadge) {
+        countBadge.textContent = `${filteredPoints.length} / ${allPoints.length} 件`;
       }
 
-      const parentHeader = document.createElement('div');
-      parentHeader.className = 'parent-group-header';
-      if (!isReadOnly) parentHeader.draggable = true;
+      const groupTree = {};
 
-      parentHeader.addEventListener('dragstart', e => {
-        e.dataTransfer.setData('text/group-path', parentName);
+      function ensureGroupPath(parent, child) {
+        if (!groupTree[parent]) groupTree[parent] = { _items: [], _children: {} };
+        if (child && !groupTree[parent]._children[child]) {
+          groupTree[parent]._children[child] = [];
+        }
+      }
+
+      customGroups.forEach(gPath => {
+        const parts = gPath.split('/').map(s => s.trim());
+        const p = parts[0] || '未分類';
+        const c = parts[1] || null;
+        ensureGroupPath(p, c);
       });
 
-      const parentSafeId = encodeURIComponent(parentName).replace(/%/g, '_');
-      const isParentOpen = openGroupIds.has(`p-${parentSafeId}`);
+      filteredPoints.forEach(p => {
+        const rawG = p.group_name || '未分類';
+        const parts = rawG.split('/').map(s => s.trim());
+        const parentName = parts[0] || '未分類';
+        const childName = parts[1] || null;
 
-      parentHeader.innerHTML = `
-        <input type="checkbox" onchange="toggleGroupVisibilityByPath('${parentName}', this.checked)" title="親グループ内を一括表示/非表示" />
-        <span class="group-title-text" onclick="toggleParentFold('${parentSafeId}')">
-          <span id="fold-icon-p-${parentSafeId}">${isParentOpen ? '📂' : '📁'}</span> <strong>${parentName}</strong>
-        </span>
-        ${!isReadOnly ? `
-          <button class="btn-group-action btn-group-edit" onclick="editGroupUI('${parentName}')" title="グループ名を変更">✏️</button>
-          <button class="btn-group-action btn-group-del" onclick="deleteGroupUI('${parentName}')" title="グループおよび内部情報を一括削除">✕</button>
-        ` : ''}
-      `;
-      parentDiv.appendChild(parentHeader);
+        ensureGroupPath(parentName, childName);
 
-      const childContainer = document.createElement('div');
-      childContainer.className = `child-container ${isParentOpen ? '' : 'collapsed'}`;
-      childContainer.id = `parent-child-container-${parentSafeId}`;
+        if (childName) {
+          groupTree[parentName]._children[childName].push(p);
+        } else {
+          groupTree[parentName]._items.push(p);
+        }
+      });
 
-      if (parentData._items.length > 0) {
-        const ul = renderPointList(parentData._items, parentName);
-        childContainer.appendChild(ul);
+      if (Object.keys(groupTree).length === 0) {
+        treeContainer.innerHTML = '<div style="font-size:12px; color:#888; text-align:center; padding:20px;">該当するスポットが見つかりません</div>';
+        return;
       }
 
-      Object.keys(parentData._children).forEach(childName => {
-        const childPoints = parentData._children[childName];
-        const childDiv = document.createElement('div');
-        childDiv.className = 'child-group-item';
-        const childPath = `${parentName} / ${childName}`;
-        const childSafeId = encodeURIComponent(childPath).replace(/%/g, '_');
-        const isChildOpen = openGroupIds.has(`c-${childSafeId}`);
+      Object.keys(groupTree).forEach(parentName => {
+        const parentData = groupTree[parentName];
+        const parentDiv = document.createElement('div');
+        parentDiv.className = 'parent-group-item';
 
         if (!isReadOnly) {
-          childDiv.addEventListener('dragover', e => { e.preventDefault(); childDiv.classList.add('drag-over-active'); });
-          childDiv.addEventListener('dragleave', () => childDiv.classList.remove('drag-over-active'));
-          childDiv.addEventListener('drop', async e => {
+          parentDiv.addEventListener('dragover', e => { e.preventDefault(); parentDiv.classList.add('drag-over-active'); });
+          parentDiv.addEventListener('dragleave', () => parentDiv.classList.remove('drag-over-active'));
+          parentDiv.addEventListener('drop', async e => {
             e.preventDefault();
             e.stopPropagation();
-            childDiv.classList.remove('drag-over-active');
+            parentDiv.classList.remove('drag-over-active');
 
             const pointId = e.dataTransfer.getData('text/point-id');
+            const groupPath = e.dataTransfer.getData('text/group-path');
+
             if (pointId) {
-              await updatePointGroup(pointId, childPath);
+              await updatePointGroup(pointId, parentName);
+            } else if (groupPath) {
+              await moveGroupPathToNewParent(groupPath, parentName);
             }
           });
         }
 
-        const childHeader = document.createElement('div');
-        childHeader.className = 'child-group-header';
-        if (!isReadOnly) childHeader.draggable = true;
+        const parentHeader = document.createElement('div');
+        parentHeader.className = 'parent-group-header';
+        if (!isReadOnly) parentHeader.draggable = true;
 
-        childHeader.addEventListener('dragstart', e => {
-          e.stopPropagation();
-          e.dataTransfer.setData('text/group-path', childPath);
+        parentHeader.addEventListener('dragstart', e => {
+          e.dataTransfer.setData('text/group-path', parentName);
         });
 
-        childHeader.innerHTML = `
-          <input type="checkbox" onchange="toggleGroupVisibilityByPath('${childPath}', this.checked)" title="子グループ内を一括表示/非表示" />
-          <span class="group-title-text" onclick="toggleChildFold('${childSafeId}')">
-            <span id="fold-icon-c-${childSafeId}">${isChildOpen ? '📂' : '📁'}</span> ${childName} (${childPoints.length})
+        const parentSafeId = encodeURIComponent(parentName).replace(/%/g, '_');
+        const isParentOpen = openGroupIds.has(`p-${parentSafeId}`);
+
+        parentHeader.innerHTML = `
+          <input type="checkbox" onchange="toggleGroupVisibilityByPath('${parentName}', this.checked)" title="親グループ内を一括表示/非表示" />
+          <span class="group-title-text" onclick="toggleParentFold('${parentSafeId}')">
+            <span id="fold-icon-p-${parentSafeId}">${isParentOpen ? '📂' : '📁'}</span> <strong>${parentName}</strong>
           </span>
           ${!isReadOnly ? `
-            <button class="btn-group-action btn-group-edit" onclick="editGroupUI('${childPath}')" title="子グループ名を変更">✏️</button>
-            <button class="btn-group-action btn-group-del" onclick="deleteGroupUI('${childPath}')" title="子グループおよび内部情報を一括削除">✕</button>
+            <button class="btn-group-action btn-group-edit" onclick="editGroupUI('${parentName}')" title="グループ名を変更">✏️</button>
+            <button class="btn-group-action btn-group-del" onclick="deleteGroupUI('${parentName}')" title="グループおよび内部情報を一括削除">✕</button>
           ` : ''}
         `;
-        childDiv.appendChild(childHeader);
+        parentDiv.appendChild(parentHeader);
 
-        const childUl = renderPointList(childPoints, childPath);
-        childUl.id = `list-child-${childSafeId}`;
-        if (!isChildOpen) {
-          childUl.classList.add('collapsed');
+        const childContainer = document.createElement('div');
+        childContainer.className = `child-container ${isParentOpen ? '' : 'collapsed'}`;
+        childContainer.id = `parent-child-container-${parentSafeId}`;
+
+        if (parentData._items.length > 0) {
+          const ul = renderPointList(parentData._items, parentName);
+          childContainer.appendChild(ul);
         }
 
-        childDiv.appendChild(childUl);
-        childContainer.appendChild(childDiv);
+        Object.keys(parentData._children).forEach(childName => {
+          const childPoints = parentData._children[childName];
+          const childDiv = document.createElement('div');
+          childDiv.className = 'child-group-item';
+          const childPath = `${parentName} / ${childName}`;
+          const childSafeId = encodeURIComponent(childPath).replace(/%/g, '_');
+          const isChildOpen = openGroupIds.has(`c-${childSafeId}`);
+
+          if (!isReadOnly) {
+            childDiv.addEventListener('dragover', e => { e.preventDefault(); childDiv.classList.add('drag-over-active'); });
+            childDiv.addEventListener('dragleave', () => childDiv.classList.remove('drag-over-active'));
+            childDiv.addEventListener('drop', async e => {
+              e.preventDefault();
+              e.stopPropagation();
+              childDiv.classList.remove('drag-over-active');
+
+              const pointId = e.dataTransfer.getData('text/point-id');
+              if (pointId) {
+                await updatePointGroup(pointId, childPath);
+              }
+            });
+          }
+
+          const childHeader = document.createElement('div');
+          childHeader.className = 'child-group-header';
+          if (!isReadOnly) childHeader.draggable = true;
+
+          childHeader.addEventListener('dragstart', e => {
+            e.stopPropagation();
+            e.dataTransfer.setData('text/group-path', childPath);
+          });
+
+          childHeader.innerHTML = `
+            <input type="checkbox" onchange="toggleGroupVisibilityByPath('${childPath}', this.checked)" title="子グループ内を一括表示/非表示" />
+            <span class="group-title-text" onclick="toggleChildFold('${childSafeId}')">
+              <span id="fold-icon-c-${childSafeId}">${isChildOpen ? '📂' : '📁'}</span> ${childName} (${childPoints.length})
+            </span>
+            ${!isReadOnly ? `
+              <button class="btn-group-action btn-group-edit" onclick="editGroupUI('${childPath}')" title="子グループ名を変更">✏️</button>
+              <button class="btn-group-action btn-group-del" onclick="deleteGroupUI('${childPath}')" title="子グループおよび内部情報を一括削除">✕</button>
+            ` : ''}
+          `;
+          childDiv.appendChild(childHeader);
+
+          const childUl = renderPointList(childPoints, childPath);
+          childUl.id = `list-child-${childSafeId}`;
+          if (!isChildOpen) {
+            childUl.classList.add('collapsed');
+          }
+
+          childDiv.appendChild(childUl);
+          childContainer.appendChild(childDiv);
+        });
+
+        parentDiv.appendChild(childContainer);
+        treeContainer.appendChild(parentDiv);
       });
 
-      parentDiv.appendChild(childContainer);
-      treeContainer.appendChild(parentDiv);
-    });
-
-    if (activePopupPointId && markers[activePopupPointId]) {
-      setTimeout(() => {
-        if (markers[activePopupPointId] && map.hasLayer(markers[activePopupPointId])) {
-          markers[activePopupPointId].openPopup();
-        }
-      }, 50);
+      if (activePopupPointId && markers[activePopupPointId]) {
+        setTimeout(() => {
+          if (markers[activePopupPointId] && map.hasLayer(markers[activePopupPointId])) {
+            markers[activePopupPointId].openPopup();
+          }
+        }, 50);
+      }
+    } catch (err) {
+      console.error('サイドバー描画エラー:', err);
+      document.getElementById('point-tree').innerHTML = '<div style="color:red; font-size:12px; padding:10px;">表示エラーが発生しました</div>';
     }
   }
 
-  /* ★リスト内の描画：「点検済」を着色タブ消去ではなく横並びバッジとして表示★ */
   function renderPointList(points, groupPath) {
     const ul = document.createElement('ul');
     ul.className = 'point-list';
@@ -1294,7 +1265,6 @@
         `;
       }
 
-      // 点検済バッジ（横並び表示）
       const doneBadgeHtml = p.is_checked ? `<span class="tab-badge-done">点検済</span>` : '';
       
       const isChecked = checkedPointIds.has(pId);
@@ -1379,12 +1349,13 @@
     }
   }
 
-  /* ★「点検済」ボタンを押した際、着色タブを上書きせず「点検済」状態をトグル更新する処理★ */
   async function togglePointCheckedStatus(pointId) {
     const point = allPoints.find(p => Number(p.id) === Number(pointId));
     if (!point) return;
 
     const newChecked = !point.is_checked;
+    
+    // is_checked カラムが存在しない場合のエラーフォールバック付き更新
     const { error } = await supabaseClient.from('points').update({ is_checked: newChecked }).eq('id', pointId);
 
     if (!error) {
@@ -1398,7 +1369,7 @@
       }
       renderSidebarTree();
     } else {
-      alert('点検状態の更新に失敗しました: ' + error.message);
+      alert('点検状態の更新に失敗しました。\nSupabaseの「points」テーブルに「is_checked」(boolean型)のカラムが追加されているか確認してください。\n\n詳細: ' + error.message);
     }
   }
 
@@ -1605,49 +1576,64 @@
   }
 
   async function loadInitialPoints() {
-    await loadTabRules();
+    try {
+      await loadTabRules();
 
-    const urlParams = new URLSearchParams(window.location.search);
-    const sharedIds = urlParams.get('ids') ? urlParams.get('ids').split(',') : (urlParams.get('id') ? [urlParams.get('id')] : null);
+      const urlParams = new URLSearchParams(window.location.search);
+      const sharedIds = urlParams.get('ids') ? urlParams.get('ids').split(',') : (urlParams.get('id') ? [urlParams.get('id')] : null);
 
-    if (sharedIds) {
-      isReadOnly = true;
-      document.getElementById('readonly-banner').style.display = 'block';
-      document.querySelectorAll('.editable-only').forEach(el => el.style.display = 'none');
-    }
+      if (sharedIds) {
+        isReadOnly = true;
+        document.getElementById('readonly-banner').style.display = 'block';
+        document.querySelectorAll('.editable-only').forEach(el => el.style.display = 'none');
+      }
 
-    const { data: points, error } = await supabaseClient
-      .from('points')
-      .select('id, title, lat, lng, group_name, tab_name, color, image_url, is_checked')
-      .order('id', { ascending: true });
+      /* SELECT 取得処理の安全化 */
+      const { data: points, error } = await supabaseClient
+        .from('points')
+        .select('*')
+        .order('id', { ascending: true });
 
-    if (error) return;
+      if (error) {
+        console.error('Pointsデータ取得エラー:', error);
+        document.getElementById('point-tree').innerHTML = '<div style="color:red; font-size:12px; padding:10px;">データ取得に失敗しました</div>';
+        return;
+      }
 
-    if (sharedIds) {
-      allPoints = (points || []).filter(p => sharedIds.includes(String(p.id)));
-    } else {
-      allPoints = points || [];
-    }
+      if (sharedIds) {
+        allPoints = (points || []).filter(p => sharedIds.includes(String(p.id)));
+      } else {
+        allPoints = points || [];
+      }
 
-    const bounds = [];
-
-    Object.keys(markers).forEach(id => { map.removeLayer(markers[id]); delete markers[id]; });
-
-    if (sharedIds) {
+      // is_checked カラムがない場合の初期補正
       allPoints.forEach(p => {
-        addMarkerToMap(p);
-        map.addLayer(markers[p.id]);
-        checkedPointIds.add(Number(p.id));
-        bounds.push([p.lat, p.lng]);
+        if (p.is_checked === undefined) p.is_checked = false;
       });
-    }
 
-    updateFilterTabOptions();
-    renderSidebarTree();
-    updateDatabaseUsageMeter();
+      const bounds = [];
 
-    if (sharedIds && bounds.length > 0) {
-      map.fitBounds(bounds, { padding: [50, 50] });
+      Object.keys(markers).forEach(id => { map.removeLayer(markers[id]); delete markers[id]; });
+
+      if (sharedIds) {
+        allPoints.forEach(p => {
+          addMarkerToMap(p);
+          map.addLayer(markers[p.id]);
+          checkedPointIds.add(Number(p.id));
+          bounds.push([p.lat, p.lng]);
+        });
+      }
+
+      updateFilterTabOptions();
+      renderSidebarTree();
+      updateDatabaseUsageMeter();
+
+      if (sharedIds && bounds.length > 0) {
+        map.fitBounds(bounds, { padding: [50, 50] });
+      }
+    } catch (err) {
+      console.error('初期化処理全般エラー:', err);
+      document.getElementById('point-tree').innerHTML = '<div style="color:red; font-size:12px; padding:10px;">初期化エラーが発生しました</div>';
     }
   }
 
@@ -1764,7 +1750,6 @@
     }
   });
 
-  // マップ上クリック時の登録フォーム呼び出し
   map.on('click', (e) => {
     if (isReadOnly) return;
     selectedLatLng = e.latlng;
@@ -1778,7 +1763,6 @@
     document.getElementById('form-container').style.display = 'block';
   });
 
-  // 「➕ 個別登録」ボタン用のモーダル呼び出し
   function openManualRegisterModal() {
     if (isReadOnly) return;
     selectedLatLng = null;
@@ -1803,7 +1787,6 @@
     selectedLatLng = null;
   }
 
-  // 手動登録＆保存処理
   async function savePoint() {
     if (isReadOnly) return;
     const title = document.getElementById('spot-title').value.trim();
