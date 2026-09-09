@@ -109,6 +109,7 @@
     .point-name { flex: 1; margin-left: 4px; cursor: pointer; color: #212529; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; display: flex; align-items: center; gap: 4px; }
     .point-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
     
+    /* 着色タブ兼プルダウンのカスタムスタイル */
     .tab-badge-select { 
       font-size: 10px; 
       padding: 2px 6px; 
@@ -129,23 +130,42 @@
       background: white;
       color: #333;
     }
-    
-    .tab-badge-done {
+
+    /* ★未実施・点検済切り替えプルダウンタブのスタイル★ */
+    .status-badge-select {
       font-size: 10px; 
       padding: 2px 6px; 
       border-radius: 10px; 
-      color: white; 
       font-weight: bold; 
       white-space: nowrap; 
       flex-shrink: 0; 
+      outline: none;
+      cursor: pointer;
+      appearance: none;
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      text-align: center;
+    }
+    .status-badge-select.is-pending {
+      background: #ffffff;
+      color: #333333;
+      border: 1px solid #999999;
+    }
+    .status-badge-select.is-done {
       background: #6c757d;
+      color: #ffffff;
+      border: 1px solid #6c757d;
+    }
+    .status-badge-select option {
+      background: white;
+      color: #333;
     }
     
     .btn-group-actions { display: flex; gap: 4px; align-items: center; margin-left: auto; flex-shrink: 0; }
     .btn-item-action { border: 1px solid #6c757d; background: #fff; color: #333; padding: 3px 6px; border-radius: 4px; cursor: pointer; font-size: 11px; white-space: nowrap; }
     .btn-item-action:hover { background: #e2e6ea; }
-    .btn-checked-done { background: #198754; color: white; border: 1px solid #146c43; }
-    .btn-checked-done.is-active { background: #6c757d; color: white; border: 1px solid #5a6268; }
+    .btn-checked-done { background: #6c757d; color: white; border: 1px solid #5a6268; }
+    .btn-checked-done:hover { background: #545b62; }
 
     #map { flex: 1; height: 100%; position: relative; }
 
@@ -337,6 +357,7 @@
     <tbody id="tab-rule-list"></tbody>
   </table>
 
+  <!-- ★ピンクを削除★ -->
   <div style="border-top:1px solid #eee; pt:10px; margin-top:10px;">
     <input type="text" id="new-tab-name" placeholder="新しいタブ文字（例: 標識）" />
     <select id="new-tab-color">
@@ -346,7 +367,6 @@
       <option value="orange">オレンジ (Orange)</option>
       <option value="violet">紫 (Violet)</option>
       <option value="gold">黄色 (Yellow/Gold)</option>
-      <option value="pink">ピンク (Pink)</option>
       <option value="yellow">イエロー (Yellow)</option>
       <option value="black">黒 (Black)</option>
       <option value="grey">グレー (Grey)</option>
@@ -554,8 +574,9 @@
 
   L.control.layers(baseMaps, null, { position: 'topright' }).addTo(map);
 
+  /* ★ピンク削除★ */
   function createCustomIcon(color = 'blue') {
-    const validColors = ['blue', 'red', 'green', 'orange', 'violet', 'gold', 'black', 'grey', 'pink', 'yellow'];
+    const validColors = ['blue', 'red', 'green', 'orange', 'violet', 'gold', 'black', 'grey', 'yellow'];
     let c = validColors.includes(color) ? color : 'blue';
 
     const iconUrl = `https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-${c}.png`;
@@ -572,7 +593,7 @@
   const colorHexMap = {
     red: '#dc3545', blue: '#0d6efd', green: '#198754', orange: '#fd7e14',
     violet: '#6f42c1', gold: '#ffc107', black: '#212529', grey: '#6c757d',
-    pink: '#e83e8c', yellow: '#ffc107'
+    yellow: '#ffc107'
   };
 
   function getTabColor(tabText) {
@@ -880,7 +901,7 @@
         <h3 class="popup-title">${point.title}</h3>
         <div style="display:flex; gap:4px; align-items:center;">
           ${point.tab_name ? `<span style="font-size:10px; background:${colorHexMap[point.color]||'#0d6efd'}; color:white; padding:2px 6px; border-radius:10px; display:inline-block;">${point.tab_name}</span>` : ''}
-          ${isCheckedDone ? `<span style="font-size:10px; background:#6c757d; color:white; padding:2px 6px; border-radius:10px; display:inline-block;">点検済</span>` : ''}
+          <span style="font-size:10px; background:${isCheckedDone ? '#6c757d' : '#ffffff'}; color:${isCheckedDone ? '#ffffff' : '#333333'}; border:1px solid ${isCheckedDone ? '#6c757d' : '#999999'}; padding:2px 6px; border-radius:10px; display:inline-block;">${isCheckedDone ? '点検済' : '未実施'}</span>
         </div>
         <div id="popup-img-area-${point.id}"></div>
       </div>
@@ -1236,6 +1257,7 @@
     }
   }
 
+  /* ★未実施／点検済のステータスタブ＆プルダウン切り替え機能の実装★ */
   function renderPointList(points, groupPath) {
     const ul = document.createElement('ul');
     ul.className = 'point-list';
@@ -1265,10 +1287,22 @@
         `;
       }
 
-      const doneBadgeHtml = p.is_checked ? `<span class="tab-badge-done">点検済</span>` : '';
-      
-      const isChecked = checkedPointIds.has(pId);
-      if (isChecked) {
+      // 未実施 / 点検済 プルダウンステータスタブ
+      const isChecked = !!p.is_checked;
+      let statusBadgeHtml = '';
+      if (isReadOnly) {
+        statusBadgeHtml = `<span class="status-badge-select ${isChecked ? 'is-done' : 'is-pending'}" style="pointer-events:none;">${isChecked ? '点検済' : '未実施'}</span>`;
+      } else {
+        statusBadgeHtml = `
+          <select class="status-badge-select ${isChecked ? 'is-done' : 'is-pending'}" onclick="event.stopPropagation()" onchange="togglePointCheckedStatus(${p.id}, this.value === 'true')">
+            <option value="false" ${!isChecked ? 'selected' : ''}>未実施</option>
+            <option value="true" ${isChecked ? 'selected' : ''}>点検済</option>
+          </select>
+        `;
+      }
+
+      const isVisible = checkedPointIds.has(pId);
+      if (isVisible) {
         addMarkerToMap(p);
         if (markers[pId] && !map.hasLayer(markers[pId])) {
           map.addLayer(markers[pId]);
@@ -1279,19 +1313,19 @@
       if (!isReadOnly) {
         actionsHtml = `
           <div class="btn-group-actions">
+            <button class="btn-item-action btn-checked-done" onclick="togglePointCheckedStatus(${p.id})">${isChecked ? '未実施に戻す' : '点検済'}</button>
             <button class="btn-item-action" onclick="editPointTitle(${p.id})" title="スポット名を変更">✏️</button>
-            <button class="btn-item-action btn-checked-done ${p.is_checked ? 'is-active' : ''}" onclick="togglePointCheckedStatus(${p.id})">${p.is_checked ? '点検取消' : '点検済'}</button>
             <button class="btn-item-action" onclick="openImageUploader(${p.id})">画像</button>
           </div>
         `;
       }
 
       li.innerHTML = `
-        <input type="checkbox" ${isChecked ? 'checked' : ''} id="chk-point-${p.id}" value="${p.id}" class="chk-point" onchange="togglePointVisibility(${p.id}, this.checked)" />
+        <input type="checkbox" ${isVisible ? 'checked' : ''} id="chk-point-${p.id}" value="${p.id}" class="chk-point" onchange="togglePointVisibility(${p.id}, this.checked)" />
         <span class="point-name" onclick="focusToPoint(${p.id})">
           <span class="point-text" title="${p.title}">${p.title}</span>
           ${tabBadgeHtml}
-          ${doneBadgeHtml}
+          ${statusBadgeHtml}
         </span>
         ${actionsHtml}
       `;
@@ -1349,13 +1383,13 @@
     }
   }
 
-  async function togglePointCheckedStatus(pointId) {
+  /* ★未実施／点検済のトグル切り替え関数★ */
+  async function togglePointCheckedStatus(pointId, explicitValue = null) {
     const point = allPoints.find(p => Number(p.id) === Number(pointId));
     if (!point) return;
 
-    const newChecked = !point.is_checked;
+    const newChecked = explicitValue !== null ? explicitValue : !point.is_checked;
     
-    // is_checked カラムが存在しない場合のエラーフォールバック付き更新
     const { error } = await supabaseClient.from('points').update({ is_checked: newChecked }).eq('id', pointId);
 
     if (!error) {
@@ -1369,7 +1403,7 @@
       }
       renderSidebarTree();
     } else {
-      alert('点検状態の更新に失敗しました。\nSupabaseの「points」テーブルに「is_checked」(boolean型)のカラムが追加されているか確認してください。\n\n詳細: ' + error.message);
+      alert('点検状態の更新に失敗しました。\nSupabaseの「points」テーブルに「is_checked」(boolean型)のカラムが存在するか確認してください。\n\n詳細: ' + error.message);
     }
   }
 
@@ -1588,7 +1622,6 @@
         document.querySelectorAll('.editable-only').forEach(el => el.style.display = 'none');
       }
 
-      /* SELECT 取得処理の安全化 */
       const { data: points, error } = await supabaseClient
         .from('points')
         .select('*')
@@ -1606,7 +1639,6 @@
         allPoints = points || [];
       }
 
-      // is_checked カラムがない場合の初期補正
       allPoints.forEach(p => {
         if (p.is_checked === undefined) p.is_checked = false;
       });
