@@ -28,8 +28,9 @@
     .login-btn:hover { background: #0056b3; }
     #login-error { color: #dc3545; font-size: 12px; margin-top: 10px; display: none; word-break: break-all; }
 
+    /* ★左側タブの初期表示サイズを画像に合わせて320pxに変更★ */
     #sidebar {
-      width: 420px; min-width: 250px; max-width: 800px; background: #f8f9fa; border-right: 1px solid #ccc;
+      width: 320px; min-width: 240px; max-width: 800px; background: #f8f9fa; border-right: 1px solid #ccc;
       display: flex; flex-direction: column; z-index: 1000; box-shadow: 2px 0 5px rgba(0,0,0,0.1); flex-shrink: 0;
     }
     
@@ -77,7 +78,7 @@
 
     /* Excelインポート＆個別登録エリア */
     #import-area { padding: 8px 12px; background: #e9ecef; border-bottom: 1px solid #ddd; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
-    #drop-zone { flex: 1; border: 2px dashed #007bff; background: #fff; padding: 8px; text-align: center; border-radius: 4px; font-size: 11px; cursor: pointer; min-width: 140px; }
+    #drop-zone { flex: 1; border: 2px dashed #007bff; background: #fff; padding: 8px; text-align: center; border-radius: 4px; font-size: 11px; cursor: pointer; min-width: 120px; }
     .btn-import-sub { background: #6c757d; color: white; border: none; padding: 8px 8px; border-radius: 4px; cursor: pointer; font-size: 11px; white-space: nowrap; }
     .btn-import-manual { background: #17a2b8; color: white; border: none; padding: 8px 8px; border-radius: 4px; cursor: pointer; font-size: 11px; white-space: nowrap; font-weight: bold; }
 
@@ -113,7 +114,7 @@
     .point-name { flex: 1; margin-left: 4px; cursor: pointer; color: #212529; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; display: flex; align-items: center; gap: 4px; }
     .point-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
     
-    /* ★着色タブ兼プルダウンのカスタムスタイル★ */
+    /* 着色タブ兼プルダウンのカスタムスタイル */
     .tab-badge-select { 
       font-size: 10px; 
       padding: 2px 6px; 
@@ -135,11 +136,23 @@
       color: #333;
     }
     
+    /* 横に並ぶ「点検済」用の静的バッジ */
+    .tab-badge-done {
+      font-size: 10px; 
+      padding: 2px 6px; 
+      border-radius: 10px; 
+      color: white; 
+      font-weight: bold; 
+      white-space: nowrap; 
+      flex-shrink: 0; 
+      background: #6c757d;
+    }
+    
     .btn-group-actions { display: flex; gap: 4px; align-items: center; margin-left: auto; flex-shrink: 0; }
-    .btn-item-action { border: 1px solid #6c757d; background: #fff; color: #333; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px; white-space: nowrap; }
+    .btn-item-action { border: 1px solid #6c757d; background: #fff; color: #333; padding: 3px 6px; border-radius: 4px; cursor: pointer; font-size: 11px; white-space: nowrap; }
     .btn-item-action:hover { background: #e2e6ea; }
-    .btn-checked-done { background: #6c757d; color: white; border: 1px solid #5a6268; }
-    .btn-checked-done:hover { background: #545b62; }
+    .btn-checked-done { background: #198754; color: white; border: 1px solid #146c43; }
+    .btn-checked-done.is-active { background: #6c757d; color: white; border: 1px solid #5a6268; }
 
     #map { flex: 1; height: 100%; position: relative; }
 
@@ -341,6 +354,7 @@
     <tbody id="tab-rule-list"></tbody>
   </table>
 
+  <!-- ★cyanを削除し、pink / yellowを追加★ -->
   <div style="border-top:1px solid #eee; pt:10px; margin-top:10px;">
     <input type="text" id="new-tab-name" placeholder="新しいタブ文字（例: 標識）" />
     <select id="new-tab-color">
@@ -350,9 +364,10 @@
       <option value="orange">オレンジ (Orange)</option>
       <option value="violet">紫 (Violet)</option>
       <option value="gold">黄色 (Yellow/Gold)</option>
+      <option value="pink">ピンク (Pink)</option>
+      <option value="yellow">イエロー (Yellow)</option>
       <option value="black">黒 (Black)</option>
       <option value="grey">グレー (Grey)</option>
-      <option value="cyan">スカイブルー (SkyBlue)</option>
     </select>
     <button onclick="addTabRule()" style="width:100%; background:#28a745; color:white; border:none; padding:8px; border-radius:4px; cursor:pointer; font-weight:bold;">＋ ルールを追加</button>
   </div>
@@ -416,7 +431,7 @@
   document.addEventListener('mousemove', (e) => {
     if (!isResizing) return;
     const newWidth = e.clientX;
-    if (newWidth >= 250 && newWidth <= 800) {
+    if (newWidth >= 240 && newWidth <= 800) {
       sidebar.style.width = `${newWidth}px`;
       map.invalidateSize();
     }
@@ -564,13 +579,10 @@
 
   L.control.layers(baseMaps, null, { position: 'topright' }).addTo(map);
 
-  /* ★cyan表示エラーを防ぐためフォールバック処理を追加★ */
+  /* ★カラーマッピング追加（cyan削除、pink/yellow追加）★ */
   function createCustomIcon(color = 'blue') {
-    const validColors = ['blue', 'red', 'green', 'orange', 'violet', 'gold', 'black', 'grey', 'cyan'];
+    const validColors = ['blue', 'red', 'green', 'orange', 'violet', 'gold', 'black', 'grey', 'pink', 'yellow'];
     let c = validColors.includes(color) ? color : 'blue';
-    
-    // cyan画像の読み込みエラーを防ぐためcyan指定時はBlueアイコンまたはフォールバック
-    if (c === 'cyan') c = 'blue';
 
     const iconUrl = `https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-${c}.png`;
     return L.icon({
@@ -585,13 +597,13 @@
 
   const colorHexMap = {
     red: '#dc3545', blue: '#0d6efd', green: '#198754', orange: '#fd7e14',
-    violet: '#6f42c1', gold: '#ffc107', black: '#212529', grey: '#6c757d', cyan: '#0dcaf0'
+    violet: '#6f42c1', gold: '#ffc107', black: '#212529', grey: '#6c757d',
+    pink: '#e83e8c', yellow: '#ffc107'
   };
 
   function getTabColor(tabText) {
     if (!tabText) return 'blue';
     const trimmed = String(tabText).trim().toLowerCase();
-    if (trimmed === '点検済' || trimmed === '点検済み') return 'grey';
     const matchedRule = tabRules.find(r => r.tab_name.toLowerCase() === trimmed);
     return matchedRule ? matchedRule.color : 'blue';
   }
@@ -619,10 +631,6 @@
   async function loadTabRules() {
     const { data } = await supabaseClient.from('tab_settings').select('*');
     tabRules = data || [];
-    
-    if (!tabRules.some(r => r.tab_name === '点検済')) {
-      tabRules.push({ id: 'sys-checked', tab_name: '点検済', color: 'grey' });
-    }
 
     renderTabRuleTable();
     renderLegend();
@@ -675,8 +683,7 @@
     const tbody = document.getElementById('tab-rule-list');
     tbody.innerHTML = '';
     tabRules.forEach(r => {
-      const isSys = r.id === 'sys-checked';
-      const deleteBtn = isSys ? '<span style="font-size:10px; color:#888;">固定</span>' : `<button onclick="deleteTabRule(${r.id})" style="color:red; cursor:pointer; border:none; background:none;">✕</button>`;
+      const deleteBtn = `<button onclick="deleteTabRule(${r.id})" style="color:red; cursor:pointer; border:none; background:none;">✕</button>`;
       const tr = document.createElement('tr');
       tr.innerHTML = `
         <td>${r.tab_name}</td>
@@ -705,7 +712,6 @@
   }
 
   async function deleteTabRule(id) {
-    if (id === 'sys-checked') return;
     const { error } = await supabaseClient.from('tab_settings').delete().eq('id', id);
     if (!error) {
       tabRules = tabRules.filter(r => r.id !== id);
@@ -894,11 +900,16 @@
     const pId = Number(point.id);
     if (markers[pId]) return;
 
+    const isCheckedDone = !!point.is_checked;
+
     const popupContent = `
       <div style="width: auto; white-space: nowrap;">
         <small style="color:#666;">${point.group_name || 'グループなし'}</small>
         <h3 class="popup-title">${point.title}</h3>
-        ${point.tab_name ? `<span style="font-size:10px; background:${colorHexMap[point.color]||'#0d6efd'}; color:white; padding:2px 6px; border-radius:10px; display:inline-block;">${point.tab_name}</span>` : ''}
+        <div style="display:flex; gap:4px; align-items:center;">
+          ${point.tab_name ? `<span style="font-size:10px; background:${colorHexMap[point.color]||'#0d6efd'}; color:white; padding:2px 6px; border-radius:10px; display:inline-block;">${point.tab_name}</span>` : ''}
+          ${isCheckedDone ? `<span style="font-size:10px; background:#6c757d; color:white; padding:2px 6px; border-radius:10px; display:inline-block;">点検済</span>` : ''}
+        </div>
         <div id="popup-img-area-${point.id}"></div>
       </div>
     `;
@@ -946,17 +957,37 @@
     }
   }
 
-  function deleteGroupUI(groupPath) {
-    if (confirm(`グループ「${groupPath}」を削除しますか？\n（所属するポイントのグループ設定は「未分類」になります）`)) {
-      customGroups.delete(groupPath);
-      allPoints.forEach(async p => {
-        if (p.group_name === groupPath || p.group_name?.startsWith(groupPath + ' /')) {
-          p.group_name = '未分類';
-          await supabaseClient.from('points').update({ group_name: '未分類' }).eq('id', p.id);
-        }
+  /* ★グループ削除時に内部のスポット情報もまとめて完全消去する処理に変更★ */
+  async function deleteGroupUI(groupPath) {
+    const targetPoints = allPoints.filter(p => {
+      const g = p.group_name || '未分類';
+      return g === groupPath || g.startsWith(groupPath + ' /');
+    });
+
+    const msg = `グループ「${groupPath}」と、内部に含まれる ${targetPoints.length} 件のスポットをすべて削除しますか？\n（この操作は取り消せません）`;
+    if (!confirm(msg)) return;
+
+    customGroups.delete(groupPath);
+
+    if (targetPoints.length > 0) {
+      const targetIds = targetPoints.map(p => p.id);
+      const { error } = await supabaseClient.from('points').delete().in('id', targetIds);
+
+      if (error) {
+        alert('グループ内データの削除に失敗しました: ' + error.message);
+        return;
+      }
+
+      targetIds.forEach(id => {
+        if (markers[id]) { map.removeLayer(markers[id]); delete markers[id]; }
+        checkedPointIds.delete(id);
       });
-      renderSidebarTree();
+      allPoints = allPoints.filter(p => !targetIds.includes(p.id));
     }
+
+    updateFilterTabOptions();
+    renderSidebarTree();
+    updateDatabaseUsageMeter();
   }
 
   // グループ名の編集・変更
@@ -1152,7 +1183,7 @@
         </span>
         ${!isReadOnly ? `
           <button class="btn-group-action btn-group-edit" onclick="editGroupUI('${parentName}')" title="グループ名を変更">✏️</button>
-          <button class="btn-group-action btn-group-del" onclick="deleteGroupUI('${parentName}')" title="グループ削除">✕</button>
+          <button class="btn-group-action btn-group-del" onclick="deleteGroupUI('${parentName}')" title="グループおよび内部情報を一括削除">✕</button>
         ` : ''}
       `;
       parentDiv.appendChild(parentHeader);
@@ -1205,7 +1236,7 @@
           </span>
           ${!isReadOnly ? `
             <button class="btn-group-action btn-group-edit" onclick="editGroupUI('${childPath}')" title="子グループ名を変更">✏️</button>
-            <button class="btn-group-action btn-group-del" onclick="deleteGroupUI('${childPath}')" title="子グループ削除">✕</button>
+            <button class="btn-group-action btn-group-del" onclick="deleteGroupUI('${childPath}')" title="子グループおよび内部情報を一括削除">✕</button>
           ` : ''}
         `;
         childDiv.appendChild(childHeader);
@@ -1233,6 +1264,7 @@
     }
   }
 
+  /* ★リスト内の描画：「点検済」を着色タブ消去ではなく横並びバッジとして表示★ */
   function renderPointList(points, groupPath) {
     const ul = document.createElement('ul');
     ul.className = 'point-list';
@@ -1250,19 +1282,20 @@
       });
       li.addEventListener('dragend', () => li.classList.remove('dragging'));
 
-      /* ★着色タブ部分自体を直接クリックで変更できるプルダウン化★ */
       let tabBadgeHtml = '';
       if (isReadOnly) {
         tabBadgeHtml = p.tab_name ? `<span class="tab-badge-select" style="background:${colorHexMap[p.color]||'#0d6efd'}; pointer-events:none;">${p.tab_name}</span>` : '';
       } else {
         const optionsHtml = tabRules.map(r => `<option value="${r.tab_name}" ${p.tab_name === r.tab_name ? 'selected' : ''}>${r.tab_name}</option>`).join('');
-        const curTabLabel = p.tab_name || 'タブ未選択';
         tabBadgeHtml = `
           <select class="tab-badge-select" style="background:${colorHexMap[p.color]||'#0d6efd'};" onclick="event.stopPropagation()" onchange="changePointTabDirect(${p.id}, this.value)">
             ${optionsHtml}
           </select>
         `;
       }
+
+      // 点検済バッジ（横並び表示）
+      const doneBadgeHtml = p.is_checked ? `<span class="tab-badge-done">点検済</span>` : '';
       
       const isChecked = checkedPointIds.has(pId);
       if (isChecked) {
@@ -1277,7 +1310,7 @@
         actionsHtml = `
           <div class="btn-group-actions">
             <button class="btn-item-action" onclick="editPointTitle(${p.id})" title="スポット名を変更">✏️</button>
-            <button class="btn-item-action btn-checked-done" onclick="markPointAsChecked(${p.id})">点検済</button>
+            <button class="btn-item-action btn-checked-done ${p.is_checked ? 'is-active' : ''}" onclick="togglePointCheckedStatus(${p.id})">${p.is_checked ? '点検取消' : '点検済'}</button>
             <button class="btn-item-action" onclick="openImageUploader(${p.id})">画像</button>
           </div>
         `;
@@ -1288,6 +1321,7 @@
         <span class="point-name" onclick="focusToPoint(${p.id})">
           <span class="point-text" title="${p.title}">${p.title}</span>
           ${tabBadgeHtml}
+          ${doneBadgeHtml}
         </span>
         ${actionsHtml}
       `;
@@ -1345,8 +1379,27 @@
     }
   }
 
-  async function markPointAsChecked(pointId) {
-    await changePointTabDirect(pointId, '点検済');
+  /* ★「点検済」ボタンを押した際、着色タブを上書きせず「点検済」状態をトグル更新する処理★ */
+  async function togglePointCheckedStatus(pointId) {
+    const point = allPoints.find(p => Number(p.id) === Number(pointId));
+    if (!point) return;
+
+    const newChecked = !point.is_checked;
+    const { error } = await supabaseClient.from('points').update({ is_checked: newChecked }).eq('id', pointId);
+
+    if (!error) {
+      point.is_checked = newChecked;
+      if (markers[pointId]) {
+        const isVisible = map.hasLayer(markers[pointId]);
+        map.removeLayer(markers[pointId]);
+        delete markers[pointId];
+        addMarkerToMap(point);
+        if (isVisible) map.addLayer(markers[pointId]);
+      }
+      renderSidebarTree();
+    } else {
+      alert('点検状態の更新に失敗しました: ' + error.message);
+    }
   }
 
   function togglePointVisibility(id, isVisible) {
@@ -1534,7 +1587,6 @@
     }).catch(() => { prompt('共有用URL:', shareUrl); });
   }
 
-  /* ★リストクリック時に右側地図の中央に来るようフォーカス関数を強化★ */
   function focusToPoint(id) {
     const point = allPoints.find(p => Number(p.id) === Number(id));
     if (!point) return;
@@ -1566,7 +1618,7 @@
 
     const { data: points, error } = await supabaseClient
       .from('points')
-      .select('id, title, lat, lng, group_name, tab_name, color, image_url')
+      .select('id, title, lat, lng, group_name, tab_name, color, image_url, is_checked')
       .order('id', { ascending: true });
 
     if (error) return;
@@ -1599,7 +1651,6 @@
     }
   }
 
-  /* ★Excelセル内画像埋め込み（Drawing/Media）解析の強化★ */
   async function handleFileSelect(e) {
     if (isReadOnly) return;
     const file = e.target.files[0];
@@ -1611,8 +1662,6 @@
 
       try {
         const zip = await JSZip.loadAsync(arrayBuffer);
-        
-        // zip内部のdrawings・relsファイルをすべてスキャンして抽出
         const drawingFiles = Object.keys(zip.files).filter(k => k.startsWith('xl/drawings/drawing') && k.endsWith('.xml'));
         
         for (const drawPath of drawingFiles) {
@@ -1686,7 +1735,8 @@
             group_name: String(group_name),
             tab_name: String(tabText || ''),
             color: pointColor,
-            image_url: imageUrl
+            image_url: imageUrl,
+            is_checked: false
           });
         }
       }
@@ -1782,7 +1832,7 @@
       }
 
       const { error } = await supabaseClient.from('points').insert([
-        { title, lat: latVal, lng: lngVal, group_name: group, tab_name: tabText, color: color, image_url: imageUrl }
+        { title, lat: latVal, lng: lngVal, group_name: group, tab_name: tabText, color: color, image_url: imageUrl, is_checked: false }
       ]);
       if (!error) {
         closeForm();
