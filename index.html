@@ -644,7 +644,7 @@
     container.innerHTML = `<div class="popup-img-container">${cardsHtml}</div>`;
   }
 
-  // 個別画像の削除処理（ポップアップ表示維持）
+  // 個別画像の削除処理（吹き出しの表示維持）
   async function deleteSingleImage(pointId, imgIndex) {
     if (isReadOnly) return;
     if (!confirm('この画像を削除しますか？')) return;
@@ -718,9 +718,10 @@
     }
   }
 
+  // ★【要件1＆根本原因修正】すでに存在するマーカーインスタンスを破壊（再初期化）しないガードロジック★
   function addMarkerToMap(point) {
     const pId = Number(point.id);
-    if (markers[pId]) return;
+    if (markers[pId]) return; // 既存マーカーの再生成によるポップアップDOM破壊を防止
 
     const popupContent = `
       <div style="width: auto;">
@@ -1052,7 +1053,7 @@
       treeContainer.appendChild(parentDiv);
     });
 
-    // 以前開いていたポップアップ（吹き出し）があれば復元オープン
+    // 開かれていたポップアップがあれば状態復元
     if (activePopupPointId && markers[activePopupPointId]) {
       setTimeout(() => {
         if (markers[activePopupPointId] && map.hasLayer(markers[activePopupPointId])) {
@@ -1255,7 +1256,7 @@
     document.getElementById('single-image-input').click();
   }
 
-  // ★【要件1完全解決】画像追加完了後の吹き出し（ポップアップ）非同期オープン保証★
+  // ★【要件2修正】部分読み込み処理により、マーカー・ポップアップ自体を再生成・リセットさせずに画像を更新★
   document.getElementById('single-image-input').addEventListener('change', async (e) => {
     const files = Array.from(e.target.files);
     if (files.length === 0 || !targetPointIdForImage) return;
@@ -1306,16 +1307,10 @@
         }
       }
 
-      renderSidebarTree();
-
-      // 非同期でポップアップコンテンツ（画像群）のロード完了後にポップアップを開く
+      // 画像エリアのみ部分書き換え（ポップアップを壊さない）
+      await loadImagesForPopup(targetId);
       if (markers[targetId]) {
-        await loadImagesForPopup(targetId);
-        setTimeout(() => {
-          if (markers[targetId]) {
-            markers[targetId].openPopup();
-          }
-        }, 100);
+        markers[targetId].openPopup();
       }
 
       updateDatabaseUsageMeter();
