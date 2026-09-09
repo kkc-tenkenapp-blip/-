@@ -153,7 +153,6 @@
 <!-- Supabase Auth ログインモーダル -->
 <div id="login-overlay">
   <div class="login-card">
-    <!-- ★要件1: モーダルタイトルを「ログイン」に変更★ -->
     <h2>🔒 ログイン</h2>
     <p>共有のメールアドレスとパスワードを入力してください。</p>
     <input type="email" id="login-email" class="login-field" placeholder="メールアドレス" />
@@ -189,7 +188,6 @@
     </label>
     <div>
       <button id="btn-add-group-bar" class="btn-bar editable-only" onclick="addNewGroupModal()">➕ グループ追加</button>
-      <!-- ★要件3: 選択共有ボタンを閲覧専用モード時に非表示にするため editable-only クラスを追加★ -->
       <button id="btn-share-selected" class="btn-bar editable-only" onclick="shareSelectedPoints()">🔗 選択共有</button>
       <button id="btn-delete-selected" class="btn-bar editable-only" onclick="deleteSelectedPoints()">🗑️ 選択削除</button>
     </div>
@@ -300,12 +298,11 @@
   // 折りたたみの開閉状態を記録するSet
   const openGroupIds = new Set();
 
-  // --- ★要件4: 共有URLアクセス判定＆セッション確認★ ---
+  // --- 共有URLアクセス判定＆セッション確認 ---
   async function checkSession() {
     const urlParams = new URLSearchParams(window.location.search);
     const sharedIds = urlParams.get('ids') ? urlParams.get('ids').split(',') : (urlParams.get('id') ? [urlParams.get('id')] : null);
 
-    // 共有URL（idsパラメータが存在する）の場合はログイン不要で直接読み込み
     if (sharedIds) {
       document.getElementById('login-overlay').style.display = 'none';
       loadInitialPoints();
@@ -1130,11 +1127,15 @@
     }
   });
 
-  // ★要件2: 実際に画面/地図上に表示されている（チェックが入っている）ポイントのみを共有対象にする★
+  // ★要件2: 画面/地図上に表示されている（チェックが入っている）ポイントのみを共有対象にする★
   function shareSelectedPoints() {
     const selectedIds = [];
     allPoints.forEach(p => {
-      if (markers[p.id] && map.hasLayer(markers[p.id])) {
+      const chk = document.getElementById(`chk-point-${p.id}`);
+      const isChecked = chk && chk.checked;
+      const isVisibleOnMap = markers[p.id] && map.hasLayer(markers[p.id]);
+
+      if (isChecked || isVisibleOnMap) {
         selectedIds.push(p.id);
       }
     });
