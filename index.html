@@ -110,7 +110,7 @@
 
     #map { flex: 1; height: 100%; position: relative; }
 
-    /* ★ポップアップ枠と矢印の表示合わせ補正★ */
+    /* ポップアップ関連CSS修正（矢印の位置ズレとピンとの被りを防止） */
     .leaflet-popup {
       margin-bottom: 0px !important;
     }
@@ -120,25 +120,6 @@
       border-radius: 12px;
     }
     .leaflet-popup-content { margin: 8px; width: auto !important; }
-    
-    /* 矢印コンテナを枠の中交点へ正確に配置 */
-    .leaflet-popup-tip-container {
-      width: 40px !important;
-      height: 20px !important;
-      position: absolute !important;
-      left: 50% !important;
-      transform: translateX(-50%) !important;
-      margin: 0 !important;
-      overflow: hidden !important;
-      pointer-events: none;
-    }
-    .leaflet-popup-tip {
-      width: 17px !important;
-      height: 17px !important;
-      padding: 0 !important;
-      margin: -10px auto 0 !important;
-      transform: rotate(45deg) !important;
-    }
     
     .popup-img-container { display: flex; gap: 12px; overflow-x: auto; margin-top: 8px; max-width: 280px; padding-bottom: 6px; }
     .img-card { position: relative; display: flex; flex-direction: column; flex-shrink: 0; width: 220px; background: #f8f9fa; border: 1px solid #ddd; border-radius: 6px; padding: 6px; box-sizing: border-box; }
@@ -501,7 +482,7 @@
 
   L.control.layers(baseMaps, null, { position: 'topright' }).addTo(map);
 
-  // ★【位置合わせ補正】マーカー先端（高さ38px）へ正確に指すよう popupAnchor: [0, -38] ★
+  // ★【位置・矢印補正】ピンの頭（高さ41px）の上にちょうど配置されるよう popupAnchor: [0, -45] ★
   function createCustomIcon(color = 'blue') {
     const validColors = ['blue', 'red', 'green', 'orange', 'violet', 'gold', 'black', 'grey', 'cyan'];
     const c = validColors.includes(color) ? color : 'blue';
@@ -511,7 +492,7 @@
       shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
       iconSize: [25, 41],
       iconAnchor: [12, 41],
-      popupAnchor: [0, -38],
+      popupAnchor: [0, -45],
       shadowSize: [41, 41]
     });
   }
@@ -725,6 +706,7 @@
     container.innerHTML = `<div class="popup-img-container">${cardsHtml}</div>`;
   }
 
+  // 個別画像の削除処理
   async function deleteSingleImage(e, pointId, imgIndex) {
     if (e) e.stopPropagation();
     if (isReadOnly) return;
