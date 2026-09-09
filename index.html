@@ -645,7 +645,7 @@
     container.innerHTML = `<div class="popup-img-container">${cardsHtml}</div>`;
   }
 
-  // ★【要件2修正】イベントバブリグを遮断(e.stopPropagation)し「ポイント追加画面」の誤オープンを防止★
+  // イベントバブリングを遮断(e.stopPropagation)し「ポイント追加画面」の誤オープンを防止
   async function deleteSingleImage(e, pointId, imgIndex) {
     if (e) e.stopPropagation();
     if (isReadOnly) return;
@@ -1285,7 +1285,7 @@
     document.getElementById('single-image-input').click();
   }
 
-  // ★【要件1修正】画像データ追加後、全データ保持用 `allPoints` も即更新して吹き出しを完全復元★
+  // ★【要件1完全修正】loadImagesForPopup完了をawaitで待機してから吹き出しを確実にオープン★
   document.getElementById('single-image-input').addEventListener('change', async (e) => {
     const files = Array.from(e.target.files);
     if (files.length === 0 || !targetPointIdForImage) return;
@@ -1337,10 +1337,11 @@
         }
       }
 
-      await loadImagesForPopup(targetId);
+      // まずポップアップを開いてDOM要素（#popup-img-area-${targetId}）を発生させてから画像データを描写
       if (markers[targetId]) {
         markers[targetId].openPopup();
       }
+      await loadImagesForPopup(targetId);
 
       updateDatabaseUsageMeter();
     } catch (err) {
