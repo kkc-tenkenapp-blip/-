@@ -11,21 +11,21 @@
     body { margin: 0; padding: 0; font-family: sans-serif; display: flex; height: 100vh; overflow: hidden; }
     
     /* Supabase Auth ログインモーダル */
-    #login-overlay {
+    #login-overlay, #share-auth-overlay {
       position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
       background: rgba(0, 0, 0, 0.85); z-index: 10000;
       display: flex; justify-content: center; align-items: center;
     }
     .login-card {
       background: #ffffff; padding: 30px 25px; border-radius: 12px;
-      box-shadow: 0 10px 25px rgba(0,0,0,0.3); width: 320px; max-width: 90vw; text-align: center;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.3); width: 340px; max-width: 90vw; text-align: center;
     }
     .login-card h2 { margin: 0 0 8px 0; font-size: 18px; color: #333; }
     .login-card p { font-size: 12px; color: #666; margin-bottom: 20px; }
     .login-field { width: 100%; padding: 10px; margin-bottom: 12px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: 13px; }
     .login-btn { width: 100%; padding: 10px; background: #007bff; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 14px; }
     .login-btn:hover { background: #0056b3; }
-    #login-error { color: #dc3545; font-size: 12px; margin-top: 10px; display: none; word-break: break-all; }
+    #login-error, #share-auth-error { color: #dc3545; font-size: 12px; margin-top: 10px; display: none; word-break: break-all; }
 
     /* 左側リスト欄 */
     #sidebar {
@@ -150,9 +150,9 @@
     .legend-item { display: flex; align-items: center; margin-bottom: 4px; }
     .legend-color { width: 12px; height: 12px; border-radius: 50%; display: inline-block; margin-right: 6px; border: 1px solid #888; }
 
-    .modal { display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 2000; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); width: 360px; max-width: 90vw; box-sizing: border-box; }
+    .modal { display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 2000; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); width: 380px; max-width: 90vw; box-sizing: border-box; }
     .modal h4 { margin: 0 0 12px 0; }
-    .modal input, .modal select { width: 100%; margin-bottom: 10px; box-sizing: border-box; padding: 6px; font-size: 12px; }
+    .modal input, .modal select { width: 100%; margin-bottom: 10px; box-sizing: border-box; padding: 8px; font-size: 12px; border: 1px solid #ccc; border-radius: 4px; }
     
     #tab-rule-table { width: 100%; font-size: 12px; margin-bottom: 10px; border-collapse: collapse; }
     #tab-rule-table th, #tab-rule-table td { border: 1px solid #ddd; padding: 6px; text-align: left; }
@@ -163,6 +163,11 @@
     .custom-confirm-btns { display: flex; justify-content: space-around; margin-top: 15px; }
     .btn-confirm-yes { background: #dc3545; color: white; border: none; padding: 6px 16px; border-radius: 4px; cursor: pointer; }
     .btn-confirm-no { background: #6c757d; color: white; border: none; padding: 6px 16px; border-radius: 4px; cursor: pointer; }
+
+    /* 共有結果ダイアログスタイル */
+    .copy-btn-group { display: flex; flex-direction: column; gap: 8px; margin-top: 15px; }
+    .btn-copy-action { background: #198754; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 12px; display: flex; align-items: center; justify-content: center; gap: 6px; }
+    .btn-copy-action:hover { background: #146c43; }
 
     /* 引き出し線（Leader Line）用スタイル */
     .leader-line-container { overflow: visible !important; }
@@ -204,6 +209,17 @@
   </div>
 </div>
 
+<!-- 共有閲覧認証用モーダル -->
+<div id="share-auth-overlay" style="display:none;">
+  <div class="login-card">
+    <h2>🔑 共有データの閲覧認証</h2>
+    <p id="share-auth-desc">発行された閲覧用パスワードを入力してください。</p>
+    <input type="password" id="share-access-pw" class="login-field" placeholder="パスワードを入力" />
+    <button class="login-btn" onclick="verifySharePassword()">閲覧を開始</button>
+    <div id="share-auth-error"></div>
+  </div>
+</div>
+
 <div id="custom-confirm-modal">
   <div class="custom-confirm-card">
     <p style="margin:0 0 10px 0; font-weight:bold;">この画像を削除しますか？</p>
@@ -239,7 +255,7 @@
     </label>
     <div>
       <button id="btn-add-group-bar" class="btn-bar editable-only" onclick="addNewGroupModal()">➕ グループ追加</button>
-      <button id="btn-share-selected" class="btn-bar editable-only" onclick="shareSelectedPoints()">🔗 選択共有</button>
+      <button id="btn-share-selected" class="btn-bar editable-only" onclick="openShareConfigModal()">🔗 選択共有</button>
       <button id="btn-delete-selected" class="btn-bar editable-only" onclick="deleteSelectedPoints()">🗑️ 選択削除</button>
     </div>
   </div>
@@ -286,6 +302,40 @@
   <span id="lightbox-close">&times;</span>
   <img id="lightbox-img" src="" alt="拡大表示" />
   <div id="lightbox-caption"></div>
+</div>
+
+<!-- 選択共有設定モーダル -->
+<div id="share-config-modal" class="modal">
+  <h4>🔗 選択共有の設定</h4>
+  <p style="font-size:11px; color:#666; margin-bottom:12px;">共有用のパスワードと有効期限を設定してください。</p>
+  
+  <label style="font-size:11px; font-weight:bold; display:block; margin-bottom:4px;">閲覧パスワード（必須）</label>
+  <input type="text" id="share-setting-pw" placeholder="パスワードを入力（例: pass1234）" />
+
+  <label style="font-size:11px; font-weight:bold; display:block; margin-bottom:4px;">有効期限</label>
+  <select id="share-setting-days">
+    <option value="7" selected>7日間（標準）</option>
+    <option value="14">14日間</option>
+    <option value="28">28日間</option>
+  </select>
+
+  <div style="display: flex; justify-content: space-between; margin-top:15px;">
+    <button onclick="generateShareLink()" style="padding:8px 16px; background:#198754; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold; flex:1; margin-right:6px;">共有URL・パスワード発行</button>
+    <button onclick="closeShareConfigModal()" style="padding:8px 16px; background:#6c757d; color:white; border:none; border-radius:4px; cursor:pointer;">キャンセル</button>
+  </div>
+</div>
+
+<!-- 共有発行完了結果モーダル -->
+<div id="share-result-modal" class="modal">
+  <h4>✅ 発行完了</h4>
+  <p style="font-size:11px; color:#666; margin-bottom:10px;">以下のボタンでURLとパスワードをそれぞれコピーして共有してください。</p>
+  
+  <div class="copy-btn-group">
+    <button class="btn-copy-action" onclick="copyShareUrl()"><span id="icon-copy-url">📋</span> 共有URLをコピー</button>
+    <button class="btn-copy-action" style="background:#0d6efd;" onclick="copySharePw()"><span id="icon-copy-pw">🔑</span> パスワードをコピー</button>
+  </div>
+
+  <button onclick="closeShareResultModal()" style="width:100%; margin-top:15px; background:#6c757d; color:white; border:none; padding:8px; border-radius:4px; cursor:pointer;">閉じる</button>
 </div>
 
 <div id="tab-config-modal" class="modal">
@@ -351,14 +401,18 @@
   let customGroups = new Set();
   let isReadOnly = false;
   let targetPointIdForImage = null;
-  let isManualRegisterMode = false; // 個別登録モードフラグ
+  let isManualRegisterMode = false;
 
   const openGroupIds = new Set();
   const checkedPointIds = new Set();
   let activePopupPointId = null;
   let isSelfOperating = false;
 
-  // 引き出し線（Leader Line）用レイヤーグループ
+  // 共有パラメータ管理
+  let generatedShareUrl = '';
+  let generatedSharePw = '';
+  let shareParamsFromUrl = null;
+
   let leaderLineLayerGroup = L.layerGroup();
 
   const sidebar = document.getElementById('sidebar');
@@ -449,10 +503,23 @@
   async function checkSession() {
     const urlParams = new URLSearchParams(window.location.search);
     const sharedIds = urlParams.get('ids') ? urlParams.get('ids').split(',') : (urlParams.get('id') ? [urlParams.get('id')] : null);
+    const expTime = urlParams.get('exp');
+    const token = urlParams.get('token');
 
     if (sharedIds) {
       document.getElementById('login-overlay').style.display = 'none';
-      loadInitialPoints();
+      
+      // 有効期限のチェック
+      if (expTime) {
+        const now = Date.now();
+        if (now > parseInt(expTime, 10)) {
+          alert('この共有URLは有効期限（7〜28日）が切れているためアクセスできません。');
+          return;
+        }
+      }
+
+      shareParamsFromUrl = { sharedIds, token, expTime };
+      document.getElementById('share-auth-overlay').style.display = 'flex';
       return;
     }
 
@@ -463,6 +530,36 @@
     } else {
       document.getElementById('login-overlay').style.display = 'flex';
     }
+  }
+
+  /* ★共有閲覧モード用パスワード検証★ */
+  function verifySharePassword() {
+    const inputPw = document.getElementById('share-access-pw').value.trim();
+    const errDiv = document.getElementById('share-auth-error');
+    errDiv.style.display = 'none';
+
+    if (!inputPw) {
+      errDiv.textContent = 'パスワードを入力してください';
+      errDiv.style.display = 'block';
+      return;
+    }
+
+    // URLのトークン（パスワードのBase64エンコード値）と照合
+    const expectedToken = shareParamsFromUrl ? shareParamsFromUrl.token : '';
+    const inputToken = btoa(encodeURIComponent(inputPw));
+
+    if (expectedToken && inputToken !== expectedToken) {
+      errDiv.textContent = 'パスワードが正しくありません';
+      errDiv.style.display = 'block';
+      return;
+    }
+
+    document.getElementById('share-auth-overlay').style.display = 'none';
+    isReadOnly = true;
+    document.getElementById('readonly-banner').style.display = 'block';
+    document.querySelectorAll('.editable-only').forEach(el => el.style.display = 'none');
+    
+    loadInitialPoints();
   }
 
   async function loginWithSupabase() {
@@ -526,7 +623,6 @@
     }
   }
 
-  /* ★地図の最大拡大レベルを3段階拡張（18 -> 21）★ */
   const map = L.map('map', { minZoom: 5, maxZoom: 21 }).setView([40.220360, 141.781950], 13);
   leaderLineLayerGroup.addTo(map);
 
@@ -934,9 +1030,6 @@
     markers[pId] = marker;
   }
 
-  /* ★引き出し線（Leader Line）描画関数★
-     - クリックイベントのバブリング（伝播）をストップしマップクリックが発生しないよう修正
-  */
   function updateLeaderLines() {
     leaderLineLayerGroup.clearLayers();
 
@@ -978,7 +1071,6 @@
       });
       leaderLineLayerGroup.addLayer(line);
 
-      // マップイベント伝播防止用の onclick ハンドラーを設定
       const labelIcon = L.divIcon({
         className: 'leader-line-container',
         html: `<div class="leader-label-marker" onclick="onLeaderLabelClick(event, ${p.id})">${dispTitle}</div>`,
@@ -991,11 +1083,10 @@
     });
   }
 
-  /* ★引き出し線ラベルクリック時の安全な処理★ */
   function onLeaderLabelClick(e, pointId) {
     if (e) {
       e.preventDefault();
-      e.stopPropagation(); // マップへのクリックイベント伝播を確実に遮断
+      e.stopPropagation();
     }
     focusToPoint(pointId);
   }
@@ -1712,7 +1803,8 @@
     }
   });
 
-  function shareSelectedPoints() {
+  /* ★選択共有設定ダイアログの表示★ */
+  function openShareConfigModal() {
     const selectedIds = [];
     allPoints.forEach(p => {
       const chk = document.getElementById(`chk-point-${p.id}`);
@@ -1729,10 +1821,71 @@
       return; 
     }
 
-    const shareUrl = `${window.location.origin}${window.location.pathname}?ids=${selectedIds.join(',')}`;
-    navigator.clipboard.writeText(shareUrl).then(() => {
-      alert(`画面上に表示されている ${selectedIds.length} 件の共有URL（閲覧専用）をコピーしました！\n\n${shareUrl}`);
-    }).catch(() => { prompt('共有用URL:', shareUrl); });
+    document.getElementById('share-setting-pw').value = '';
+    document.getElementById('share-setting-days').value = '7'; // 標準7日
+    document.getElementById('share-config-modal').style.display = 'block';
+  }
+
+  function closeShareConfigModal() {
+    document.getElementById('share-config-modal').style.display = 'none';
+  }
+
+  /* ★パスワード・有効期限付き共有リンク＆パスワード生成★ */
+  function generateShareLink() {
+    const selectedIds = [];
+    allPoints.forEach(p => {
+      const chk = document.getElementById(`chk-point-${p.id}`);
+      const isChecked = chk && chk.checked;
+      const isVisibleOnMap = markers[p.id] && map.hasLayer(markers[p.id]);
+
+      if (isChecked || isVisibleOnMap) {
+        selectedIds.push(p.id);
+      }
+    });
+
+    const pw = document.getElementById('share-setting-pw').value.trim();
+    if (!pw) {
+      alert('閲覧用パスワードを入力してください');
+      return;
+    }
+
+    const days = parseInt(document.getElementById('share-setting-days').value, 10);
+    const expireTimestamp = Date.now() + (days * 24 * 60 * 60 * 1000);
+    const token = btoa(encodeURIComponent(pw)); // トークン生成
+
+    generatedSharePw = pw;
+    generatedShareUrl = `${window.location.origin}${window.location.pathname}?ids=${selectedIds.join(',')}&exp=${expireTimestamp}&token=${token}`;
+
+    closeShareConfigModal();
+    document.getElementById('share-result-modal').style.display = 'block';
+  }
+
+  function closeShareResultModal() {
+    document.getElementById('share-result-modal').style.display = 'none';
+  }
+
+  /* ★クリップボードコピー（URL）★ */
+  function copyShareUrl() {
+    navigator.clipboard.writeText(generatedShareUrl).then(() => {
+      const icon = document.getElementById('icon-copy-url');
+      if (icon) icon.textContent = '✅';
+      alert('共有URLをクリップボードにコピーしました！');
+      setTimeout(() => { if (icon) icon.textContent = '📋'; }, 2000);
+    }).catch(() => {
+      prompt('共有URL:', generatedShareUrl);
+    });
+  }
+
+  /* ★クリップボードコピー（パスワード）★ */
+  function copySharePw() {
+    navigator.clipboard.writeText(generatedSharePw).then(() => {
+      const icon = document.getElementById('icon-copy-pw');
+      if (icon) icon.textContent = '✅';
+      alert('パスワードをクリップボードにコピーしました！');
+      setTimeout(() => { if (icon) icon.textContent = '🔑'; }, 2000);
+    }).catch(() => {
+      prompt('閲覧パスワード:', generatedSharePw);
+    });
   }
 
   function focusToPoint(id) {
@@ -1947,10 +2100,6 @@
     }
   });
 
-  /* ★マップクリック時の処理を変更★
-     - 「個別登録」モード時のみ、クリックした座標をフォームに代入
-     - マップクリックのみでの新規登録画面表示を廃止
-  */
   map.on('click', (e) => {
     if (isReadOnly) return;
     if (isManualRegisterMode) {
@@ -1960,13 +2109,12 @@
     }
   });
 
-  /* ★「個別登録」ボタン押下時のみ座標取得・画面表示を許可★ */
   function openManualRegisterModal() {
     if (isReadOnly) return;
-    isManualRegisterMode = true; // 個別登録モードを有効化
+    isManualRegisterMode = true;
     selectedLatLng = null;
     document.getElementById('form-modal-title').textContent = 'ポイントを手動（個別）登録';
-    document.getElementById('form-hint').style.display = 'block'; // ヒント表示
+    document.getElementById('form-hint').style.display = 'block';
     document.getElementById('spot-display-title').value = '';
     document.getElementById('spot-title').value = '';
     document.getElementById('spot-lat').value = '';
@@ -1978,7 +2126,7 @@
   }
 
   function closeForm() {
-    isManualRegisterMode = false; // モード解除
+    isManualRegisterMode = false;
     document.getElementById('form-container').style.display = 'none';
     document.getElementById('form-hint').style.display = 'none';
     document.getElementById('spot-display-title').value = '';
