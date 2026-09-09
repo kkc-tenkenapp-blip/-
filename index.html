@@ -280,7 +280,7 @@
   <h4 id="form-modal-title">新しいポイントを追加</h4>
   <input type="text" id="spot-title" placeholder="スポット名（必須）" />
   <input type="number" step="any" id="spot-lat" placeholder="緯度（例: 40.220360）" />
-  <input type="number" step="any" id="spot-lng" placeholder="経度（例: 141.781950）" />
+  <input type="number" step="any" id="spot-lng" placeholder="経度（例: 40.220360）" />
   <input type="text" id="spot-group" placeholder="グループ名（例: 三陸 / 1工区）" />
   <input type="text" id="spot-tab" placeholder="タブの内容（例: 標識）" />
   <input type="file" id="spot-image" accept="image/*" multiple />
@@ -311,9 +311,10 @@
   let isReadOnly = false;
   let targetPointIdForImage = null;
 
-  // 折りたたみの開閉状態およびチェック状態を記録するSet
+  // 折りたたみの開閉状態・チェック状態・ポップアップ保持用変数
   const openGroupIds = new Set();
   const checkedPointIds = new Set();
+  let activePopupPointId = null;
 
   // 共有URLアクセス判定＆セッション確認
   async function checkSession() {
@@ -642,10 +643,12 @@
     container.innerHTML = `<div class="popup-img-container">${cardsHtml}</div>`;
   }
 
-  // 個別画像の削除処理（ポップアップ表示維持）
+  // 個別画像の削除処理（吹き出しの表示維持）
   async function deleteSingleImage(pointId, imgIndex) {
     if (isReadOnly) return;
     if (!confirm('この画像を削除しますか？')) return;
+
+    activePopupPointId = Number(pointId);
 
     const { data } = await supabaseClient.from('points').select('image_url').eq('id', pointId).single();
     if (!data || !data.image_url) return;
@@ -678,6 +681,8 @@
     if (!inputElem) return;
     const newComment = inputElem.value.trim();
 
+    activePopupPointId = Number(pointId);
+
     const { data } = await supabaseClient.from('points').select('image_url').eq('id', pointId).single();
     if (!data) return;
 
@@ -707,7 +712,8 @@
   }
 
   function addMarkerToMap(point) {
-    if (markers[point.id]) return;
+    const pId = Number(point.id);
+    if (markers[pId]) return;
 
     const popupContent = `
       <div style="width: auto;">
@@ -723,10 +729,17 @@
     }).bindPopup(popupContent, { maxWidth: 320 });
 
     marker.on('popupopen', () => {
-      loadImagesForPopup(point.id);
+      activePopupPointId = pId;
+      loadImagesForPopup(pId);
     });
 
-    markers[point.id] = marker;
+    marker.on('popupclose', () => {
+      if (activePopupPointId === pId) {
+        activePopupPointId = null;
+      }
+    });
+
+    markers[pId] = marker;
   }
 
   function getFilteredPoints() {
@@ -870,7 +883,7 @@
     renderSidebarTree();
   }
 
-  // サイドバー描画＆チェック状態・レイヤー自動同期
+  // サイドバー描画＆チェック状態・レイヤー・吹き出し（ポップアップ）状態の自動同期
   function renderSidebarTree() {
     const treeContainer = document.getElementById('point-tree');
     treeContainer.innerHTML = '';
@@ -1031,6 +1044,15 @@
       parentDiv.appendChild(childContainer);
       treeContainer.appendChild(parentDiv);
     });
+
+    // ★以前開いていたポップアップ（吹き出し）があれば確実に復元オープン★
+    if (activePopupPointId && markers[activePopupPointId]) {
+      setTimeout(() => {
+        if (markers[activePopupPointId] && map.hasLayer(markers[activePopupPointId])) {
+          markers[activePopupPointId].openPopup();
+        }
+      }, 50);
+    }
   }
 
   function renderPointList(points, groupPath) {
@@ -1055,8 +1077,8 @@
       const isChecked = checkedPointIds.has(pId);
       if (isChecked) {
         addMarkerToMap(p);
-        if (markers[p.id] && !map.hasLayer(markers[p.id])) {
-          map.addLayer(markers[p.id]);
+        if (markers[pId] && !map.hasLayer(markers[pId])) {
+          map.addLayer(markers[pId]);
         }
       }
 
@@ -1145,18 +1167,18 @@
     const point = allPoints.find(p => Number(p.id) === idNum);
     if (!point) return;
 
-    if (!markers[id]) {
+    if (!markers[idNum]) {
       addMarkerToMap(point);
     }
 
-    const chk = document.getElementById(`chk-point-${id}`);
+    const chk = document.getElementById(`chk-point-${idNum}`);
 
     if (isVisible) {
-      map.addLayer(markers[id]);
+      map.addLayer(markers[idNum]);
       checkedPointIds.add(idNum);
       if (chk) chk.checked = true;
     } else {
-      map.removeLayer(markers[id]);
+      map.removeLayer(markers[idNum]);
       checkedPointIds.delete(idNum);
       if (chk) chk.checked = false;
     }
@@ -1222,10 +1244,12 @@
       alert('エラー: ポイントIDが無効です');
       return;
     }
+    // アップロード対象ポイントのポップアップIDを保持
+    activePopupPointId = targetPointIdForImage;
     document.getElementById('single-image-input').click();
   }
 
-  // ★画像追加保存（ポップアップ表示＆チェック状態維持機能追加）★
+  // 画像追加保存（吹き出しの表示維持完全保証）
   document.getElementById('single-image-input').addEventListener('change', async (e) => {
     const files = Array.from(e.target.files);
     if (files.length === 0 || !targetPointIdForImage) return;
@@ -1233,8 +1257,8 @@
     const targetId = Number(targetPointIdForImage);
     const wasVisible = checkedPointIds.has(targetId) || (markers[targetId] && map.hasLayer(markers[targetId]));
 
-    // 現在ポップアップが開いているか保持
-    const wasPopupOpen = markers[targetId] && markers[targetId].isPopupOpen();
+    // 常にアクティブなポップアップ対象として記録
+    activePopupPointId = targetId;
 
     try {
       const compressedImages = [];
@@ -1279,12 +1303,9 @@
 
       renderSidebarTree();
 
-      // ★ポップアップが開いていた場合は画像更新後に再度オープン★
+      // 画像表示コンテナの再読み込み
       if (markers[targetId]) {
         loadImagesForPopup(targetId);
-        if (wasPopupOpen) {
-          markers[targetId].openPopup();
-        }
       }
 
       updateDatabaseUsageMeter();
