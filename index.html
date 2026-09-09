@@ -164,7 +164,7 @@
     .btn-confirm-yes { background: #dc3545; color: white; border: none; padding: 6px 16px; border-radius: 4px; cursor: pointer; }
     .btn-confirm-no { background: #6c757d; color: white; border: none; padding: 6px 16px; border-radius: 4px; cursor: pointer; }
 
-    /* ★引き出し線（Leader Line）用スタイル★ */
+    /* 引き出し線（Leader Line）用スタイル */
     .leader-line-container { overflow: visible !important; }
     .leader-label-marker {
       background: rgba(255, 255, 255, 0.95);
@@ -317,6 +317,7 @@
 
 <div id="form-container" class="modal">
   <h4 id="form-modal-title">新しいポイントを追加</h4>
+  <p id="form-hint" style="font-size:11px; color:#0d6efd; margin:0 0 8px 0; display:none;">💡 地図上をクリックすると座標が自動入力されます</p>
   <input type="text" id="spot-display-title" placeholder="ピン表示名（任意 / 空欄時はスポット名）" />
   <input type="text" id="spot-title" placeholder="スポット名（必須）" />
   <input type="number" step="any" id="spot-lat" placeholder="緯度（例: 40.220360）" />
@@ -350,6 +351,7 @@
   let customGroups = new Set();
   let isReadOnly = false;
   let targetPointIdForImage = null;
+  let isManualRegisterMode = false; // 個別登録モードフラグ
 
   const openGroupIds = new Set();
   const checkedPointIds = new Set();
@@ -524,21 +526,22 @@
     }
   }
 
-  const map = L.map('map', { minZoom: 5, maxZoom: 18 }).setView([40.220360, 141.781950], 13);
+  /* ★地図の最大拡大レベルを3段階拡張（18 -> 21）★ */
+  const map = L.map('map', { minZoom: 5, maxZoom: 21 }).setView([40.220360, 141.781950], 13);
   leaderLineLayerGroup.addTo(map);
 
   const gsiPale = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png', {
-    maxZoom: 18,
+    maxZoom: 21, maxNativeZoom: 18,
     attribution: "<a href='https://maps.gsi.go.jp/development/ichiran.html' target='_blank'>国土地理院(淡色)</a>"
   });
 
   const gsiStandard = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png', {
-    maxZoom: 18,
+    maxZoom: 21, maxNativeZoom: 18,
     attribution: "<a href='https://maps.gsi.go.jp/development/ichiran.html' target='_blank'>国土地理院(標準)</a>"
   });
 
   const gsiBlank = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/blank/{z}/{x}/{y}.png', {
-    maxZoom: 18, maxNativeZoom: 14,
+    maxZoom: 21, maxNativeZoom: 14,
     attribution: "<a href='https://maps.gsi.go.jp/development/ichiran.html' target='_blank'>国土地理院(白地図)</a>"
   });
 
@@ -932,8 +935,7 @@
   }
 
   /* ★引き出し線（Leader Line）描画関数★
-     - 画面中央からの距離順で50件以内のみ描画
-     - 表示範囲（画面内）の対象が50件を超える場合は非表示
+     - クリックイベントのバブリング（伝播）をストップしマップクリックが発生しないよう修正
   */
   function updateLeaderLines() {
     leaderLineLayerGroup.clearLayers();
@@ -941,7 +943,6 @@
     const bounds = map.getBounds();
     const mapCenter = map.getCenter();
 
-    // 画面内に存在するマーカーの取得と画面中央からの距離算出
     const visiblePoints = [];
     allPoints.forEach(p => {
       const pId = Number(p.id);
@@ -954,10 +955,8 @@
       }
     });
 
-    // 画面内の表示件数が50件を超える場合は表示しない（パフォーマンス保護）
     if (visiblePoints.length > 50) return;
 
-    // 中央に近い順にソートして50件に制限
     visiblePoints.sort((a, b) => a.dist - b.dist);
     const targetPoints = visiblePoints.slice(0, 50);
 
@@ -966,12 +965,10 @@
       const originLatLng = item.latLng;
       const dispTitle = p.display_title || p.title;
 
-      // ピクセル座標で右上にずらした位置を算出（引き出し線用）
       const originPoint = map.latLngToLayerPoint(originLatLng);
       const labelPoint = L.point(originPoint.x + 35, originPoint.y - 35);
       const labelLatLng = map.layerPointToLatLng(labelPoint);
 
-      // 引き出し線（ポリライン）を描画
       const line = L.polyline([originLatLng, labelLatLng], {
         color: '#007bff',
         weight: 1.5,
@@ -981,10 +978,10 @@
       });
       leaderLineLayerGroup.addLayer(line);
 
-      // テキストラベルマーカーを作成
+      // マップイベント伝播防止用の onclick ハンドラーを設定
       const labelIcon = L.divIcon({
         className: 'leader-line-container',
-        html: `<div class="leader-label-marker" onclick="focusToPoint(${p.id})">${dispTitle}</div>`,
+        html: `<div class="leader-label-marker" onclick="onLeaderLabelClick(event, ${p.id})">${dispTitle}</div>`,
         iconSize: [null, null],
         iconAnchor: [0, 10]
       });
@@ -994,7 +991,15 @@
     });
   }
 
-  // 地図移動・ズーム時に引き出し線を再描画
+  /* ★引き出し線ラベルクリック時の安全な処理★ */
+  function onLeaderLabelClick(e, pointId) {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation(); // マップへのクリックイベント伝播を確実に遮断
+    }
+    focusToPoint(pointId);
+  }
+
   map.on('moveend zoomend resize', updateLeaderLines);
 
   function getFilteredPoints() {
@@ -1168,7 +1173,6 @@
     renderSidebarTree();
   }
 
-  /* ★3階層構造（親・子・孫）に対応したツリー描画★ */
   function renderSidebarTree() {
     try {
       const treeContainer = document.getElementById('point-tree');
@@ -1590,7 +1594,6 @@
     }
   }
 
-  /* ★テンプレートダウンロード（ピン表示名＆親・子・孫グループ列対応）★ */
   function downloadExcelTemplate() {
     const templateData = [
       { 'ピン表示名': '1号標識', 'スポット名': 'D360425L3', '緯度': 40.220360, '経度': 141.781950, '親グループ': '三陸', '子グループ': '1工区', '孫グループ': 'A区画', 'タブ': '標識', '基本画像': '※画像高さは2cm程度にする' },
@@ -1809,7 +1812,6 @@
     }
   }
 
-  /* ★Excelインポート処理（ピン表示名＆親・子・孫グループ読込対応）★ */
   async function handleFileSelect(e) {
     if (isReadOnly) return;
     const file = e.target.files[0];
@@ -1877,7 +1879,6 @@
         const lat = parseFloat(row['緯度'] || row['lat'] || row['latitude']);
         const lng = parseFloat(row['経度'] || row['lng'] || row['longitude']);
         
-        // 親・子・孫グループ列の結合処理
         const parentG = String(row['親グループ'] || row['グループ'] || row['group'] || '').trim();
         const childG = String(row['子グループ'] || '').trim();
         const grandchildG = String(row['孫グループ'] || '').trim();
@@ -1946,24 +1947,26 @@
     }
   });
 
+  /* ★マップクリック時の処理を変更★
+     - 「個別登録」モード時のみ、クリックした座標をフォームに代入
+     - マップクリックのみでの新規登録画面表示を廃止
+  */
   map.on('click', (e) => {
     if (isReadOnly) return;
-    selectedLatLng = e.latlng;
-    document.getElementById('form-modal-title').textContent = '新しいポイントを追加';
-    document.getElementById('spot-display-title').value = '';
-    document.getElementById('spot-title').value = '';
-    document.getElementById('spot-lat').value = e.latlng.lat.toFixed(6);
-    document.getElementById('spot-lng').value = e.latlng.lng.toFixed(6);
-    document.getElementById('spot-group').value = '';
-    document.getElementById('spot-tab').value = '';
-    document.getElementById('spot-image').value = '';
-    document.getElementById('form-container').style.display = 'block';
+    if (isManualRegisterMode) {
+      selectedLatLng = e.latlng;
+      document.getElementById('spot-lat').value = e.latlng.lat.toFixed(6);
+      document.getElementById('spot-lng').value = e.latlng.lng.toFixed(6);
+    }
   });
 
+  /* ★「個別登録」ボタン押下時のみ座標取得・画面表示を許可★ */
   function openManualRegisterModal() {
     if (isReadOnly) return;
+    isManualRegisterMode = true; // 個別登録モードを有効化
     selectedLatLng = null;
     document.getElementById('form-modal-title').textContent = 'ポイントを手動（個別）登録';
+    document.getElementById('form-hint').style.display = 'block'; // ヒント表示
     document.getElementById('spot-display-title').value = '';
     document.getElementById('spot-title').value = '';
     document.getElementById('spot-lat').value = '';
@@ -1975,7 +1978,9 @@
   }
 
   function closeForm() {
+    isManualRegisterMode = false; // モード解除
     document.getElementById('form-container').style.display = 'none';
+    document.getElementById('form-hint').style.display = 'none';
     document.getElementById('spot-display-title').value = '';
     document.getElementById('spot-title').value = '';
     document.getElementById('spot-lat').value = '';
@@ -1999,7 +2004,7 @@
     const saveBtn = document.getElementById('save-btn');
 
     if (!title) { alert('スポット名を入力してください'); return; }
-    if (isNaN(latVal) || isNaN(lngVal)) { alert('有効な緯度と経度を入力（または地図上をクリック）してください'); return; }
+    if (isNaN(latVal) || isNaN(lngVal)) { alert('有効な緯度と経度を入力（または個別登録モードで地図上をクリック）してください'); return; }
 
     saveBtn.disabled = true;
     let imageUrl = null;
