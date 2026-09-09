@@ -298,7 +298,7 @@
   // 折りたたみの開閉状態を記録するSet
   const openGroupIds = new Set();
 
-  // --- 共有URLアクセス判定＆セッション確認 ---
+  // 共有URLアクセス判定＆セッション確認
   async function checkSession() {
     const urlParams = new URLSearchParams(window.location.search);
     const sharedIds = urlParams.get('ids') ? urlParams.get('ids').split(',') : (urlParams.get('id') ? [urlParams.get('id')] : null);
@@ -619,6 +619,7 @@
     container.innerHTML = `<div class="popup-img-container">${cardsHtml}</div>`;
   }
 
+  // ★画像コメント保存（表示状態を維持）★
   async function saveImageComment(pointId, imgIndex) {
     const inputElem = document.getElementById(`comment-input-${pointId}-${imgIndex}`);
     if (!inputElem) return;
@@ -1080,9 +1081,13 @@
     document.getElementById('single-image-input').click();
   }
 
+  // ★画像選択・保存処理（表示状態とチェック状態を維持）★
   document.getElementById('single-image-input').addEventListener('change', async (e) => {
     const files = Array.from(e.target.files);
     if (files.length === 0 || !targetPointIdForImage) return;
+
+    // アップロード前の表示（チェック）状態を保持
+    const wasVisible = markers[targetPointIdForImage] && map.hasLayer(markers[targetPointIdForImage]);
 
     try {
       const compressedImages = [];
@@ -1115,6 +1120,13 @@
       const point = allPoints.find(p => Number(p.id) === targetPointIdForImage);
       if (point) point.image_url = jsonImageString;
 
+      // 表示状態（チェック状態）を復元
+      if (wasVisible && markers[targetPointIdForImage]) {
+        map.addLayer(markers[targetPointIdForImage]);
+        const chk = document.getElementById(`chk-point-${targetPointIdForImage}`);
+        if (chk) chk.checked = true;
+      }
+
       loadImagesForPopup(targetPointIdForImage);
       updateDatabaseUsageMeter();
       alert(`${files.length} 枚の画像を軽量化保存しました！`);
@@ -1127,7 +1139,6 @@
     }
   });
 
-  // ★要件2: 画面/地図上に表示されている（チェックが入っている）ポイントのみを共有対象にする★
   function shareSelectedPoints() {
     const selectedIds = [];
     allPoints.forEach(p => {
@@ -1188,18 +1199,21 @@
 
     if (error) return;
 
-    allPoints = points || [];
+    if (sharedIds) {
+      allPoints = (points || []).filter(p => sharedIds.includes(String(p.id)));
+    } else {
+      allPoints = points || [];
+    }
+
     const bounds = [];
 
     Object.keys(markers).forEach(id => { map.removeLayer(markers[id]); delete markers[id]; });
 
     if (sharedIds) {
       allPoints.forEach(p => {
-        if (sharedIds.includes(String(p.id))) {
-          addMarkerToMap(p);
-          map.addLayer(markers[p.id]);
-          bounds.push([p.lat, p.lng]);
-        }
+        addMarkerToMap(p);
+        map.addLayer(markers[p.id]);
+        bounds.push([p.lat, p.lng]);
       });
     }
 
@@ -1362,8 +1376,13 @@
     }
   }
 
+  // ★要件: 共有閲覧モード (isReadOnly) 時はリアルタイム更新を行わない★
   supabaseClient.channel('public:points')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'points' }, () => loadInitialPoints())
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'points' }, () => {
+      if (!isReadOnly) {
+        loadInitialPoints();
+      }
+    })
     .subscribe();
 
   checkSession();
