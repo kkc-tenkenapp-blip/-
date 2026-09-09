@@ -642,7 +642,7 @@
     container.innerHTML = `<div class="popup-img-container">${cardsHtml}</div>`;
   }
 
-  // 個別画像の削除処理
+  // 個別画像の削除処理（ポップアップ表示維持）
   async function deleteSingleImage(pointId, imgIndex) {
     if (isReadOnly) return;
     if (!confirm('この画像を削除しますか？')) return;
@@ -770,10 +770,17 @@
   // グループ名の編集・変更
   async function editGroupUI(oldGroupPath) {
     if (isReadOnly) return;
-    const input = prompt(`グループ名変更: 「${oldGroupPath}」の新しい名称を入力してください。\n（※親子関係を変更する場合は '親 / 子' の形式で入力）`, oldGroupPath);
+
+    const pathParts = oldGroupPath.split('/').map(s => s.trim());
+    const currentName = pathParts[pathParts.length - 1];
+
+    const input = prompt(`グループ名変更: 「${currentName}」の新しい名称を入力してください。`, currentName);
     if (!input) return;
-    const newGroupPath = input.trim();
-    if (!newGroupPath || newGroupPath === oldGroupPath) return;
+    const newName = input.trim();
+    if (!newName || newName === currentName) return;
+
+    pathParts[pathParts.length - 1] = newName;
+    const newGroupPath = pathParts.join(' / ');
 
     if (customGroups.has(oldGroupPath)) {
       customGroups.delete(oldGroupPath);
@@ -999,7 +1006,6 @@
           e.dataTransfer.setData('text/group-path', childPath);
         });
 
-        /* ★重複していた 📂 マークを削除し、開閉アイコン(fold-icon)だけに修正★ */
         childHeader.innerHTML = `
           <input type="checkbox" onchange="toggleGroupVisibilityByPath('${childPath}', this.checked)" title="子グループ内を一括表示/非表示" />
           <span class="group-title-text" onclick="toggleChildFold('${childSafeId}')">
@@ -1219,12 +1225,16 @@
     document.getElementById('single-image-input').click();
   }
 
+  // ★画像追加保存（ポップアップ表示＆チェック状態維持機能追加）★
   document.getElementById('single-image-input').addEventListener('change', async (e) => {
     const files = Array.from(e.target.files);
     if (files.length === 0 || !targetPointIdForImage) return;
 
     const targetId = Number(targetPointIdForImage);
     const wasVisible = checkedPointIds.has(targetId) || (markers[targetId] && map.hasLayer(markers[targetId]));
+
+    // 現在ポップアップが開いているか保持
+    const wasPopupOpen = markers[targetId] && markers[targetId].isPopupOpen();
 
     try {
       const compressedImages = [];
@@ -1261,12 +1271,22 @@
         checkedPointIds.add(targetId);
         if (point) {
           addMarkerToMap(point);
-          map.addLayer(markers[targetId]);
+          if (markers[targetId] && !map.hasLayer(markers[targetId])) {
+            map.addLayer(markers[targetId]);
+          }
         }
       }
 
       renderSidebarTree();
-      loadImagesForPopup(targetId);
+
+      // ★ポップアップが開いていた場合は画像更新後に再度オープン★
+      if (markers[targetId]) {
+        loadImagesForPopup(targetId);
+        if (wasPopupOpen) {
+          markers[targetId].openPopup();
+        }
+      }
+
       updateDatabaseUsageMeter();
       alert(`${files.length} 枚の画像を保存しました！`);
     } catch (err) {
