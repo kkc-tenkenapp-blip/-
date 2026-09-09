@@ -137,11 +137,6 @@
     #lightbox-caption { color: white; margin-top: 12px; font-size: 14px; text-align: center; max-width: 80vw; }
     #lightbox-close { position: absolute; top: 20px; right: 25px; color: white; font-size: 30px; cursor: pointer; font-weight: bold; }
 
-    #legend-box { position: absolute; bottom: 20px; right: 20px; z-index: 1000; background: rgba(255, 255, 255, 0.95); padding: 10px 14px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.25); border: 1px solid #ccc; cursor: pointer; font-size: 12px; max-width: 200px; }
-    #legend-box h5 { margin: 0 0 6px 0; font-size: 12px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #ddd; padding-bottom: 4px; }
-    .legend-item { display: flex; align-items: center; margin-bottom: 4px; }
-    .legend-color { width: 12px; height: 12px; border-radius: 50%; display: inline-block; margin-right: 6px; border: 1px solid #888; }
-
     .modal { display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 2000; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); width: 380px; max-width: 90vw; box-sizing: border-box; }
     .modal h4 { margin: 0 0 12px 0; }
     .modal input, .modal select { width: 100%; margin-bottom: 10px; box-sizing: border-box; padding: 8px; font-size: 12px; border: 1px solid #ccc; border-radius: 4px; }
@@ -181,7 +176,7 @@
       body { flex-direction: column-reverse; }
       #sidebar { width: 100% !important; max-width: 100%; height: 55vh; border-right: none; }
       #resizer { width: 100% !important; height: 10px !important; background: #ccc !important; cursor: row-resize !important; position: relative; touch-action: none; }
-      map { width: 100%; height: 45vh; }
+      #map { width: 100%; height: 45vh; }
       #import-area, #share-bar { display: none !important; }
     }
   </style>
@@ -289,10 +284,13 @@
 <!-- 選択共有設定モーダル -->
 <div id="share-config-modal" class="modal">
   <h4>🔗 選択共有の設定</h4>
-  <p style="font-size:11px; color:#666; margin-bottom:12px;">共有用のパスワードと有効期限を設定してください。</p>
+  <p style="font-size:11px; color:#666; margin-bottom:12px;">強力なパスワードが自動生成されました（変更も可能です）。</p>
   
-  <label style="font-size:11px; font-weight:bold; display:block; margin-bottom:4px;">閲覧パスワード（必須）</label>
-  <input type="text" id="share-setting-pw" placeholder="パスワードを入力（例: pass1234）" />
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+    <label style="font-size:11px; font-weight:bold;">閲覧パスワード（自動設定済）</label>
+    <button type="button" onclick="regenerateSharePwInModal()" style="border:none; background:none; color:#0d6efd; font-size:11px; cursor:pointer; font-weight:bold;">🔄 再生成</button>
+  </div>
+  <input type="text" id="share-setting-pw" placeholder="パスワードを入力" />
 
   <label style="font-size:11px; font-weight:bold; display:block; margin-bottom:4px;">有効期限</label>
   <select id="share-setting-days">
@@ -458,6 +456,16 @@
     }
   });
 
+  /* ★強力なランダムパスワード自動生成関数（英大文字・小文字・数字 8桁）★ */
+  function generateStrongPassword(length = 8) {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+    let result = '';
+    for (let i = 0; i < length; i++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+  }
+
   async function fetchWithRetry(queryFn, maxRetries = 3, delayMs = 1500) {
     let lastError = null;
     for (let i = 0; i < maxRetries; i++) {
@@ -473,7 +481,6 @@
     return { data: null, error: lastError };
   }
 
-  /* ★Supabase Storageへの画像一括アップロードヘルパー★ */
   async function uploadImageToStorage(fileOrBase64, filenamePrefix = 'img') {
     try {
       let fileBlob = null;
@@ -492,21 +499,22 @@
         fileBlob = fileOrBase64;
         ext = fileOrBase64.name ? fileOrBase64.name.split('.').pop() : 'jpg';
       } else {
-        return fileOrBase64; // すでにURLの場合はそのまま返す
+        return fileOrBase64;
       }
 
       const fileName = `${filenamePrefix}_${Date.now()}_${Math.random().toString(36).substring(2, 8)}.${ext}`;
       const { data, error } = await supabaseClient.storage.from('point-images').upload(fileName, fileBlob);
 
       if (error) {
-        console.error('Storageアップロードエラー:', error);
+        console.error('Storageアップロードエラー詳細:', error);
+        alert('画像保存エラー: ' + error.message + '\nSupabase StorageのPolicy設定をご確認ください。');
         return null;
       }
 
       const { data: publicUrlData } = supabaseClient.storage.from('point-images').getPublicUrl(fileName);
       return publicUrlData.publicUrl;
     } catch (e) {
-      console.error('Storage処理失敗:', e);
+      console.error('Storage処理例外:', e);
       return null;
     }
   }
@@ -821,29 +829,34 @@
     const container = document.getElementById(`popup-img-area-${pointId}`);
     if (!container) return;
 
-    container.innerHTML = '<p style="font-size:11px; color:#666; margin-top:6px;">⏳ 画像を読み込み中...</p>';
+    const point = allPoints.find(p => Number(p.id) === Number(pointId));
+    
+    if (point && point.image_url === undefined) {
+      container.innerHTML = '<p style="font-size:11px; color:#666; margin-top:6px;">⏳ 画像を読み込み中...</p>';
+      const { data } = await fetchWithRetry(() => supabaseClient
+        .from('points')
+        .select('image_url')
+        .eq('id', pointId)
+        .single()
+      );
+      if (data && data.image_url) {
+        point.image_url = data.image_url;
+      } else {
+        point.image_url = null;
+      }
+    }
 
-    const { data, error } = await fetchWithRetry(() => supabaseClient
-      .from('points')
-      .select('image_url')
-      .eq('id', pointId)
-      .single()
-    );
-
-    if (error || !data || !data.image_url) {
+    if (!point || !point.image_url) {
       container.innerHTML = '<p style="font-size:11px; color:#999; margin-top:6px;">画像なし</p>';
       return;
     }
 
-    const point = allPoints.find(p => Number(p.id) === Number(pointId));
-    if (point) point.image_url = data.image_url;
-
     let rawList = [];
     try {
-      rawList = JSON.parse(data.image_url);
-      if (!Array.isArray(rawList)) rawList = [data.image_url];
+      rawList = JSON.parse(point.image_url);
+      if (!Array.isArray(rawList)) rawList = [point.image_url];
     } catch (e) {
-      rawList = [data.image_url];
+      rawList = [point.image_url];
     }
 
     if (rawList.length === 0) {
@@ -1768,7 +1781,6 @@
     document.getElementById('single-image-input').click();
   }
 
-  /* ★Supabase Storageへのアップロード処理（個別の画像追加時）★ */
   document.getElementById('single-image-input').addEventListener('change', async (e) => {
     const files = Array.from(e.target.files);
     if (files.length === 0 || !targetPointIdForImage) return;
@@ -1783,11 +1795,14 @@
       const uploadedImageObjects = [];
       for (const file of files) {
         const compressedBase64 = await compressImageFile(file, 600, 0.65);
-        // Supabase Storageに直接アップロードし、公開URLを取得
         const publicUrl = await uploadImageToStorage(compressedBase64, `point_${targetId}`);
         if (publicUrl) {
           uploadedImageObjects.push({ url: publicUrl, comment: '', judge: '' });
         }
+      }
+
+      if (uploadedImageObjects.length === 0) {
+        throw new Error('画像の保存（Storageアップロード）に失敗しました。');
       }
 
       const { data } = await supabaseClient.from('points').select('image_url').eq('id', targetId).single();
@@ -1831,7 +1846,7 @@
 
       renderSidebarTree();
     } catch (err) {
-      alert('アップロード処理中にエラーが発生しました');
+      alert('アップロード処理中にエラーが発生しました: ' + err.message);
       console.error(err);
     } finally {
       e.target.value = '';
@@ -1840,6 +1855,7 @@
     }
   });
 
+  /* ★共有設定モーダルを開く際に自動で強力パスワードをセット★ */
   function openShareConfigModal() {
     const selectedIds = [];
     allPoints.forEach(p => {
@@ -1857,9 +1873,15 @@
       return; 
     }
 
-    document.getElementById('share-setting-pw').value = '';
+    // 強力なパスワードを自動セット
+    document.getElementById('share-setting-pw').value = generateStrongPassword(8);
     document.getElementById('share-setting-days').value = '7';
     document.getElementById('share-config-modal').style.display = 'block';
+  }
+
+  /* ★モーダル内でパスワードを再生成する処理★ */
+  function regenerateSharePwInModal() {
+    document.getElementById('share-setting-pw').value = generateStrongPassword(8);
   }
 
   function closeShareConfigModal() {
@@ -1938,7 +1960,6 @@
     }
   }
 
-  /* ★初期読み込み処理（image_urlなどの重い列を除外して一瞬で取得）★ */
   async function loadInitialPoints() {
     try {
       await loadTabRules();
@@ -1952,7 +1973,6 @@
         document.querySelectorAll('.editable-only').forEach(el => el.style.display = 'none');
       }
 
-      // ★重い image_url を除外し、軽量な列だけを指定して高速ロード
       const { data: points, error } = await fetchWithRetry(() => supabaseClient
         .from('points')
         .select('id, title, display_title, lat, lng, group_name, tab_name, color, is_checked')
@@ -2000,7 +2020,6 @@
     }
   }
 
-  /* ★Excelインポート処理（画像をStorageにアップロードしてURL化）★ */
   async function handleFileSelect(e) {
     if (isReadOnly) return;
     const file = e.target.files[0];
@@ -2085,7 +2104,6 @@
 
         let imageUrl = null;
         if (rawImg && !String(rawImg).startsWith('※')) {
-          // 画像をStorageへアップロード
           const publicUrl = await uploadImageToStorage(rawImg, 'import');
           if (publicUrl) {
             imageUrl = JSON.stringify([{ url: publicUrl, comment: '', judge: '' }]);
