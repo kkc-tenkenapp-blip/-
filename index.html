@@ -3,8 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <!-- Google等の検索エンジンから除外する設定 -->
   <meta name="robots" content="noindex, nofollow">
   <title>点検管理アプリ</title>
+  <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <style>
     body { margin: 0; padding: 0; font-family: sans-serif; display: flex; height: 100vh; overflow: hidden; }
@@ -160,6 +162,7 @@
 </head>
 <body>
 
+<!-- Supabase Auth ログインモーダル -->
 <div id="login-overlay">
   <div class="login-card">
     <h2>🔒 ログイン</h2>
@@ -177,6 +180,7 @@
       <h3>点検管理アプリ</h3>
       <button class="btn-logout editable-only" onclick="logoutSupabase()">ログアウト</button>
     </div>
+    <!-- Supabase 無料枠使用状況メーター -->
     <div class="usage-container" title="Supabase無料枠（500MB）に対する推定使用量">
       <div class="usage-row">
         <span>📊 容量使用状況 (推定)</span>
@@ -201,6 +205,7 @@
     </div>
   </div>
 
+  <!-- 上側：Excelドロップ＆個別登録エリア -->
   <div id="import-area" class="editable-only">
     <div id="drop-zone" onclick="document.getElementById('excel-input').click()">
       📂 Excelをドロップ
@@ -210,6 +215,7 @@
     <button class="btn-import-sub" onclick="downloadExcelTemplate()">📥 テンプレート</button>
   </div>
 
+  <!-- 下側：検索・フィルタバー -->
   <div id="filter-bar">
     <div class="filter-row">
       <input type="text" id="search-keyword" class="filter-input" placeholder="🔍 スポット名で検索..." oninput="onFilterChange()" />
@@ -269,6 +275,7 @@
   <button onclick="closeTabConfigModal()" style="width:100%; margin-top:10px; background:#6c757d; color:white; border:none; padding:8px; border-radius:4px; cursor:pointer;">閉じる</button>
 </div>
 
+<!-- 新規・個別登録用ダイアログモーダル -->
 <div id="form-container" class="modal">
   <h4 id="form-modal-title">新しいポイントを追加</h4>
   <input type="text" id="spot-title" placeholder="スポット名（必須）" />
@@ -308,7 +315,7 @@
   const openGroupIds = new Set();
   const checkedPointIds = new Set();
   let activePopupPointId = null;
-  let isSelfOperating = false; // 自身が操作中か判定するフラグ
+  let isSelfOperating = false;
 
   // 共有URLアクセス判定＆セッション確認
   async function checkSession() {
@@ -615,12 +622,12 @@
       const editRow = isReadOnly ? '' : `
         <div class="comment-edit-row">
           <input type="text" id="comment-input-${pointId}-${idx}" class="comment-input" value="${safeComment}" placeholder="コメント入力..." />
-          <button class="comment-save-btn" onclick="saveImageComment(${pointId}, ${idx})">保存</button>
+          <button class="comment-save-btn" onclick="saveImageComment(event, ${pointId}, ${idx})">保存</button>
         </div>
       `;
 
       const deleteBtnHtml = isReadOnly ? '' : `
-        <button class="img-delete-btn" onclick="deleteSingleImage(${pointId}, ${idx})" title="この画像を削除">✕</button>
+        <button class="img-delete-btn" onclick="deleteSingleImage(event, ${pointId}, ${idx})" title="この画像を削除">✕</button>
       `;
 
       return `
@@ -638,8 +645,9 @@
     container.innerHTML = `<div class="popup-img-container">${cardsHtml}</div>`;
   }
 
-  // ★【画像削除時】確認ダイアログ（confirm）によるポップアップ消失を即座に再復元★
-  async function deleteSingleImage(pointId, imgIndex) {
+  // ★【要件2修正】イベントバブリグを遮断(e.stopPropagation)し「ポイント追加画面」の誤オープンを防止★
+  async function deleteSingleImage(e, pointId, imgIndex) {
+    if (e) e.stopPropagation();
     if (isReadOnly) return;
     
     isSelfOperating = true;
@@ -647,7 +655,6 @@
 
     const isConfirmed = confirm('この画像を削除しますか？');
     
-    // ダイアログを閉じた後にポップアップを再オープン
     if (markers[pointId]) {
       markers[pointId].openPopup();
     }
@@ -691,7 +698,8 @@
     setTimeout(() => { isSelfOperating = false; }, 1000);
   }
 
-  async function saveImageComment(pointId, imgIndex) {
+  async function saveImageComment(e, pointId, imgIndex) {
+    if (e) e.stopPropagation();
     const inputElem = document.getElementById(`comment-input-${pointId}-${imgIndex}`);
     if (!inputElem) return;
     const newComment = inputElem.value.trim();
@@ -755,7 +763,6 @@
     });
 
     marker.on('popupclose', () => {
-      // 自身が操作中のダイアログによる自動クローズの場合は記録を消さない
       if (!isSelfOperating && activePopupPointId === pId) {
         activePopupPointId = null;
       }
@@ -802,6 +809,7 @@
     }
   }
 
+  // グループ名の編集・変更
   async function editGroupUI(oldGroupPath) {
     if (isReadOnly) return;
 
@@ -838,6 +846,7 @@
     renderSidebarTree();
   }
 
+  // スポット名の編集・変更
   async function editPointTitle(pointId) {
     if (isReadOnly) return;
     const point = allPoints.find(p => Number(p.id) === Number(pointId));
@@ -874,6 +883,7 @@
     });
   }
 
+  // ドラッグ＆ドロップによるグループの直下（親子階層化）移動処理
   async function moveGroupPathToNewParent(sourceGroupPath, targetParentName) {
     if (sourceGroupPath === targetParentName || sourceGroupPath.startsWith(targetParentName + ' /')) return;
 
@@ -902,6 +912,7 @@
     renderSidebarTree();
   }
 
+  // サイドバー描画＆チェック状態・レイヤー・吹き出し（ポップアップ）状態の自動同期
   function renderSidebarTree() {
     const treeContainer = document.getElementById('point-tree');
     treeContainer.innerHTML = '';
@@ -1274,7 +1285,7 @@
     document.getElementById('single-image-input').click();
   }
 
-  // ★【要件1完全修正】画像アップロード時の自動更新ガードと確実なポップアップ復元★
+  // ★【要件1修正】画像データ追加後、全データ保持用 `allPoints` も即更新して吹き出しを完全復元★
   document.getElementById('single-image-input').addEventListener('change', async (e) => {
     const files = Array.from(e.target.files);
     if (files.length === 0 || !targetPointIdForImage) return;
@@ -1607,7 +1618,6 @@
     }
   }
 
-  // ★【自己操作保護】自分が操作中のときはSupabaseのリアルタイム通信による自動リロードをスキップ★
   supabaseClient.channel('public:points')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'points' }, () => {
       if (!isReadOnly && !isSelfOperating) {
