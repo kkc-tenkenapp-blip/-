@@ -28,6 +28,7 @@
     .login-btn:hover { background: #0056b3; }
     #login-error { color: #dc3545; font-size: 12px; margin-top: 10px; display: none; word-break: break-all; }
 
+    /* 左側リスト欄の初期幅 */
     #sidebar {
       width: 480px; min-width: 240px; max-width: 85vw; background: #f8f9fa; border-right: 1px solid #ccc;
       display: flex; flex-direction: column; z-index: 1000; box-shadow: 2px 0 5px rgba(0,0,0,0.1); flex-shrink: 0;
@@ -75,7 +76,6 @@
 
     #import-area { padding: 6px 12px; background: #e9ecef; border-bottom: 1px solid #ddd; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
     
-    /* ★ドロップゾーンの高さを半分にし、進捗バーを内包★ */
     #drop-zone { 
       flex: 1; 
       border: 1.5px dashed #007bff; 
@@ -255,10 +255,30 @@
     .btn-confirm-yes { background: #dc3545; color: white; border: none; padding: 6px 16px; border-radius: 4px; cursor: pointer; }
     .btn-confirm-no { background: #6c757d; color: white; border: none; padding: 6px 16px; border-radius: 4px; cursor: pointer; }
 
+    /* ★スマートフォン（幅768px以下）上下ドラッグ対応スタイル★ */
     @media screen and (max-width: 768px) {
       body { flex-direction: column-reverse; }
-      #sidebar { width: 100% !important; max-width: 100%; height: 55vh; border-right: none; border-top: 2px solid #007bff; }
-      #resizer { display: none; }
+      #sidebar { width: 100% !important; max-width: 100%; height: 55vh; border-right: none; }
+      #resizer { 
+        width: 100% !important; 
+        height: 10px !important; 
+        background: #ccc !important; 
+        cursor: row-resize !important; 
+        position: relative;
+        touch-action: none;
+      }
+      /* タッチ位置の視元補助ライン */
+      #resizer::after {
+        content: '';
+        position: absolute;
+        top: 3px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 30px;
+        height: 4px;
+        background: #888;
+        border-radius: 2px;
+      }
       #map { width: 100%; height: 45vh; }
       
       .usage-container, #import-area, #share-bar { display: none !important; }
@@ -334,7 +354,6 @@
     </div>
   </div>
 
-  <!-- ★高さ半分化と進捗バー（インジケーター）の追加★ -->
   <div id="import-area" class="editable-only">
     <div id="drop-zone" onclick="document.getElementById('excel-input').click()">
       <span id="drop-zone-text">📂 Excelをドロップ</span>
@@ -449,31 +468,69 @@
   let isSelfOperating = false;
 
   const sidebar = document.getElementById('sidebar');
+  const mapElem = document.getElementById('map');
   const resizer = document.getElementById('resizer');
   let isResizing = false;
 
+  // --- PCデスクトップ用（左右幅移動）---
   resizer.addEventListener('mousedown', (e) => {
-    isResizing = true;
-    resizer.classList.add('resizing');
-    document.body.style.cursor = 'col-resize';
-    document.body.style.userSelect = 'none';
+    if (window.innerWidth > 768) {
+      isResizing = true;
+      resizer.classList.add('resizing');
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+    }
   });
 
   document.addEventListener('mousemove', (e) => {
-    if (!isResizing) return;
+    if (!isResizing || window.innerWidth <= 768) return;
     const newWidth = e.clientX;
-    if (newWidth >= 240 && newWidth <= 800) {
+    if (newWidth >= 240 && newWidth <= window.innerWidth * 0.85) {
       sidebar.style.width = `${newWidth}px`;
       map.invalidateSize();
     }
   });
 
   document.addEventListener('mouseup', () => {
-    if (isResizing) {
+    if (isResizing && window.innerWidth > 768) {
       isResizing = false;
       resizer.classList.remove('resizing');
       document.body.style.cursor = '';
       document.body.style.userSelect = '';
+      map.invalidateSize();
+    }
+  });
+
+  /* ★携帯モバイル表示用（境界線の上下タッチスライド移動）★ */
+  resizer.addEventListener('touchstart', (e) => {
+    if (window.innerWidth <= 768) {
+      isResizing = true;
+      resizer.classList.add('resizing');
+    }
+  }, { passive: true });
+
+  document.addEventListener('touchmove', (e) => {
+    if (!isResizing || window.innerWidth > 768) return;
+    
+    const touch = e.touches[0];
+    const totalHeight = window.innerHeight;
+    
+    // 指の位置（Y座標）に基づいて高さ割合（%）を算出
+    const newSidebarHeight = totalHeight - touch.clientY;
+    const newSidebarPercent = (newSidebarHeight / totalHeight) * 100;
+
+    // 画面崩れを防ぐため 15% 〜 85% の範囲に制約
+    if (newSidebarPercent >= 15 && newSidebarPercent <= 85) {
+      sidebar.style.height = `${newSidebarPercent}vh`;
+      mapElem.style.height = `${100 - newSidebarPercent}vh`;
+      map.invalidateSize();
+    }
+  }, { passive: true });
+
+  document.addEventListener('touchend', () => {
+    if (isResizing && window.innerWidth <= 768) {
+      isResizing = false;
+      resizer.classList.remove('resizing');
       map.invalidateSize();
     }
   });
@@ -1507,7 +1564,6 @@
     }
   }
 
-  /* ★テンプレート作成時：F列幅15・行高63・E1注意事項を設定★ */
   function downloadExcelTemplate() {
     const templateData = [
       { 'スポット名': 'D360425L3', '緯度': 40.220360, '経度': 141.781950, 'グループ': '三陸 / 1工区', 'タブ': '標識', '基本画像': '※画像高さは2cm程度にする' },
@@ -1515,16 +1571,14 @@
     ];
     const ws = XLSX.utils.json_to_sheet(templateData);
     
-    // F列（6番目の列）の幅を15に固定
     ws['!cols'] = [
       { wch: 18 }, { wch: 12 }, { wch: 12 }, { wch: 18 }, { wch: 12 }, { wch: 15 }
     ];
 
-    // 各行の高さを63ptに固定
     ws['!rows'] = [
-      { hpt: 24 }, // ヘッダー行
-      { hpt: 63 }, // データ行1
-      { hpt: 63 }  // データ行2
+      { hpt: 24 },
+      { hpt: 63 },
+      { hpt: 63 }
     ];
 
     const wb = XLSX.utils.book_new();
@@ -1731,7 +1785,7 @@
     }
   }
 
-  /* ★index_v2.html の画像抽出処理（drawing1.xml 解析）を完全復元＋進捗バー更新★ */
+  /* ★index_v2.htmlの完全動作画像読み込みロジック★ */
   async function handleFileSelect(e) {
     if (isReadOnly) return;
     const file = e.target.files[0];
