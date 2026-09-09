@@ -1253,10 +1253,20 @@
       return;
     }
     activePopupPointId = targetPointIdForImage;
+
+    // アップロード前に吹き出しを開いたまま維持（メッセージ表示）
+    const area = document.getElementById(`popup-img-area-${targetPointIdForImage}`);
+    if (area) {
+      area.innerHTML = '<p style="font-size:11px; color:#0d6efd; margin-top:6px; font-weight:bold;">⏳ 画像処理中...</p>';
+    }
+    if (markers[targetPointIdForImage]) {
+      markers[targetPointIdForImage].openPopup();
+    }
+
     document.getElementById('single-image-input').click();
   }
 
-  // ★【根本原因修正】ポップアップ削除防止のため、画像保存時に renderSidebarTree() を呼ばずに画像エリアのみ部分更新★
+  // ★ポップアップ削除防止のため、画像保存時に renderSidebarTree() を呼ばずに画像エリアのみ部分更新★
   document.getElementById('single-image-input').addEventListener('change', async (e) => {
     const files = Array.from(e.target.files);
     if (files.length === 0 || !targetPointIdForImage) return;
