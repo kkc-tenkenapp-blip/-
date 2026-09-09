@@ -110,8 +110,11 @@
 
     #map { flex: 1; height: 100%; position: relative; }
 
+    /* ポップアップと矢印のスタイル補正 */
     .leaflet-popup-content-wrapper { padding: 10px; max-width: 320px !important; }
     .leaflet-popup-content { margin: 8px; width: auto !important; }
+    .leaflet-popup-tip-container { margin: 0 auto; }
+    
     .popup-img-container { display: flex; gap: 12px; overflow-x: auto; margin-top: 8px; max-width: 280px; padding-bottom: 6px; }
     .img-card { position: relative; display: flex; flex-direction: column; flex-shrink: 0; width: 220px; background: #f8f9fa; border: 1px solid #ddd; border-radius: 6px; padding: 6px; box-sizing: border-box; }
     .popup-img { width: 100%; height: 140px; border-radius: 4px; object-fit: cover; cursor: zoom-in; }
@@ -148,7 +151,7 @@
     #tab-rule-table th, #tab-rule-table td { border: 1px solid #ddd; padding: 6px; text-align: left; }
     #readonly-banner { display: none; background: #ffc107; color: #333; text-align: center; padding: 6px; font-size: 12px; font-weight: bold; }
 
-    /* ★ブラウザconfirm排除用のアプリ内カスタム確認ダイアログ★ */
+    /* ブラウザconfirm排除用のアプリ内カスタム確認ダイアログ */
     #custom-confirm-modal {
       display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
       background: rgba(0,0,0,0.5); z-index: 9999; justify-content: center; align-items: center;
@@ -473,7 +476,7 @@
 
   L.control.layers(baseMaps, null, { position: 'topright' }).addTo(map);
 
-  // 吹き出し下の矢印がポイントTip（先端）を指すよう popupAnchor 位置補正 [0, -38]
+  // ★【位置合わせ補正】マーカー先端へ正確に向くよう [0, -42] に定義★
   function createCustomIcon(color = 'blue') {
     const validColors = ['blue', 'red', 'green', 'orange', 'violet', 'gold', 'black', 'grey', 'cyan'];
     const c = validColors.includes(color) ? color : 'blue';
@@ -483,7 +486,7 @@
       shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
       iconSize: [25, 41],
       iconAnchor: [12, 41],
-      popupAnchor: [0, -38],
+      popupAnchor: [0, -42],
       shadowSize: [41, 41]
     });
   }
@@ -697,7 +700,7 @@
     container.innerHTML = `<div class="popup-img-container">${cardsHtml}</div>`;
   }
 
-  // ★【完全解決】ブラウザ標準confirm廃止・DOMカードのピンポイント削除により吹き出しを100%保持★
+  // 個別画像の削除処理
   async function deleteSingleImage(e, pointId, imgIndex) {
     if (e) e.stopPropagation();
     if (isReadOnly) return;
@@ -705,7 +708,6 @@
     isSelfOperating = true;
     activePopupPointId = Number(pointId);
 
-    // ブラウザダイアログの代わりにアプリ内カスタムモーダルを使用（フォーカス喪失を防止）
     const isConfirmed = await showCustomConfirm();
 
     if (!isConfirmed) {
@@ -727,12 +729,10 @@
       imgList = [{ url: point.image_url, comment: '' }];
     }
 
-    // 配列から削除
     imgList.splice(imgIndex, 1);
     const updatedJson = imgList.length > 0 ? JSON.stringify(imgList) : null;
     point.image_url = updatedJson;
 
-    // ポップアップ内部のカードDOM要素を直接削除して即座に画面反映
     const targetCard = document.getElementById(`img-card-${pointId}-${imgIndex}`);
     if (targetCard) {
       targetCard.remove();
@@ -740,7 +740,6 @@
       await loadImagesForPopup(pointId);
     }
 
-    // 裏側でSupabaseへ更新保存
     const { error } = await supabaseClient.from('points').update({ image_url: updatedJson }).eq('id', pointId);
 
     if (error) {
@@ -753,7 +752,6 @@
     setTimeout(() => { isSelfOperating = false; }, 1000);
   }
 
-  // コメント保存時も同様にメモリとDOMを直感同期更新
   async function saveImageComment(e, pointId, imgIndex) {
     if (e) e.stopPropagation();
     const inputElem = document.getElementById(`comment-input-${pointId}-${imgIndex}`);
@@ -783,7 +781,6 @@
     const updatedJson = JSON.stringify(imgList);
     point.image_url = updatedJson;
 
-    // DOM部分書き換え
     const targetCard = document.getElementById(`img-card-${pointId}-${imgIndex}`);
     if (targetCard) {
       const txtElem = targetCard.querySelector('.comment-text');
