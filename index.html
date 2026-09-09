@@ -280,7 +280,7 @@
   <h4 id="form-modal-title">新しいポイントを追加</h4>
   <input type="text" id="spot-title" placeholder="スポット名（必須）" />
   <input type="number" step="any" id="spot-lat" placeholder="緯度（例: 40.220360）" />
-  <input type="number" step="any" id="spot-lng" placeholder="経度（例: 40.220360）" />
+  <input type="number" step="any" id="spot-lng" placeholder="経度（例: 141.781950）" />
   <input type="text" id="spot-group" placeholder="グループ名（例: 三陸 / 1工区）" />
   <input type="text" id="spot-tab" placeholder="タブの内容（例: 標識）" />
   <input type="file" id="spot-image" accept="image/*" multiple />
@@ -426,6 +426,7 @@
 
   L.control.layers(baseMaps, null, { position: 'topright' }).addTo(map);
 
+  // ★【要件2修正】吹き出し下の矢印がポイントTip（先端）を指すよう popupAnchor 位置補正 [0, -38] ★
   function createCustomIcon(color = 'blue') {
     const validColors = ['blue', 'red', 'green', 'orange', 'violet', 'gold', 'black', 'grey', 'cyan'];
     const c = validColors.includes(color) ? color : 'blue';
@@ -435,7 +436,7 @@
       shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
       iconSize: [25, 41],
       iconAnchor: [12, 41],
-      popupAnchor: [1, -34],
+      popupAnchor: [0, -38],
       shadowSize: [41, 41]
     });
   }
@@ -1045,7 +1046,7 @@
       treeContainer.appendChild(parentDiv);
     });
 
-    // ★以前開いていたポップアップ（吹き出し）があれば確実に復元オープン★
+    // 以前開いていたポップアップ（吹き出し）があれば復元オープン
     if (activePopupPointId && markers[activePopupPointId]) {
       setTimeout(() => {
         if (markers[activePopupPointId] && map.hasLayer(markers[activePopupPointId])) {
@@ -1244,12 +1245,11 @@
       alert('エラー: ポイントIDが無効です');
       return;
     }
-    // アップロード対象ポイントのポップアップIDを保持
     activePopupPointId = targetPointIdForImage;
     document.getElementById('single-image-input').click();
   }
 
-  // 画像追加保存（吹き出しの表示維持完全保証）
+  // ★【要件1修正】画像追加保存完了後に吹き出し（ポップアップ）を自動再オープン★
   document.getElementById('single-image-input').addEventListener('change', async (e) => {
     const files = Array.from(e.target.files);
     if (files.length === 0 || !targetPointIdForImage) return;
@@ -1257,7 +1257,6 @@
     const targetId = Number(targetPointIdForImage);
     const wasVisible = checkedPointIds.has(targetId) || (markers[targetId] && map.hasLayer(markers[targetId]));
 
-    // 常にアクティブなポップアップ対象として記録
     activePopupPointId = targetId;
 
     try {
@@ -1303,9 +1302,10 @@
 
       renderSidebarTree();
 
-      // 画像表示コンテナの再読み込み
+      // 画像情報非同期読み込み後にポップアップを開く
       if (markers[targetId]) {
-        loadImagesForPopup(targetId);
+        await loadImagesForPopup(targetId);
+        markers[targetId].openPopup();
       }
 
       updateDatabaseUsageMeter();
