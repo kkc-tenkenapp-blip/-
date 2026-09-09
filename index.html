@@ -688,7 +688,10 @@
       const point = allPoints.find(p => Number(p.id) === Number(pointId));
       if (point) point.image_url = updatedJson;
       
-      // 非同期で描画完了を待ってから吹き出しを再表示
+      // ★非同期で画像一覧のDOM描画完了（await）後にオープンを保証★
+      if (markers[pointId]) {
+        markers[pointId].openPopup();
+      }
       await loadImagesForPopup(pointId);
       if (markers[pointId]) {
         markers[pointId].openPopup();
@@ -1286,7 +1289,6 @@
     document.getElementById('single-image-input').click();
   }
 
-  // ★【要件1修正】画像のDOM更新(loadImagesForPopup)を完了（await）してからopenPopupを実行★
   document.getElementById('single-image-input').addEventListener('change', async (e) => {
     const files = Array.from(e.target.files);
     if (files.length === 0 || !targetPointIdForImage) return;
