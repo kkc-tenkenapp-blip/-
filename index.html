@@ -28,8 +28,9 @@
     .login-btn:hover { background: #0056b3; }
     #login-error { color: #dc3545; font-size: 12px; margin-top: 10px; display: none; word-break: break-all; }
 
+    /* ★左側リスト欄の初期幅を320pxから1.5倍の480pxに変更★ */
     #sidebar {
-      width: 320px; min-width: 240px; max-width: 800px; background: #f8f9fa; border-right: 1px solid #ccc;
+      width: 480px; min-width: 240px; max-width: 85vw; background: #f8f9fa; border-right: 1px solid #ccc;
       display: flex; flex-direction: column; z-index: 1000; box-shadow: 2px 0 5px rgba(0,0,0,0.1); flex-shrink: 0;
     }
     
@@ -109,7 +110,6 @@
     .point-name { flex: 1; margin-left: 4px; cursor: pointer; color: #212529; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; display: flex; align-items: center; gap: 4px; }
     .point-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
     
-    /* 着色タブ兼プルダウンのカスタムスタイル */
     .tab-badge-select { 
       font-size: 10px; 
       padding: 2px 6px; 
@@ -131,7 +131,6 @@
       color: #333;
     }
 
-    /* ★未実施・点検済切り替えプルダウンタブのスタイル★ */
     .status-badge-select {
       font-size: 10px; 
       padding: 2px 6px; 
@@ -357,7 +356,6 @@
     <tbody id="tab-rule-list"></tbody>
   </table>
 
-  <!-- ★ピンクを削除★ -->
   <div style="border-top:1px solid #eee; pt:10px; margin-top:10px;">
     <input type="text" id="new-tab-name" placeholder="新しいタブ文字（例: 標識）" />
     <select id="new-tab-color">
@@ -574,7 +572,6 @@
 
   L.control.layers(baseMaps, null, { position: 'topright' }).addTo(map);
 
-  /* ★ピンク削除★ */
   function createCustomIcon(color = 'blue') {
     const validColors = ['blue', 'red', 'green', 'orange', 'violet', 'gold', 'black', 'grey', 'yellow'];
     let c = validColors.includes(color) ? color : 'blue';
@@ -1257,7 +1254,6 @@
     }
   }
 
-  /* ★未実施／点検済のステータスタブ＆プルダウン切り替え機能の実装★ */
   function renderPointList(points, groupPath) {
     const ul = document.createElement('ul');
     ul.className = 'point-list';
@@ -1383,7 +1379,6 @@
     }
   }
 
-  /* ★未実施／点検済のトグル切り替え関数★ */
   async function togglePointCheckedStatus(pointId, explicitValue = null) {
     const point = allPoints.find(p => Number(p.id) === Number(pointId));
     if (!point) return;
@@ -1669,6 +1664,7 @@
     }
   }
 
+  /* ★以前の安定したExcelインポート処理に戻し★ */
   async function handleFileSelect(e) {
     if (isReadOnly) return;
     const file = e.target.files[0];
@@ -1676,54 +1672,6 @@
 
     try {
       const arrayBuffer = await file.arrayBuffer();
-      const rowImageMap = {}; 
-
-      try {
-        const zip = await JSZip.loadAsync(arrayBuffer);
-        const drawingFiles = Object.keys(zip.files).filter(k => k.startsWith('xl/drawings/drawing') && k.endsWith('.xml'));
-        
-        for (const drawPath of drawingFiles) {
-          const relsPath = drawPath.replace('xl/drawings/', 'xl/drawings/_rels/') + '.rels';
-          const drawingXml = await zip.files[drawPath]?.async('text');
-          const relsXml = zip.files[relsPath] ? await zip.files[relsPath].async('text') : null;
-
-          if (drawingXml) {
-            const parser = new DOMParser();
-            const rels = {};
-            
-            if (relsXml) {
-              const relsDoc = parser.parseFromString(relsXml, 'text/xml');
-              relsDoc.querySelectorAll('Relationship').forEach(r => {
-                rels[r.getAttribute('Id')] = r.getAttribute('Target').replace('../media/', '').replace('media/', '');
-              });
-            }
-
-            const drawDoc = parser.parseFromString(drawingXml, 'text/xml');
-            const anchors = drawDoc.querySelectorAll('oneCellAnchor, twoCellAnchor');
-            
-            for (const anchor of anchors) {
-              const rowElem = anchor.querySelector('from > row');
-              const blipElem = anchor.querySelector('blip');
-              if (rowElem && blipElem) {
-                const rowIdx = parseInt(rowElem.textContent, 10);
-                const rId = blipElem.getAttribute('r:embed') || blipElem.getAttribute('r:link');
-                const mediaName = rels[rId];
-                
-                const mediaPath = Object.keys(zip.files).find(k => k.endsWith(mediaName));
-                if (mediaPath) {
-                  const base64 = await zip.files[mediaPath].async('base64');
-                  const ext = mediaName.split('.').pop().toLowerCase();
-                  const mime = ext === 'png' ? 'image/png' : 'image/jpeg';
-                  rowImageMap[rowIdx] = `data:${mime};base64,${base64}`;
-                }
-              }
-            }
-          }
-        }
-      } catch (zipErr) {
-        console.warn('Zip内画像解析エラー:', zipErr);
-      }
-
       const workbook = XLSX.read(arrayBuffer, { type: 'array' });
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
       const json = XLSX.utils.sheet_to_json(worksheet);
@@ -1736,11 +1684,10 @@
         const lng = parseFloat(row['経度'] || row['lng'] || row['longitude']);
         const group_name = row['グループ'] || row['group'] || 'インポート';
         const tabText = row['タブ'] || row['tab'] || '';
-        
-        let imageUrl = rowImageMap[i + 1] || row['基本画像'] || row['画像URL'] || row['画像'] || null;
+        let imageUrl = row['基本画像'] || row['画像URL'] || row['画像'] || null;
 
         if (imageUrl) {
-          imageUrl = JSON.stringify([{ url: imageUrl, comment: '' }]);
+          imageUrl = JSON.stringify([{ url: String(imageUrl), comment: '' }]);
         }
 
         if (title && !isNaN(lat) && !isNaN(lng)) {
