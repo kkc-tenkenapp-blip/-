@@ -62,10 +62,11 @@
     #btn-share-selected { background: #198754; }
     #btn-delete-selected { background: #dc3545; }
 
-    /* Excelインポートエリア */
-    #import-area { padding: 8px 12px; background: #e9ecef; border-bottom: 1px solid #ddd; display: flex; gap: 8px; align-items: center; }
-    #drop-zone { flex: 1; border: 2px dashed #007bff; background: #fff; padding: 8px; text-align: center; border-radius: 4px; font-size: 11px; cursor: pointer; }
-    #btn-download-template { background: #6c757d; color: white; border: none; padding: 8px 10px; border-radius: 4px; cursor: pointer; font-size: 11px; white-space: nowrap; }
+    /* Excelインポート＆個別登録エリア */
+    #import-area { padding: 8px 12px; background: #e9ecef; border-bottom: 1px solid #ddd; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+    #drop-zone { flex: 1; border: 2px dashed #007bff; background: #fff; padding: 8px; text-align: center; border-radius: 4px; font-size: 11px; cursor: pointer; min-width: 140px; }
+    .btn-import-sub { background: #6c757d; color: white; border: none; padding: 8px 8px; border-radius: 4px; cursor: pointer; font-size: 11px; white-space: nowrap; }
+    .btn-import-manual { background: #17a2b8; color: white; border: none; padding: 8px 8px; border-radius: 4px; cursor: pointer; font-size: 11px; white-space: nowrap; font-weight: bold; }
 
     /* 検索・フィルタバー */
     #filter-bar { padding: 8px 12px; background: #f1f3f5; border-bottom: 1px solid #ddd; display: flex; flex-direction: column; gap: 6px; }
@@ -117,7 +118,7 @@
     .img-delete-btn {
       position: absolute; top: 8px; right: 8px; background: rgba(220, 53, 69, 0.85); color: white; border: none;
       border-radius: 50%; width: 22px; height: 22px; cursor: pointer; font-size: 11px; display: flex;
-      justify-content: center; align-items: center; box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+      justify-content: center; align-items: center; box-shadow: 0 1px 3px rgba(0,0,0,0.3); z-index: 10;
     }
     .img-delete-btn:hover { background: #dc3545; }
 
@@ -137,9 +138,9 @@
     .legend-item { display: flex; align-items: center; margin-bottom: 4px; }
     .legend-color { width: 12px; height: 12px; border-radius: 50%; display: inline-block; margin-right: 6px; border: 1px solid #888; }
 
-    .modal { display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 2000; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); width: 340px; max-width: 90vw; box-sizing: border-box; }
+    .modal { display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 2000; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); width: 360px; max-width: 90vw; box-sizing: border-box; }
     .modal h4 { margin: 0 0 12px 0; }
-    .modal input, .modal select { width: 100%; margin-bottom: 10px; box-sizing: border-box; padding: 6px; }
+    .modal input, .modal select { width: 100%; margin-bottom: 10px; box-sizing: border-box; padding: 6px; font-size: 12px; }
     
     #tab-rule-table { width: 100%; font-size: 12px; margin-bottom: 10px; border-collapse: collapse; }
     #tab-rule-table th, #tab-rule-table td { border: 1px solid #ddd; padding: 6px; text-align: left; }
@@ -202,13 +203,14 @@
     </div>
   </div>
 
-  <!-- 上側：Excelドロップエリア -->
+  <!-- 上側：Excelドロップ＆個別登録エリア -->
   <div id="import-area" class="editable-only">
     <div id="drop-zone" onclick="document.getElementById('excel-input').click()">
       📂 Excelをドロップ
       <input type="file" id="excel-input" accept=".xlsx, .xls, .csv" style="display:none" onchange="handleFileSelect(event)" />
     </div>
-    <button id="btn-download-template" onclick="downloadExcelTemplate()">📥 テンプレート</button>
+    <button class="btn-import-manual" onclick="openManualRegisterModal()">➕ 個別登録</button>
+    <button class="btn-import-sub" onclick="downloadExcelTemplate()">📥 テンプレート</button>
   </div>
 
   <!-- 下側：検索・フィルタバー -->
@@ -271,15 +273,18 @@
   <button onclick="closeTabConfigModal()" style="width:100%; margin-top:10px; background:#6c757d; color:white; border:none; padding:8px; border-radius:4px; cursor:pointer;">閉じる</button>
 </div>
 
+<!-- 新規・個別登録用ダイアログモーダル -->
 <div id="form-container" class="modal">
-  <h4>新しいポイントを追加</h4>
-  <input type="text" id="spot-title" placeholder="スポット名を入力" />
+  <h4 id="form-modal-title">新しいポイントを追加</h4>
+  <input type="text" id="spot-title" placeholder="スポット名（必須）" />
+  <input type="number" step="any" id="spot-lat" placeholder="緯度（例: 40.220360）" />
+  <input type="number" step="any" id="spot-lng" placeholder="経度（例: 141.781950）" />
   <input type="text" id="spot-group" placeholder="グループ名（例: 三陸 / 1工区）" />
-  <input type="text" id="spot-tab" placeholder="タブの内容（任意）" />
+  <input type="text" id="spot-tab" placeholder="タブの内容（例: 標識）" />
   <input type="file" id="spot-image" accept="image/*" multiple />
-  <div style="display: flex; justify-content: space-between;">
-    <button id="save-btn" onclick="savePoint()" style="padding:8px;">保存</button>
-    <button onclick="closeForm()" style="padding:8px;">キャンセル</button>
+  <div style="display: flex; justify-content: space-between; margin-top:10px;">
+    <button id="save-btn" onclick="savePoint()" style="padding:8px 16px; background:#0d6efd; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">保存</button>
+    <button onclick="closeForm()" style="padding:8px 16px; background:#6c757d; color:white; border:none; border-radius:4px; cursor:pointer;">キャンセル</button>
   </div>
   <div id="status-msg"></div>
 </div>
@@ -578,7 +583,7 @@
     document.getElementById('lightbox-modal').style.display = 'none';
   }
 
-  // ★ポップアップ内画像の取得および表示（個別削除ボタンを追加）★
+  // ポップアップ内画像の取得および表示（個別削除ボタン付き）
   async function loadImagesForPopup(pointId) {
     const container = document.getElementById(`popup-img-area-${pointId}`);
     if (!container) return;
@@ -635,7 +640,7 @@
     container.innerHTML = `<div class="popup-img-container">${cardsHtml}</div>`;
   }
 
-  // ★個別画像の削除処理★
+  // 個別画像の削除処理
   async function deleteSingleImage(pointId, imgIndex) {
     if (isReadOnly) return;
     if (!confirm('この画像を削除しますか？')) return;
@@ -764,14 +769,16 @@
     allPoints.forEach(p => {
       const gName = p.group_name || '未分類';
       if (gName === groupPath || gName.startsWith(groupPath + ' /')) {
-        const chk = document.getElementById(`chk-point-${p.id}`);
-        if (chk) chk.checked = isChecked;
         togglePointVisibility(p.id, isChecked);
       }
     });
   }
 
+  // ★ドラッグ＆ドロップによるグループの直下（親子階層化）移動処理★
   async function moveGroupPathToNewParent(sourceGroupPath, targetParentName) {
+    // 自分自身への移動や循環を防ぐ
+    if (sourceGroupPath === targetParentName || sourceGroupPath.startsWith(targetParentName + ' /')) return;
+
     const targets = allPoints.filter(p => {
       const g = p.group_name || '未分類';
       return g === sourceGroupPath || g.startsWith(sourceGroupPath + ' /');
@@ -780,13 +787,16 @@
     if (targets.length === 0) return;
 
     for (const p of targets) {
+      const oldGroup = p.group_name || '未分類';
       let newGroupName = '未分類';
-      const parts = (p.group_name || '').split('/').map(s => s.trim());
-      if (parts.length > 1) {
-        newGroupName = `${targetParentName} / ${parts.slice(1).join(' / ')}`;
-      } else {
-        newGroupName = targetParentName;
+
+      if (oldGroup === sourceGroupPath) {
+        newGroupName = `${targetParentName} / ${sourceGroupPath}`;
+      } else if (oldGroup.startsWith(sourceGroupPath + ' /')) {
+        const subSuffix = oldGroup.replace(sourceGroupPath + ' /', '');
+        newGroupName = `${targetParentName} / ${sourceGroupPath} / ${subSuffix}`;
       }
+
       p.group_name = newGroupName;
       await supabaseClient.from('points').update({ group_name: newGroupName }).eq('id', p.id);
     }
@@ -794,6 +804,7 @@
     renderSidebarTree();
   }
 
+  // サイドバー描画＆チェック状態・レイヤー自動同期
   function renderSidebarTree() {
     const treeContainer = document.getElementById('point-tree');
     treeContainer.innerHTML = '';
@@ -955,6 +966,7 @@
     ul.className = 'point-list';
 
     points.forEach(p => {
+      const pId = Number(p.id);
       const li = document.createElement('li');
       li.className = 'point-item';
       if (!isReadOnly) li.draggable = true;
@@ -968,8 +980,13 @@
 
       const tabBadgeHtml = p.tab_name ? `<span class="tab-badge" style="background:${colorHexMap[p.color]||'#0d6efd'};">${p.tab_name}</span>` : '';
       
-      // ★記録されたチェック状態・レイヤー描画状態から判定★
-      const isChecked = checkedPointIds.has(Number(p.id)) || (markers[p.id] && map.hasLayer(markers[p.id]));
+      const isChecked = checkedPointIds.has(pId);
+      if (isChecked) {
+        addMarkerToMap(p);
+        if (markers[p.id] && !map.hasLayer(markers[p.id])) {
+          map.addLayer(markers[p.id]);
+        }
+      }
 
       let actionsHtml = '';
       if (!isReadOnly) {
@@ -1050,7 +1067,6 @@
     await changePointTabDirect(pointId, '点検済');
   }
 
-  // ★可視性切り替え（チェック状態Setをリアルタイム維持）★
   function togglePointVisibility(id, isVisible) {
     const idNum = Number(id);
     const point = allPoints.find(p => Number(p.id) === idNum);
@@ -1060,18 +1076,21 @@
       addMarkerToMap(point);
     }
 
+    const chk = document.getElementById(`chk-point-${id}`);
+
     if (isVisible) {
       map.addLayer(markers[id]);
       checkedPointIds.add(idNum);
+      if (chk) chk.checked = true;
     } else {
       map.removeLayer(markers[id]);
       checkedPointIds.delete(idNum);
+      if (chk) chk.checked = false;
     }
   }
 
   function toggleSelectAll(isChecked) {
     document.querySelectorAll('.chk-point').forEach(chk => {
-      chk.checked = isChecked;
       togglePointVisibility(chk.value, isChecked);
     });
   }
@@ -1133,12 +1152,11 @@
     document.getElementById('single-image-input').click();
   }
 
-  // ★画像追加処理（チェックおよびマップ描画状態の確実に復元）★
   document.getElementById('single-image-input').addEventListener('change', async (e) => {
     const files = Array.from(e.target.files);
     if (files.length === 0 || !targetPointIdForImage) return;
 
-    const targetId = targetPointIdForImage;
+    const targetId = Number(targetPointIdForImage);
     const wasVisible = checkedPointIds.has(targetId) || (markers[targetId] && map.hasLayer(markers[targetId]));
 
     try {
@@ -1172,7 +1190,6 @@
       const point = allPoints.find(p => Number(p.id) === targetId);
       if (point) point.image_url = jsonImageString;
 
-      // チェック状態とレイヤー表示の復元
       if (wasVisible) {
         checkedPointIds.add(targetId);
         if (point) {
@@ -1221,17 +1238,9 @@
     const point = allPoints.find(p => Number(p.id) === Number(id));
     if (!point) return;
 
-    if (!markers[id]) {
-      addMarkerToMap(point);
-    }
+    togglePointVisibility(id, true);
 
     const marker = markers[id];
-    if (!map.hasLayer(marker)) map.addLayer(marker);
-    
-    checkedPointIds.add(Number(id));
-    const chk = document.getElementById(`chk-point-${id}`);
-    if (chk) chk.checked = true;
-
     map.setView(marker.getLatLng(), 16, { animate: true });
     marker.openPopup();
   }
@@ -1383,31 +1392,59 @@
     }
   });
 
+  // ★マップ上クリック時の登録フォーム呼び出し★
   map.on('click', (e) => {
     if (isReadOnly) return;
     selectedLatLng = e.latlng;
+    document.getElementById('form-modal-title').textContent = '新しいポイントを追加';
+    document.getElementById('spot-title').value = '';
+    document.getElementById('spot-lat').value = e.latlng.lat.toFixed(6);
+    document.getElementById('spot-lng').value = e.latlng.lng.toFixed(6);
+    document.getElementById('spot-group').value = '';
+    document.getElementById('spot-tab').value = '';
+    document.getElementById('spot-image').value = '';
     document.getElementById('form-container').style.display = 'block';
   });
+
+  // ★「➕ 個別登録」ボタン用のモーダル呼び出し★
+  function openManualRegisterModal() {
+    if (isReadOnly) return;
+    selectedLatLng = null;
+    document.getElementById('form-modal-title').textContent = 'ポイントを手動（個別）登録';
+    document.getElementById('spot-title').value = '';
+    document.getElementById('spot-lat').value = '';
+    document.getElementById('spot-lng').value = '';
+    document.getElementById('spot-group').value = '';
+    document.getElementById('spot-tab').value = '';
+    document.getElementById('spot-image').value = '';
+    document.getElementById('form-container').style.display = 'block';
+  }
 
   function closeForm() {
     document.getElementById('form-container').style.display = 'none';
     document.getElementById('spot-title').value = '';
+    document.getElementById('spot-lat').value = '';
+    document.getElementById('spot-lng').value = '';
     document.getElementById('spot-group').value = '';
     document.getElementById('spot-tab').value = '';
     document.getElementById('spot-image').value = '';
     selectedLatLng = null;
   }
 
+  // ★手動登録＆保存処理★
   async function savePoint() {
     if (isReadOnly) return;
-    const title = document.getElementById('spot-title').value;
-    const group = document.getElementById('spot-group').value || '未分類';
-    const tabText = document.getElementById('spot-tab').value || '';
+    const title = document.getElementById('spot-title').value.trim();
+    const latVal = parseFloat(document.getElementById('spot-lat').value);
+    const lngVal = parseFloat(document.getElementById('spot-lng').value);
+    const group = document.getElementById('spot-group').value.trim() || '未分類';
+    const tabText = document.getElementById('spot-tab').value.trim() || '';
     const color = getTabColor(tabText);
     const files = Array.from(document.getElementById('spot-image').files);
     const saveBtn = document.getElementById('save-btn');
 
-    if (!title || !selectedLatLng) { alert('スポット名を入力してください'); return; }
+    if (!title) { alert('スポット名を入力してください'); return; }
+    if (isNaN(latVal) || isNaN(lngVal)) { alert('有効な緯度と経度を入力（または地図上をクリック）してください'); return; }
 
     saveBtn.disabled = true;
     let imageUrl = null;
@@ -1423,11 +1460,17 @@
       }
 
       const { error } = await supabaseClient.from('points').insert([
-        { title, lat: selectedLatLng.lat, lng: selectedLatLng.lng, group_name: group, tab_name: tabText, color: color, image_url: imageUrl }
+        { title, lat: latVal, lng: lngVal, group_name: group, tab_name: tabText, color: color, image_url: imageUrl }
       ]);
-      if (!error) closeForm();
+      if (!error) {
+        closeForm();
+        loadInitialPoints();
+      } else {
+        alert('保存エラー: ' + error.message);
+      }
     } catch (err) {
       alert('保存失敗');
+      console.error(err);
     } finally {
       saveBtn.disabled = false;
     }
