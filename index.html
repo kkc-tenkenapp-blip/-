@@ -140,6 +140,15 @@
     .point-name { flex: 1; margin-left: 4px; cursor: pointer; color: #212529; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; display: flex; align-items: center; gap: 4px; }
     .point-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
     
+    /* ★リスト表示用判定（赤文字）★ */
+    .judge-red-text {
+      color: #dc3545;
+      font-weight: bold;
+      font-size: 12px;
+      margin-right: 2px;
+      flex-shrink: 0;
+    }
+
     .tab-badge-select { 
       font-size: 10px; 
       padding: 2px 6px; 
@@ -219,11 +228,23 @@
     }
     .img-delete-btn:hover { background: #dc3545; }
 
-    .img-comment-box { margin-top: 6px; font-size: 11px; }
-    .comment-text { background: #fff; border: 1px solid #eee; border-radius: 4px; padding: 4px 6px; color: #333; min-height: 20px; word-break: break-all; }
-    .comment-edit-row { display: flex; gap: 4px; margin-top: 4px; }
-    .comment-input { flex: 1; font-size: 11px; padding: 3px; border: 1px solid #ccc; border-radius: 3px; }
-    .comment-save-btn { font-size: 10px; background: #0d6efd; color: white; border: none; border-radius: 3px; padding: 2px 6px; cursor: pointer; }
+    /* ★ポップアップ内：コメント直接入力＆判定プルダウン領域★ */
+    .img-comment-box { margin-top: 6px; display: flex; flex-direction: column; gap: 4px; font-size: 11px; }
+    .comment-direct-input { 
+      width: 100%; 
+      font-size: 11px; 
+      padding: 5px 6px; 
+      border: 1px solid #ccc; 
+      border-radius: 4px; 
+      box-sizing: border-box;
+      background: #ffffff;
+    }
+    .comment-direct-input:focus {
+      border-color: #0d6efd;
+      outline: none;
+    }
+    .judge-row { display: flex; align-items: center; justify-content: space-between; font-size: 11px; color: #495057; }
+    .judge-select { font-size: 11px; padding: 2px 4px; border: 1px solid #ccc; border-radius: 3px; background: #fff; }
 
     #lightbox-modal { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.85); z-index: 3000; justify-content: center; align-items: center; flex-direction: column; }
     #lightbox-img { max-width: 90vw; max-height: 80vh; border-radius: 8px; box-shadow: 0 5px 20px rgba(0,0,0,0.5); }
@@ -255,7 +276,6 @@
     .btn-confirm-yes { background: #dc3545; color: white; border: none; padding: 6px 16px; border-radius: 4px; cursor: pointer; }
     .btn-confirm-no { background: #6c757d; color: white; border: none; padding: 6px 16px; border-radius: 4px; cursor: pointer; }
 
-    /* ★スマートフォン（幅768px以下）上下ドラッグ対応スタイル★ */
     @media screen and (max-width: 768px) {
       body { flex-direction: column-reverse; }
       #sidebar { width: 100% !important; max-width: 100%; height: 55vh; border-right: none; }
@@ -267,7 +287,6 @@
         position: relative;
         touch-action: none;
       }
-      /* タッチ位置の視元補助ライン */
       #resizer::after {
         content: '';
         position: absolute;
@@ -501,7 +520,7 @@
     }
   });
 
-  /* ★携帯モバイル表示用（境界線の上下タッチスライド移動）★ */
+  // モバイル表示用（上下スライド）
   resizer.addEventListener('touchstart', (e) => {
     if (window.innerWidth <= 768) {
       isResizing = true;
@@ -514,12 +533,9 @@
     
     const touch = e.touches[0];
     const totalHeight = window.innerHeight;
-    
-    // 指の位置（Y座標）に基づいて高さ割合（%）を算出
     const newSidebarHeight = totalHeight - touch.clientY;
     const newSidebarPercent = (newSidebarHeight / totalHeight) * 100;
 
-    // 画面崩れを防ぐため 15% 〜 85% の範囲に制約
     if (newSidebarPercent >= 15 && newSidebarPercent <= 85) {
       sidebar.style.height = `${newSidebarPercent}vh`;
       mapElem.style.height = `${100 - newSidebarPercent}vh`;
@@ -828,6 +844,7 @@
     document.getElementById('lightbox-modal').style.display = 'none';
   }
 
+  /* ★ポップアップ内画像＆直接コメント入力・判定プルダウン描画★ */
   async function loadImagesForPopup(pointId) {
     const container = document.getElementById(`popup-img-area-${pointId}`);
     if (!container) return;
@@ -862,32 +879,98 @@
     const cardsHtml = rawList.map((item, idx) => {
       const url = typeof item === 'object' ? item.url : item;
       const comment = typeof item === 'object' ? (item.comment || '') : '';
+      const judge = typeof item === 'object' ? (item.judge || '') : '';
       const safeComment = comment.replace(/'/g, "\\'").replace(/"/g, '&quot;');
-
-      const editRow = isReadOnly ? '' : `
-        <div class="comment-edit-row">
-          <input type="text" id="comment-input-${pointId}-${idx}" class="comment-input" value="${safeComment}" placeholder="コメント入力..." />
-          <button class="comment-save-btn" onclick="saveImageComment(event, ${pointId}, ${idx})">保存</button>
-        </div>
-      `;
 
       const deleteBtnHtml = isReadOnly ? '' : `
         <button class="img-delete-btn" onclick="deleteSingleImage(event, ${pointId}, ${idx})" title="この画像を削除">✕</button>
       `;
+
+      // 判定オプション（なし, Ⅰ, Ⅱ, Ⅲ, Ⅳ）
+      const judges = ['', 'Ⅰ', 'Ⅱ', 'Ⅲ', 'Ⅳ'];
+      const judgeOptions = judges.map(j => `<option value="${j}" ${judge === j ? 'selected' : ''}>${j || '未選択'}</option>`).join('');
 
       return `
         <div class="img-card" id="img-card-${pointId}-${idx}">
           ${deleteBtnHtml}
           <img src="${url}" class="popup-img" onclick="openLightbox('${url}', '${safeComment}')" title="クリックで拡大" />
           <div class="img-comment-box">
-            <div class="comment-text">${comment || '<span style="color:#aaa;">(コメントなし)</span>'}</div>
-            ${editRow}
+            <input type="text" class="comment-direct-input" value="${safeComment}" placeholder="(コメントなし)" ${isReadOnly ? 'readonly' : ''} onchange="saveImageCommentDirect(${pointId}, ${idx}, this.value)" />
+            <div class="judge-row">
+              <span>判定:</span>
+              ${isReadOnly ? `<strong>${judge || 'なし'}</strong>` : `
+                <select class="judge-select" onchange="saveImageJudgeDirect(${pointId}, ${idx}, this.value)">
+                  ${judgeOptions}
+                </select>
+              `}
+            </div>
           </div>
         </div>
       `;
     }).join('');
 
     container.innerHTML = `<div class="popup-img-container">${cardsHtml}</div>`;
+  }
+
+  /* ★コメントの直接更新処理★ */
+  async function saveImageCommentDirect(pointId, imgIndex, newComment) {
+    if (isReadOnly) return;
+    isSelfOperating = true;
+    activePopupPointId = Number(pointId);
+
+    const point = allPoints.find(p => Number(p.id) === Number(pointId));
+    if (!point || !point.image_url) return;
+
+    let imgList = [];
+    try {
+      imgList = JSON.parse(point.image_url);
+      if (!Array.isArray(imgList)) imgList = [{ url: point.image_url, comment: '', judge: '' }];
+    } catch (err) {
+      imgList = [{ url: point.image_url, comment: '', judge: '' }];
+    }
+
+    if (typeof imgList[imgIndex] === 'string') {
+      imgList[imgIndex] = { url: imgList[imgIndex], comment: newComment.trim(), judge: '' };
+    } else {
+      imgList[imgIndex].comment = newComment.trim();
+    }
+
+    const updatedJson = JSON.stringify(imgList);
+    point.image_url = updatedJson;
+
+    await supabaseClient.from('points').update({ image_url: updatedJson }).eq('id', pointId);
+    setTimeout(() => { isSelfOperating = false; }, 1000);
+  }
+
+  /* ★判定プルダウン（Ⅰ〜Ⅳ）の更新処理★ */
+  async function saveImageJudgeDirect(pointId, imgIndex, newJudge) {
+    if (isReadOnly) return;
+    isSelfOperating = true;
+    activePopupPointId = Number(pointId);
+
+    const point = allPoints.find(p => Number(p.id) === Number(pointId));
+    if (!point || !point.image_url) return;
+
+    let imgList = [];
+    try {
+      imgList = JSON.parse(point.image_url);
+      if (!Array.isArray(imgList)) imgList = [{ url: point.image_url, comment: '', judge: '' }];
+    } catch (err) {
+      imgList = [{ url: point.image_url, comment: '', judge: '' }];
+    }
+
+    if (typeof imgList[imgIndex] === 'string') {
+      imgList[imgIndex] = { url: imgList[imgIndex], comment: '', judge: newJudge };
+    } else {
+      imgList[imgIndex].judge = newJudge;
+    }
+
+    const updatedJson = JSON.stringify(imgList);
+    point.image_url = updatedJson;
+
+    await supabaseClient.from('points').update({ image_url: updatedJson }).eq('id', pointId);
+    renderSidebarTree(); // リストの赤文字判定表示を更新
+    setTimeout(() => { isSelfOperating = false; }, 1000);
   }
 
   async function deleteSingleImage(e, pointId, imgIndex) {
@@ -913,9 +996,9 @@
     let imgList = [];
     try {
       imgList = JSON.parse(point.image_url);
-      if (!Array.isArray(imgList)) imgList = [{ url: point.image_url, comment: '' }];
+      if (!Array.isArray(imgList)) imgList = [{ url: point.image_url, comment: '', judge: '' }];
     } catch (err) {
-      imgList = [{ url: point.image_url, comment: '' }];
+      imgList = [{ url: point.image_url, comment: '', judge: '' }];
     }
 
     imgList.splice(imgIndex, 1);
@@ -936,52 +1019,7 @@
       await loadImagesForPopup(pointId);
     } else {
       updateDatabaseUsageMeter();
-    }
-
-    setTimeout(() => { isSelfOperating = false; }, 1000);
-  }
-
-  async function saveImageComment(e, pointId, imgIndex) {
-    if (e) e.stopPropagation();
-    const inputElem = document.getElementById(`comment-input-${pointId}-${imgIndex}`);
-    if (!inputElem) return;
-    const newComment = inputElem.value.trim();
-
-    isSelfOperating = true;
-    activePopupPointId = Number(pointId);
-
-    const point = allPoints.find(p => Number(p.id) === Number(pointId));
-    if (!point || !point.image_url) return;
-
-    let imgList = [];
-    try {
-      imgList = JSON.parse(point.image_url);
-      if (!Array.isArray(imgList)) imgList = [{ url: point.image_url, comment: '' }];
-    } catch (err) {
-      imgList = [{ url: point.image_url, comment: '' }];
-    }
-
-    if (typeof imgList[imgIndex] === 'string') {
-      imgList[imgIndex] = { url: imgList[imgIndex], comment: newComment };
-    } else if (typeof imgList[imgIndex] === 'object') {
-      imgList[imgIndex].comment = newComment;
-    }
-
-    const updatedJson = JSON.stringify(imgList);
-    point.image_url = updatedJson;
-
-    const targetCard = document.getElementById(`img-card-${pointId}-${imgIndex}`);
-    if (targetCard) {
-      const txtElem = targetCard.querySelector('.comment-text');
-      if (txtElem) txtElem.textContent = newComment || '(コメントなし)';
-    }
-
-    const { error } = await supabaseClient.from('points').update({ image_url: updatedJson }).eq('id', pointId);
-
-    if (error) {
-      alert('コメントの保存に失敗しました: ' + error.message);
-    } else {
-      updateDatabaseUsageMeter();
+      renderSidebarTree();
     }
 
     setTimeout(() => { isSelfOperating = false; }, 1000);
@@ -1364,6 +1402,26 @@
     }
   }
 
+  /* ★施設内の最高優先順位判定（Ⅳ > Ⅲ > Ⅱ > Ⅰ）を算出する関数★ */
+  function getHighestJudge(point) {
+    if (!point || !point.image_url) return '';
+    let imgList = [];
+    try {
+      imgList = JSON.parse(point.image_url);
+      if (!Array.isArray(imgList)) imgList = [];
+    } catch (e) {
+      return '';
+    }
+
+    const priorityOrder = ['Ⅳ', 'Ⅲ', 'Ⅱ', 'Ⅰ'];
+    for (const p of priorityOrder) {
+      if (imgList.some(item => typeof item === 'object' && item.judge === p)) {
+        return p;
+      }
+    }
+    return '';
+  }
+
   function renderPointList(points, groupPath) {
     const ul = document.createElement('ul');
     ul.className = 'point-list';
@@ -1407,6 +1465,10 @@
         `;
       }
 
+      // ★赤文字で表示する最高判定（Ⅳ > Ⅲ > Ⅱ > Ⅰ）★
+      const highestJudge = getHighestJudge(p);
+      const judgeRedHtml = highestJudge ? `<span class="judge-red-text">${highestJudge}</span>` : '';
+
       const isVisible = checkedPointIds.has(pId);
       if (isVisible) {
         addMarkerToMap(p);
@@ -1430,6 +1492,7 @@
         <input type="checkbox" ${isVisible ? 'checked' : ''} id="chk-point-${p.id}" value="${p.id}" class="chk-point" onchange="togglePointVisibility(${p.id}, this.checked)" />
         <span class="point-name" onclick="focusToPoint(${p.id})">
           <span class="point-text" title="${p.title}">${p.title}</span>
+          ${judgeRedHtml}
           ${tabBadgeHtml}
           ${statusBadgeHtml}
         </span>
@@ -1632,7 +1695,7 @@
       const compressedImages = [];
       for (const file of files) {
         const compressedBase64 = await compressImageFile(file, 600, 0.65);
-        compressedImages.push({ url: compressedBase64, comment: '' });
+        compressedImages.push({ url: compressedBase64, comment: '', judge: '' });
       }
 
       const { data } = await supabaseClient.from('points').select('image_url').eq('id', targetId).single();
@@ -1640,9 +1703,9 @@
       if (data && data.image_url) {
         try {
           currentImages = JSON.parse(data.image_url);
-          if (!Array.isArray(currentImages)) currentImages = [{ url: data.image_url, comment: '' }];
+          if (!Array.isArray(currentImages)) currentImages = [{ url: data.image_url, comment: '', judge: '' }];
         } catch (err) {
-          currentImages = [{ url: data.image_url, comment: '' }];
+          currentImages = [{ url: data.image_url, comment: '', judge: '' }];
         }
       }
 
@@ -1675,6 +1738,7 @@
       await loadImagesForPopup(targetId);
 
       updateDatabaseUsageMeter();
+      renderSidebarTree();
     } catch (err) {
       alert('アップロード処理中にエラーが発生しました');
       console.error(err);
@@ -1785,7 +1849,7 @@
     }
   }
 
-  /* ★index_v2.htmlの完全動作画像読み込みロジック★ */
+  /* ★Excelインポート処理★ */
   async function handleFileSelect(e) {
     if (isReadOnly) return;
     const file = e.target.files[0];
@@ -1857,7 +1921,7 @@
         let imageUrl = rowImageMap[i + 1] || row['基本画像'] || row['画像URL'] || row['画像'] || null;
 
         if (imageUrl && !String(imageUrl).startsWith('※')) {
-          imageUrl = JSON.stringify([{ url: String(imageUrl), comment: '' }]);
+          imageUrl = JSON.stringify([{ url: String(imageUrl), comment: '', judge: '' }]);
         } else {
           imageUrl = null;
         }
@@ -1966,7 +2030,7 @@
         const compressedList = [];
         for (const f of files) {
           const b64 = await compressImageFile(f, 600, 0.65);
-          compressedList.push({ url: b64, comment: '' });
+          compressedList.push({ url: b64, comment: '', judge: '' });
         }
         imageUrl = JSON.stringify(compressedList);
       }
