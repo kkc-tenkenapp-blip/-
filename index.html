@@ -28,7 +28,6 @@
     .login-btn:hover { background: #0056b3; }
     #login-error { color: #dc3545; font-size: 12px; margin-top: 10px; display: none; word-break: break-all; }
 
-    /* ★左側リスト欄の初期幅を480px（1.5倍）に設定★ */
     #sidebar {
       width: 480px; min-width: 240px; max-width: 85vw; background: #f8f9fa; border-right: 1px solid #ccc;
       display: flex; flex-direction: column; z-index: 1000; box-shadow: 2px 0 5px rgba(0,0,0,0.1); flex-shrink: 0;
@@ -74,10 +73,41 @@
     #btn-share-selected { background: #198754; }
     #btn-delete-selected { background: #dc3545; }
 
-    #import-area { padding: 8px 12px; background: #e9ecef; border-bottom: 1px solid #ddd; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
-    #drop-zone { flex: 1; border: 2px dashed #007bff; background: #fff; padding: 8px; text-align: center; border-radius: 4px; font-size: 11px; cursor: pointer; min-width: 120px; }
-    .btn-import-sub { background: #6c757d; color: white; border: none; padding: 8px 8px; border-radius: 4px; cursor: pointer; font-size: 11px; white-space: nowrap; }
-    .btn-import-manual { background: #17a2b8; color: white; border: none; padding: 8px 8px; border-radius: 4px; cursor: pointer; font-size: 11px; white-space: nowrap; font-weight: bold; }
+    #import-area { padding: 6px 12px; background: #e9ecef; border-bottom: 1px solid #ddd; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+    
+    /* ★ドロップゾーンの高さを半分にし、進捗バーを内包★ */
+    #drop-zone { 
+      flex: 1; 
+      border: 1.5px dashed #007bff; 
+      background: #fff; 
+      padding: 3px 6px; 
+      text-align: center; 
+      border-radius: 4px; 
+      font-size: 10px; 
+      cursor: pointer; 
+      min-width: 120px; 
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 2px;
+    }
+    #import-progress-container {
+      width: 100%;
+      background: #e9ecef;
+      height: 4px;
+      border-radius: 2px;
+      overflow: hidden;
+      display: none;
+    }
+    #import-progress-fill {
+      height: 100%;
+      background: #0d6efd;
+      width: 0%;
+      transition: width 0.2s ease;
+    }
+
+    .btn-import-sub { background: #6c757d; color: white; border: none; padding: 5px 8px; border-radius: 4px; cursor: pointer; font-size: 11px; white-space: nowrap; }
+    .btn-import-manual { background: #17a2b8; color: white; border: none; padding: 5px 8px; border-radius: 4px; cursor: pointer; font-size: 11px; white-space: nowrap; font-weight: bold; }
 
     #filter-bar { padding: 8px 12px; background: #f1f3f5; border-bottom: 1px solid #ddd; display: flex; flex-direction: column; gap: 6px; }
     .filter-row { display: flex; gap: 6px; align-items: center; }
@@ -304,9 +334,13 @@
     </div>
   </div>
 
+  <!-- ★高さ半分化と進捗バー（インジケーター）の追加★ -->
   <div id="import-area" class="editable-only">
     <div id="drop-zone" onclick="document.getElementById('excel-input').click()">
-      📂 Excelをドロップ
+      <span id="drop-zone-text">📂 Excelをドロップ</span>
+      <div id="import-progress-container">
+        <div id="import-progress-fill"></div>
+      </div>
       <input type="file" id="excel-input" accept=".xlsx, .xls, .csv" style="display:none" onchange="handleFileSelect(event)" />
     </div>
     <button class="btn-import-manual" onclick="openManualRegisterModal()">➕ 個別登録</button>
@@ -1473,12 +1507,26 @@
     }
   }
 
+  /* ★テンプレート作成時：F列幅15・行高63・E1注意事項を設定★ */
   function downloadExcelTemplate() {
     const templateData = [
-      { 'スポット名': 'D360425L3', '緯度': 40.220360, '経度': 141.781950, 'グループ': '三陸 / 1工区', 'タブ': '標識', '基本画像': '' },
+      { 'スポット名': 'D360425L3', '緯度': 40.220360, '経度': 141.781950, 'グループ': '三陸 / 1工区', 'タブ': '標識', '基本画像': '※画像高さは2cm程度にする' },
       { 'スポット名': 'D360471L1', '緯度': 40.220653, '経度': 141.781794, 'グループ': '三陸 / 2工区', 'タブ': '点検済', '基本画像': '' }
     ];
     const ws = XLSX.utils.json_to_sheet(templateData);
+    
+    // F列（6番目の列）の幅を15に固定
+    ws['!cols'] = [
+      { wch: 18 }, { wch: 12 }, { wch: 12 }, { wch: 18 }, { wch: 12 }, { wch: 15 }
+    ];
+
+    // 各行の高さを63ptに固定
+    ws['!rows'] = [
+      { hpt: 24 }, // ヘッダー行
+      { hpt: 63 }, // データ行1
+      { hpt: 63 }  // データ行2
+    ];
+
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, '集計結果');
     XLSX.writeFile(wb, 'Point_Import_Template.xlsx');
@@ -1683,11 +1731,21 @@
     }
   }
 
-  /* ★index_v2.html の画像抽出ロジック（drawing1.xml 解析）を完全復元★ */
+  /* ★index_v2.html の画像抽出処理（drawing1.xml 解析）を完全復元＋進捗バー更新★ */
   async function handleFileSelect(e) {
     if (isReadOnly) return;
     const file = e.target.files[0];
     if (!file) return;
+
+    const progressContainer = document.getElementById('import-progress-container');
+    const progressFill = document.getElementById('import-progress-fill');
+    const dropText = document.getElementById('drop-zone-text');
+
+    if (progressContainer && progressFill) {
+      progressContainer.style.display = 'block';
+      progressFill.style.width = '10%';
+      if (dropText) dropText.textContent = '⏳ 解析中...';
+    }
 
     try {
       const arrayBuffer = await file.arrayBuffer();
@@ -1727,6 +1785,8 @@
         console.warn('Zip解析スキップ:', zipErr);
       }
 
+      if (progressFill) progressFill.style.width = '50%';
+
       const workbook = XLSX.read(arrayBuffer, { type: 'array' });
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
       const json = XLSX.utils.sheet_to_json(worksheet);
@@ -1742,8 +1802,10 @@
         
         let imageUrl = rowImageMap[i + 1] || row['基本画像'] || row['画像URL'] || row['画像'] || null;
 
-        if (imageUrl) {
+        if (imageUrl && !String(imageUrl).startsWith('※')) {
           imageUrl = JSON.stringify([{ url: String(imageUrl), comment: '' }]);
+        } else {
+          imageUrl = null;
         }
 
         if (title && !isNaN(lat) && !isNaN(lng)) {
@@ -1761,6 +1823,8 @@
         }
       }
 
+      if (progressFill) progressFill.style.width = '100%';
+
       if (confirm(`${newPoints.length} 件のポイントを一括登録しますか？`)) {
         const { error } = await supabaseClient.from('points').insert(newPoints);
         if (error) alert('一括登録エラー: ' + error.message);
@@ -1769,6 +1833,11 @@
     } catch (err) {
       alert('ファイルの解析に失敗しました');
       console.error(err);
+    } finally {
+      if (progressContainer) progressContainer.style.display = 'none';
+      if (progressFill) progressFill.style.width = '0%';
+      if (dropText) dropText.textContent = '📂 Excelをドロップ';
+      e.target.value = '';
     }
   }
 
