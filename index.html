@@ -3,7 +3,6 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <!-- Google等の検索エンジンから除外する設定 -->
   <meta name="robots" content="noindex, nofollow">
   <title>点検管理アプリ</title>
   <!-- Leaflet CSS -->
@@ -28,43 +27,27 @@
     .login-btn:hover { background: #0056b3; }
     #login-error { color: #dc3545; font-size: 12px; margin-top: 10px; display: none; word-break: break-all; }
 
-    /* 左側リスト欄の初期幅 */
+    /* 左側リスト欄 */
     #sidebar {
       width: 480px; min-width: 240px; max-width: 85vw; background: #f8f9fa; border-right: 1px solid #ccc;
       display: flex; flex-direction: column; z-index: 1000; box-shadow: 2px 0 5px rgba(0,0,0,0.1); flex-shrink: 0;
     }
     
     #resizer {
-      width: 6px;
-      background: #ddd;
-      cursor: col-resize;
-      z-index: 1001;
-      transition: background 0.2s;
+      width: 6px; background: #ddd; cursor: col-resize; z-index: 1001; transition: background 0.2s;
     }
-    #resizer:hover, #resizer.resizing {
-      background: #007bff;
-    }
+    #resizer:hover, #resizer.resizing { background: #007bff; }
 
     #sidebar-header { padding: 10px 12px; background: #007bff; color: white; display: flex; flex-direction: column; gap: 6px; }
     .header-top { display: flex; justify-content: space-between; align-items: center; }
     .header-top h3 { margin: 0; font-size: 15px; }
 
     .usage-container {
-      background: rgba(255, 255, 255, 0.15);
-      border-radius: 6px;
-      padding: 6px 8px;
-      font-size: 10px;
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
+      background: rgba(255, 255, 255, 0.15); border-radius: 6px; padding: 6px 8px; font-size: 10px; display: flex; flex-direction: column; gap: 4px;
     }
     .usage-row { display: flex; justify-content: space-between; align-items: center; }
-    .progress-bar-bg {
-      width: 100%; background: rgba(255, 255, 255, 0.3); height: 6px; border-radius: 3px; overflow: hidden;
-    }
-    .progress-bar-fill {
-      height: 100%; background: #28a745; width: 0%; transition: width 0.3s ease;
-    }
+    .progress-bar-bg { width: 100%; background: rgba(255, 255, 255, 0.3); height: 6px; border-radius: 3px; overflow: hidden; }
+    .progress-bar-fill { height: 100%; background: #28a745; width: 0%; transition: width 0.3s ease; }
     
     .btn-logout { background: #dc3545; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; }
     
@@ -77,34 +60,10 @@
     #import-area { padding: 6px 12px; background: #e9ecef; border-bottom: 1px solid #ddd; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
     
     #drop-zone { 
-      flex: 1; 
-      border: 1.5px dashed #007bff; 
-      background: #fff; 
-      padding: 3px 6px; 
-      text-align: center; 
-      border-radius: 4px; 
-      font-size: 10px; 
-      cursor: pointer; 
-      min-width: 120px; 
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      gap: 2px;
+      flex: 1; border: 1.5px dashed #007bff; background: #fff; padding: 3px 6px; text-align: center; border-radius: 4px; font-size: 10px; cursor: pointer; min-width: 120px; display: flex; flex-direction: column; justify-content: center; gap: 2px;
     }
-    #import-progress-container {
-      width: 100%;
-      background: #e9ecef;
-      height: 4px;
-      border-radius: 2px;
-      overflow: hidden;
-      display: none;
-    }
-    #import-progress-fill {
-      height: 100%;
-      background: #0d6efd;
-      width: 0%;
-      transition: width 0.2s ease;
-    }
+    #import-progress-container { width: 100%; background: #e9ecef; height: 4px; border-radius: 2px; overflow: hidden; display: none; }
+    #import-progress-fill { height: 100%; background: #0d6efd; width: 0%; transition: width 0.2s ease; }
 
     .btn-import-sub { background: #6c757d; color: white; border: none; padding: 5px 8px; border-radius: 4px; cursor: pointer; font-size: 11px; white-space: nowrap; }
     .btn-import-manual { background: #17a2b8; color: white; border: none; padding: 5px 8px; border-radius: 4px; cursor: pointer; font-size: 11px; white-space: nowrap; font-weight: bold; }
@@ -116,11 +75,17 @@
     #search-count-badge { font-size: 11px; color: #666; font-weight: bold; white-space: nowrap; }
 
     #tree-container { flex: 1; overflow-y: auto; padding: 10px; }
-    .parent-group-item { margin-bottom: 10px; border: 1px solid #cbd5e1; border-radius: 6px; background: #ffffff; transition: background 0.2s; }
+    
+    /* 3階層グループ用スタイリング */
+    .parent-group-item { margin-bottom: 8px; border: 1px solid #cbd5e1; border-radius: 6px; background: #ffffff; }
     .parent-group-header { font-weight: bold; background: #e2e8f0; padding: 8px 10px; display: flex; align-items: center; gap: 6px; font-size: 13px; border-bottom: 1px solid #cbd5e1; cursor: grab; }
     
-    .child-group-item { margin: 6px 8px; border: 1px solid #e2e8f0; border-radius: 4px; background: #f8fafc; transition: background 0.2s; }
+    .child-group-item { margin: 4px 6px; border: 1px solid #e2e8f0; border-radius: 4px; background: #f8fafc; }
     .child-group-header { font-weight: bold; background: #f1f5f9; padding: 6px 8px; display: flex; align-items: center; gap: 6px; font-size: 12px; cursor: grab; }
+    
+    .grandchild-group-item { margin: 4px 6px; border: 1px dashed #cbd5e1; border-radius: 4px; background: #ffffff; }
+    .grandchild-group-header { font-weight: bold; background: #ffffff; padding: 4px 6px; display: flex; align-items: center; gap: 6px; font-size: 11px; cursor: grab; }
+
     .group-title-text { flex: 1; cursor: pointer; user-select: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     
     .btn-group-action { background: transparent; border: none; cursor: pointer; font-size: 12px; padding: 0 3px; }
@@ -131,8 +96,7 @@
     .drag-over-active { background: #e0f2fe !important; border-color: #0284c7 !important; }
 
     .point-list { list-style: none; padding: 0; margin: 0; border-top: 1px solid #eee; }
-    .point-list.collapsed { display: none; }
-    .child-container.collapsed { display: none; }
+    .point-list.collapsed, .child-container.collapsed, .grandchild-container.collapsed { display: none; }
     
     .point-item { padding: 6px 8px; display: flex; align-items: center; justify-content: space-between; font-size: 12px; border-bottom: 1px solid #f8f9fa; cursor: grab; gap: 4px; flex-wrap: nowrap; }
     .point-item.dragging { opacity: 0.5; background: #e2e6ea; }
@@ -140,80 +104,25 @@
     .point-name { flex: 1; margin-left: 4px; cursor: pointer; color: #212529; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; display: flex; align-items: center; gap: 4px; }
     .point-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
     
-    /* ★リスト表示用判定（赤文字）★ */
-    .judge-red-text {
-      color: #dc3545;
-      font-weight: bold;
-      font-size: 12px;
-      margin-right: 2px;
-      flex-shrink: 0;
-    }
+    .judge-red-text { color: #dc3545; font-weight: bold; font-size: 12px; margin-right: 2px; flex-shrink: 0; }
 
-    .tab-badge-select { 
-      font-size: 10px; 
-      padding: 2px 6px; 
-      border-radius: 10px; 
-      color: white; 
-      font-weight: bold; 
-      white-space: nowrap; 
-      flex-shrink: 0; 
-      border: none;
-      outline: none;
-      cursor: pointer;
-      appearance: none;
-      -webkit-appearance: none;
-      -moz-appearance: none;
-      text-align: center;
+    .tab-badge-select, .status-badge-select {
+      font-size: 10px; padding: 2px 6px; border-radius: 10px; font-weight: bold; white-space: nowrap; flex-shrink: 0; outline: none; cursor: pointer; appearance: none; text-align: center;
     }
-    .tab-badge-select option {
-      background: white;
-      color: #333;
-    }
-
-    .status-badge-select {
-      font-size: 10px; 
-      padding: 2px 6px; 
-      border-radius: 10px; 
-      font-weight: bold; 
-      white-space: nowrap; 
-      flex-shrink: 0; 
-      outline: none;
-      cursor: pointer;
-      appearance: none;
-      -webkit-appearance: none;
-      -moz-appearance: none;
-      text-align: center;
-    }
-    .status-badge-select.is-pending {
-      background: #ffffff;
-      color: #333333;
-      border: 1px solid #999999;
-    }
-    .status-badge-select.is-done {
-      background: #6c757d;
-      color: #ffffff;
-      border: 1px solid #6c757d;
-    }
-    .status-badge-select option {
-      background: white;
-      color: #333;
-    }
+    .tab-badge-select { color: white; border: none; }
+    .status-badge-select.is-pending { background: #ffffff; color: #333333; border: 1px solid #999999; }
+    .status-badge-select.is-done { background: #6c757d; color: #ffffff; border: 1px solid #6c757d; }
+    .tab-badge-select option, .status-badge-select option { background: white; color: #333; }
     
     .btn-group-actions { display: flex; gap: 4px; align-items: center; margin-left: auto; flex-shrink: 0; }
     .btn-item-action { border: 1px solid #6c757d; background: #fff; color: #333; padding: 3px 6px; border-radius: 4px; cursor: pointer; font-size: 11px; white-space: nowrap; }
     .btn-item-action:hover { background: #e2e6ea; }
     .btn-checked-done { background: #6c757d; color: white; border: 1px solid #5a6268; }
-    .btn-checked-done:hover { background: #545b62; }
 
     #map { flex: 1; height: 100%; position: relative; }
 
     .leaflet-popup { margin-bottom: 0px !important; }
-    .leaflet-popup-content-wrapper { 
-      padding: 10px; 
-      max-width: none !important; 
-      width: max-content !important;
-      border-radius: 12px;
-    }
+    .leaflet-popup-content-wrapper { padding: 10px; max-width: none !important; width: max-content !important; border-radius: 12px; }
     .leaflet-popup-content { margin: 8px; width: auto !important; }
     .popup-title { margin: 2px 0 5px 0; white-space: nowrap; font-size: 15px; }
     
@@ -223,31 +132,16 @@
     
     .img-delete-btn {
       position: absolute; top: 8px; right: 8px; background: rgba(220, 53, 69, 0.85); color: white; border: none;
-      border-radius: 50%; width: 22px; height: 22px; cursor: pointer; font-size: 11px; display: flex;
-      justify-content: center; align-items: center; box-shadow: 0 1px 3px rgba(0,0,0,0.3); z-index: 10;
+      border-radius: 50%; width: 22px; height: 22px; cursor: pointer; font-size: 11px; display: flex; justify-content: center; align-items: center; z-index: 10;
     }
-    .img-delete-btn:hover { background: #dc3545; }
 
-    /* ★ポップアップ内：コメント直接入力＆判定プルダウン領域★ */
     .img-comment-box { margin-top: 6px; display: flex; flex-direction: column; gap: 4px; font-size: 11px; }
-    .comment-direct-input { 
-      width: 100%; 
-      font-size: 11px; 
-      padding: 5px 6px; 
-      border: 1px solid #ccc; 
-      border-radius: 4px; 
-      box-sizing: border-box;
-      background: #ffffff;
-    }
-    .comment-direct-input:focus {
-      border-color: #0d6efd;
-      outline: none;
-    }
+    .comment-direct-input { width: 100%; font-size: 11px; padding: 5px 6px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; background: #ffffff; }
     .judge-row { display: flex; align-items: center; justify-content: space-between; font-size: 11px; color: #495057; }
     .judge-select { font-size: 11px; padding: 2px 4px; border: 1px solid #ccc; border-radius: 3px; background: #fff; }
 
     #lightbox-modal { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.85); z-index: 3000; justify-content: center; align-items: center; flex-direction: column; }
-    #lightbox-img { max-width: 90vw; max-height: 80vh; border-radius: 8px; box-shadow: 0 5px 20px rgba(0,0,0,0.5); }
+    #lightbox-img { max-width: 90vw; max-height: 80vh; border-radius: 8px; }
     #lightbox-caption { color: white; margin-top: 12px; font-size: 14px; text-align: center; max-width: 80vw; }
     #lightbox-close { position: absolute; top: 20px; right: 25px; color: white; font-size: 30px; cursor: pointer; font-weight: bold; }
 
@@ -264,57 +158,35 @@
     #tab-rule-table th, #tab-rule-table td { border: 1px solid #ddd; padding: 6px; text-align: left; }
     #readonly-banner { display: none; background: #ffc107; color: #333; text-align: center; padding: 6px; font-size: 12px; font-weight: bold; }
 
-    #custom-confirm-modal {
-      display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-      background: rgba(0,0,0,0.5); z-index: 9999; justify-content: center; align-items: center;
-    }
-    .custom-confirm-card {
-      background: white; padding: 20px; border-radius: 8px; width: 300px; text-align: center;
-      box-shadow: 0 5px 15px rgba(0,0,0,0.3); font-size: 13px;
-    }
+    #custom-confirm-modal { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.5); z-index: 9999; justify-content: center; align-items: center; }
+    .custom-confirm-card { background: white; padding: 20px; border-radius: 8px; width: 300px; text-align: center; box-shadow: 0 5px 15px rgba(0,0,0,0.3); font-size: 13px; }
     .custom-confirm-btns { display: flex; justify-content: space-around; margin-top: 15px; }
     .btn-confirm-yes { background: #dc3545; color: white; border: none; padding: 6px 16px; border-radius: 4px; cursor: pointer; }
     .btn-confirm-no { background: #6c757d; color: white; border: none; padding: 6px 16px; border-radius: 4px; cursor: pointer; }
 
+    /* ★引き出し線（Leader Line）用スタイル★ */
+    .leader-line-container { overflow: visible !important; }
+    .leader-label-marker {
+      background: rgba(255, 255, 255, 0.95);
+      border: 1px solid #007bff;
+      border-radius: 4px;
+      padding: 2px 6px;
+      font-size: 11px;
+      font-weight: bold;
+      color: #007bff;
+      white-space: nowrap;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+      cursor: pointer;
+      display: inline-block;
+    }
+    .leader-label-marker:hover { background: #007bff; color: #fff; }
+
     @media screen and (max-width: 768px) {
       body { flex-direction: column-reverse; }
       #sidebar { width: 100% !important; max-width: 100%; height: 55vh; border-right: none; }
-      #resizer { 
-        width: 100% !important; 
-        height: 10px !important; 
-        background: #ccc !important; 
-        cursor: row-resize !important; 
-        position: relative;
-        touch-action: none;
-      }
-      #resizer::after {
-        content: '';
-        position: absolute;
-        top: 3px;
-        left: 50%;
-        transform: translateX(-50%);
-        width: 30px;
-        height: 4px;
-        background: #888;
-        border-radius: 2px;
-      }
+      #resizer { width: 100% !important; height: 10px !important; background: #ccc !important; cursor: row-resize !important; position: relative; touch-action: none; }
       #map { width: 100%; height: 45vh; }
-      
       .usage-container, #import-area, #share-bar { display: none !important; }
-
-      #legend-box { 
-        bottom: 10px; right: 10px; padding: 6px 10px; font-size: 11px;
-        transform: scale(0.8); transform-origin: bottom right;
-      }
-
-      .popup-img-container { max-width: 210px; gap: 8px; }
-      .img-card { width: 165px; padding: 4px; }
-      .popup-img { height: 105px; }
-
-      .btn-group-action, .btn-item-action:not(.btn-checked-done) { display: none !important; }
-      .point-item { padding: 8px 6px; flex-wrap: nowrap; gap: 2px; }
-      .point-name { min-width: 0; }
-      .btn-group-actions { width: auto; margin-top: 0; }
     }
   </style>
 </head>
@@ -332,7 +204,6 @@
   </div>
 </div>
 
-<!-- 画像削除確認用カスタムモーダル -->
 <div id="custom-confirm-modal">
   <div class="custom-confirm-card">
     <p style="margin:0 0 10px 0; font-weight:bold;">この画像を削除しますか？</p>
@@ -387,7 +258,7 @@
 
   <div id="filter-bar">
     <div class="filter-row">
-      <input type="text" id="search-keyword" class="filter-input" placeholder="🔍 スポット名で検索..." oninput="onFilterChange()" />
+      <input type="text" id="search-keyword" class="filter-input" placeholder="🔍 スポット名/ピン表示名で検索..." oninput="onFilterChange()" />
       <select id="filter-tab-select" class="filter-select" onchange="onFilterChange()">
         <option value="">🏷️ 全てのタブを表示</option>
       </select>
@@ -420,14 +291,12 @@
 <div id="tab-config-modal" class="modal">
   <h4>⚙️ タブ設定・色分け管理</h4>
   <p style="font-size:11px; color:#666;">Excelの「タブ」列の文字に応じたピンの色を設定します。</p>
-  
   <table id="tab-rule-table">
     <thead>
       <tr><th>タブ文字</th><th>色</th><th>操作</th></tr>
     </thead>
     <tbody id="tab-rule-list"></tbody>
   </table>
-
   <div style="border-top:1px solid #eee; pt:10px; margin-top:10px;">
     <input type="text" id="new-tab-name" placeholder="新しいタブ文字（例: 標識）" />
     <select id="new-tab-color">
@@ -448,10 +317,11 @@
 
 <div id="form-container" class="modal">
   <h4 id="form-modal-title">新しいポイントを追加</h4>
+  <input type="text" id="spot-display-title" placeholder="ピン表示名（任意 / 空欄時はスポット名）" />
   <input type="text" id="spot-title" placeholder="スポット名（必須）" />
   <input type="number" step="any" id="spot-lat" placeholder="緯度（例: 40.220360）" />
   <input type="number" step="any" id="spot-lng" placeholder="経度（例: 141.781950）" />
-  <input type="text" id="spot-group" placeholder="グループ名（例: 三陸 / 1工区）" />
+  <input type="text" id="spot-group" placeholder="グループ名（例: 三陸 / 1工区 / A区画）" />
   <input type="text" id="spot-tab" placeholder="タブの内容（例: 標識）" />
   <input type="file" id="spot-image" accept="image/*" multiple />
   <div style="display: flex; justify-content: space-between; margin-top:10px;">
@@ -470,7 +340,7 @@
 
 <script>
   const SUPABASE_URL = 'https://yrtismmwpbinvceugvqm.supabase.co'; 
-  const SUPABASE_KEY = 'sb_publishable_M9om9CnvIBVUyZDWvqMSfA_dzF-oCT0';       
+  const SUPABASE_KEY = 'sb_publishable_M9om9CnvIBVUyZDWvqMSfA_dzF-oCT0';        
   const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
   let selectedLatLng = null;
@@ -485,6 +355,9 @@
   const checkedPointIds = new Set();
   let activePopupPointId = null;
   let isSelfOperating = false;
+
+  // 引き出し線（Leader Line）用レイヤーグループ
+  let leaderLineLayerGroup = L.layerGroup();
 
   const sidebar = document.getElementById('sidebar');
   const mapElem = document.getElementById('map');
@@ -530,7 +403,6 @@
 
   document.addEventListener('touchmove', (e) => {
     if (!isResizing || window.innerWidth > 768) return;
-    
     const touch = e.touches[0];
     const totalHeight = window.innerHeight;
     const newSidebarHeight = totalHeight - touch.clientY;
@@ -653,6 +525,7 @@
   }
 
   const map = L.map('map', { minZoom: 5, maxZoom: 18 }).setView([40.220360, 141.781950], 13);
+  leaderLineLayerGroup.addTo(map);
 
   const gsiPale = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png', {
     maxZoom: 18,
@@ -844,7 +717,6 @@
     document.getElementById('lightbox-modal').style.display = 'none';
   }
 
-  /* ★ポップアップ内画像＆直接コメント入力・判定プルダウン描画★ */
   async function loadImagesForPopup(pointId) {
     const container = document.getElementById(`popup-img-area-${pointId}`);
     if (!container) return;
@@ -886,7 +758,6 @@
         <button class="img-delete-btn" onclick="deleteSingleImage(event, ${pointId}, ${idx})" title="この画像を削除">✕</button>
       `;
 
-      // 判定オプション（なし, Ⅰ, Ⅱ, Ⅲ, Ⅳ）
       const judges = ['', 'Ⅰ', 'Ⅱ', 'Ⅲ', 'Ⅳ'];
       const judgeOptions = judges.map(j => `<option value="${j}" ${judge === j ? 'selected' : ''}>${j || '未選択'}</option>`).join('');
 
@@ -912,7 +783,6 @@
     container.innerHTML = `<div class="popup-img-container">${cardsHtml}</div>`;
   }
 
-  /* ★コメントの直接更新処理★ */
   async function saveImageCommentDirect(pointId, imgIndex, newComment) {
     if (isReadOnly) return;
     isSelfOperating = true;
@@ -942,7 +812,6 @@
     setTimeout(() => { isSelfOperating = false; }, 1000);
   }
 
-  /* ★判定プルダウン（Ⅰ〜Ⅳ）の更新処理★ */
   async function saveImageJudgeDirect(pointId, imgIndex, newJudge) {
     if (isReadOnly) return;
     isSelfOperating = true;
@@ -969,7 +838,7 @@
     point.image_url = updatedJson;
 
     await supabaseClient.from('points').update({ image_url: updatedJson }).eq('id', pointId);
-    renderSidebarTree(); // リストの赤文字判定表示を更新
+    renderSidebarTree();
     setTimeout(() => { isSelfOperating = false; }, 1000);
   }
 
@@ -1030,11 +899,12 @@
     if (markers[pId]) return;
 
     const isCheckedDone = !!point.is_checked;
+    const dispName = point.display_title || point.title;
 
     const popupContent = `
       <div style="width: auto; white-space: nowrap;">
         <small style="color:#666;">${point.group_name || 'グループなし'}</small>
-        <h3 class="popup-title">${point.title}</h3>
+        <h3 class="popup-title">${point.title} <small style="font-weight:normal; font-size:12px; color:#555;">(${dispName})</small></h3>
         <div style="display:flex; gap:4px; align-items:center;">
           ${point.tab_name ? `<span style="font-size:10px; background:${colorHexMap[point.color]||'#0d6efd'}; color:white; padding:2px 6px; border-radius:10px; display:inline-block;">${point.tab_name}</span>` : ''}
           <span style="font-size:10px; background:${isCheckedDone ? '#6c757d' : '#ffffff'}; color:${isCheckedDone ? '#ffffff' : '#333333'}; border:1px solid ${isCheckedDone ? '#6c757d' : '#999999'}; padding:2px 6px; border-radius:10px; display:inline-block;">${isCheckedDone ? '点検済' : '未実施'}</span>
@@ -1061,12 +931,81 @@
     markers[pId] = marker;
   }
 
+  /* ★引き出し線（Leader Line）描画関数★
+     - 画面中央からの距離順で50件以内のみ描画
+     - 表示範囲（画面内）の対象が50件を超える場合は非表示
+  */
+  function updateLeaderLines() {
+    leaderLineLayerGroup.clearLayers();
+
+    const bounds = map.getBounds();
+    const mapCenter = map.getCenter();
+
+    // 画面内に存在するマーカーの取得と画面中央からの距離算出
+    const visiblePoints = [];
+    allPoints.forEach(p => {
+      const pId = Number(p.id);
+      if (checkedPointIds.has(pId) && markers[pId] && map.hasLayer(markers[pId])) {
+        const latLng = L.latLng(p.lat, p.lng);
+        if (bounds.contains(latLng)) {
+          const dist = mapCenter.distanceTo(latLng);
+          visiblePoints.push({ point: p, dist: dist, latLng: latLng });
+        }
+      }
+    });
+
+    // 画面内の表示件数が50件を超える場合は表示しない（パフォーマンス保護）
+    if (visiblePoints.length > 50) return;
+
+    // 中央に近い順にソートして50件に制限
+    visiblePoints.sort((a, b) => a.dist - b.dist);
+    const targetPoints = visiblePoints.slice(0, 50);
+
+    targetPoints.forEach(item => {
+      const p = item.point;
+      const originLatLng = item.latLng;
+      const dispTitle = p.display_title || p.title;
+
+      // ピクセル座標で右上にずらした位置を算出（引き出し線用）
+      const originPoint = map.latLngToLayerPoint(originLatLng);
+      const labelPoint = L.point(originPoint.x + 35, originPoint.y - 35);
+      const labelLatLng = map.layerPointToLatLng(labelPoint);
+
+      // 引き出し線（ポリライン）を描画
+      const line = L.polyline([originLatLng, labelLatLng], {
+        color: '#007bff',
+        weight: 1.5,
+        dashArray: '3, 3',
+        opacity: 0.8,
+        interactive: false
+      });
+      leaderLineLayerGroup.addLayer(line);
+
+      // テキストラベルマーカーを作成
+      const labelIcon = L.divIcon({
+        className: 'leader-line-container',
+        html: `<div class="leader-label-marker" onclick="focusToPoint(${p.id})">${dispTitle}</div>`,
+        iconSize: [null, null],
+        iconAnchor: [0, 10]
+      });
+
+      const labelMarker = L.marker(labelLatLng, { icon: labelIcon, interactive: true });
+      leaderLineLayerGroup.addLayer(labelMarker);
+    });
+  }
+
+  // 地図移動・ズーム時に引き出し線を再描画
+  map.on('moveend zoomend resize', updateLeaderLines);
+
   function getFilteredPoints() {
     const keyword = (document.getElementById('search-keyword')?.value || '').trim().toLowerCase();
     const selectedTab = (document.getElementById('filter-tab-select')?.value || '').trim();
 
     return allPoints.filter(p => {
-      const matchKeyword = !keyword || (p.title && p.title.toLowerCase().includes(keyword));
+      const dispName = p.display_title || '';
+      const matchKeyword = !keyword || 
+        (p.title && p.title.toLowerCase().includes(keyword)) ||
+        (dispName && dispName.toLowerCase().includes(keyword));
       
       let matchTab = true;
       if (selectedTab === '__STATUS_DONE__') {
@@ -1086,7 +1025,7 @@
   }
 
   function addNewGroupModal() {
-    const input = prompt("新しいグループ名を入力してください。\n親グループと子グループを分ける場合は '/' で区切ってください。\n（例: '三陸 / 1工区'）");
+    const input = prompt("新しいグループ名を入力してください。\n階層を分ける場合は '/' で区切ってください。\n（例: '三陸 / 1工区 / A区画'）");
     if (!input) return;
     const groupName = input.trim();
     if (groupName) {
@@ -1124,6 +1063,7 @@
 
     updateFilterTabOptions();
     renderSidebarTree();
+    updateLeaderLines();
     updateDatabaseUsageMeter();
   }
 
@@ -1187,6 +1127,7 @@
         if (isVisible) map.addLayer(markers[pointId]);
       }
       renderSidebarTree();
+      updateLeaderLines();
     }
   }
 
@@ -1227,6 +1168,7 @@
     renderSidebarTree();
   }
 
+  /* ★3階層構造（親・子・孫）に対応したツリー描画★ */
   function renderSidebarTree() {
     try {
       const treeContainer = document.getElementById('point-tree');
@@ -1241,10 +1183,13 @@
 
       const groupTree = {};
 
-      function ensureGroupPath(parent, child) {
-        if (!groupTree[parent]) groupTree[parent] = { _items: [], _children: {} };
-        if (child && !groupTree[parent]._children[child]) {
-          groupTree[parent]._children[child] = [];
+      function ensureGroupPath(p, c, gc) {
+        if (!groupTree[p]) groupTree[p] = { _items: [], _children: {} };
+        if (c && !groupTree[p]._children[c]) {
+          groupTree[p]._children[c] = { _items: [], _grandchildren: {} };
+        }
+        if (c && gc && !groupTree[p]._children[c]._grandchildren[gc]) {
+          groupTree[p]._children[c]._grandchildren[gc] = [];
         }
       }
 
@@ -1252,21 +1197,25 @@
         const parts = gPath.split('/').map(s => s.trim());
         const p = parts[0] || '未分類';
         const c = parts[1] || null;
-        ensureGroupPath(p, c);
+        const gc = parts[2] || null;
+        ensureGroupPath(p, c, gc);
       });
 
       filteredPoints.forEach(p => {
         const rawG = p.group_name || '未分類';
         const parts = rawG.split('/').map(s => s.trim());
-        const parentName = parts[0] || '未分類';
-        const childName = parts[1] || null;
+        const pName = parts[0] || '未分類';
+        const cName = parts[1] || null;
+        const gcName = parts[2] || null;
 
-        ensureGroupPath(parentName, childName);
+        ensureGroupPath(pName, cName, gcName);
 
-        if (childName) {
-          groupTree[parentName]._children[childName].push(p);
+        if (cName && gcName) {
+          groupTree[pName]._children[cName]._grandchildren[gcName].push(p);
+        } else if (cName) {
+          groupTree[pName]._children[cName]._items.push(p);
         } else {
-          groupTree[parentName]._items.push(p);
+          groupTree[pName]._items.push(p);
         }
       });
 
@@ -1275,8 +1224,8 @@
         return;
       }
 
-      Object.keys(groupTree).forEach(parentName => {
-        const parentData = groupTree[parentName];
+      Object.keys(groupTree).forEach(pName => {
+        const parentData = groupTree[pName];
         const parentDiv = document.createElement('div');
         parentDiv.className = 'parent-group-item';
 
@@ -1284,104 +1233,132 @@
           parentDiv.addEventListener('dragover', e => { e.preventDefault(); parentDiv.classList.add('drag-over-active'); });
           parentDiv.addEventListener('dragleave', () => parentDiv.classList.remove('drag-over-active'));
           parentDiv.addEventListener('drop', async e => {
-            e.preventDefault();
-            e.stopPropagation();
+            e.preventDefault(); e.stopPropagation();
             parentDiv.classList.remove('drag-over-active');
-
             const pointId = e.dataTransfer.getData('text/point-id');
             const groupPath = e.dataTransfer.getData('text/group-path');
-
-            if (pointId) {
-              await updatePointGroup(pointId, parentName);
-            } else if (groupPath) {
-              await moveGroupPathToNewParent(groupPath, parentName);
-            }
+            if (pointId) await updatePointGroup(pointId, pName);
+            else if (groupPath) await moveGroupPathToNewParent(groupPath, pName);
           });
         }
 
         const parentHeader = document.createElement('div');
         parentHeader.className = 'parent-group-header';
         if (!isReadOnly) parentHeader.draggable = true;
+        parentHeader.addEventListener('dragstart', e => { e.dataTransfer.setData('text/group-path', pName); });
 
-        parentHeader.addEventListener('dragstart', e => {
-          e.dataTransfer.setData('text/group-path', parentName);
-        });
-
-        const parentSafeId = encodeURIComponent(parentName).replace(/%/g, '_');
-        const isParentOpen = openGroupIds.has(`p-${parentSafeId}`);
+        const pSafeId = encodeURIComponent(pName).replace(/%/g, '_');
+        const isParentOpen = openGroupIds.has(`p-${pSafeId}`);
 
         parentHeader.innerHTML = `
-          <input type="checkbox" onchange="toggleGroupVisibilityByPath('${parentName}', this.checked)" title="親グループ内を一括表示/非表示" />
-          <span class="group-title-text" onclick="toggleParentFold('${parentSafeId}')">
-            <span id="fold-icon-p-${parentSafeId}">${isParentOpen ? '📂' : '📁'}</span> <strong>${parentName}</strong>
+          <input type="checkbox" onchange="toggleGroupVisibilityByPath('${pName}', this.checked)" title="親グループ内を一括表示/非表示" />
+          <span class="group-title-text" onclick="toggleFold('p-${pSafeId}')">
+            <span id="fold-icon-p-${pSafeId}">${isParentOpen ? '📂' : '📁'}</span> <strong>${pName}</strong>
           </span>
           ${!isReadOnly ? `
-            <button class="btn-group-action btn-group-edit" onclick="editGroupUI('${parentName}')" title="グループ名を変更">✏️</button>
-            <button class="btn-group-action btn-group-del" onclick="deleteGroupUI('${parentName}')" title="グループおよび内部情報を一括削除">✕</button>
+            <button class="btn-group-action btn-group-edit" onclick="editGroupUI('${pName}')" title="グループ名を変更">✏️</button>
+            <button class="btn-group-action btn-group-del" onclick="deleteGroupUI('${pName}')" title="削除">✕</button>
           ` : ''}
         `;
         parentDiv.appendChild(parentHeader);
 
         const childContainer = document.createElement('div');
         childContainer.className = `child-container ${isParentOpen ? '' : 'collapsed'}`;
-        childContainer.id = `parent-child-container-${parentSafeId}`;
+        childContainer.id = `container-p-${pSafeId}`;
 
         if (parentData._items.length > 0) {
-          const ul = renderPointList(parentData._items, parentName);
-          childContainer.appendChild(ul);
+          childContainer.appendChild(renderPointList(parentData._items, pName));
         }
 
-        Object.keys(parentData._children).forEach(childName => {
-          const childPoints = parentData._children[childName];
+        Object.keys(parentData._children).forEach(cName => {
+          const childData = parentData._children[cName];
           const childDiv = document.createElement('div');
           childDiv.className = 'child-group-item';
-          const childPath = `${parentName} / ${childName}`;
-          const childSafeId = encodeURIComponent(childPath).replace(/%/g, '_');
-          const isChildOpen = openGroupIds.has(`c-${childSafeId}`);
+          const childPath = `${pName} / ${cName}`;
+          const cSafeId = encodeURIComponent(childPath).replace(/%/g, '_');
+          const isChildOpen = openGroupIds.has(`c-${cSafeId}`);
 
           if (!isReadOnly) {
             childDiv.addEventListener('dragover', e => { e.preventDefault(); childDiv.classList.add('drag-over-active'); });
             childDiv.addEventListener('dragleave', () => childDiv.classList.remove('drag-over-active'));
             childDiv.addEventListener('drop', async e => {
-              e.preventDefault();
-              e.stopPropagation();
+              e.preventDefault(); e.stopPropagation();
               childDiv.classList.remove('drag-over-active');
-
               const pointId = e.dataTransfer.getData('text/point-id');
-              if (pointId) {
-                await updatePointGroup(pointId, childPath);
-              }
+              if (pointId) await updatePointGroup(pointId, childPath);
             });
           }
 
           const childHeader = document.createElement('div');
           childHeader.className = 'child-group-header';
           if (!isReadOnly) childHeader.draggable = true;
-
-          childHeader.addEventListener('dragstart', e => {
-            e.stopPropagation();
-            e.dataTransfer.setData('text/group-path', childPath);
-          });
+          childHeader.addEventListener('dragstart', e => { e.stopPropagation(); e.dataTransfer.setData('text/group-path', childPath); });
 
           childHeader.innerHTML = `
             <input type="checkbox" onchange="toggleGroupVisibilityByPath('${childPath}', this.checked)" title="子グループ内を一括表示/非表示" />
-            <span class="group-title-text" onclick="toggleChildFold('${childSafeId}')">
-              <span id="fold-icon-c-${childSafeId}">${isChildOpen ? '📂' : '📁'}</span> ${childName} (${childPoints.length})
+            <span class="group-title-text" onclick="toggleFold('c-${cSafeId}')">
+              <span id="fold-icon-c-${cSafeId}">${isChildOpen ? '📂' : '📁'}</span> ${cName}
             </span>
             ${!isReadOnly ? `
-              <button class="btn-group-action btn-group-edit" onclick="editGroupUI('${childPath}')" title="子グループ名を変更">✏️</button>
-              <button class="btn-group-action btn-group-del" onclick="deleteGroupUI('${childPath}')" title="子グループおよび内部情報を一括削除">✕</button>
+              <button class="btn-group-action btn-group-edit" onclick="editGroupUI('${childPath}')">✏️</button>
+              <button class="btn-group-action btn-group-del" onclick="deleteGroupUI('${childPath}')">✕</button>
             ` : ''}
           `;
           childDiv.appendChild(childHeader);
 
-          const childUl = renderPointList(childPoints, childPath);
-          childUl.id = `list-child-${childSafeId}`;
-          if (!isChildOpen) {
-            childUl.classList.add('collapsed');
+          const grandchildContainer = document.createElement('div');
+          grandchildContainer.className = `grandchild-container ${isChildOpen ? '' : 'collapsed'}`;
+          grandchildContainer.id = `container-c-${cSafeId}`;
+
+          if (childData._items.length > 0) {
+            grandchildContainer.appendChild(renderPointList(childData._items, childPath));
           }
 
-          childDiv.appendChild(childUl);
+          Object.keys(childData._grandchildren).forEach(gcName => {
+            const gcPoints = childData._grandchildren[gcName];
+            const gcDiv = document.createElement('div');
+            gcDiv.className = 'grandchild-group-item';
+            const gcPath = `${pName} / ${cName} / ${gcName}`;
+            const gcSafeId = encodeURIComponent(gcPath).replace(/%/g, '_');
+            const isGcOpen = openGroupIds.has(`gc-${gcSafeId}`);
+
+            if (!isReadOnly) {
+              gcDiv.addEventListener('dragover', e => { e.preventDefault(); gcDiv.classList.add('drag-over-active'); });
+              gcDiv.addEventListener('dragleave', () => gcDiv.classList.remove('drag-over-active'));
+              gcDiv.addEventListener('drop', async e => {
+                e.preventDefault(); e.stopPropagation();
+                gcDiv.classList.remove('drag-over-active');
+                const pointId = e.dataTransfer.getData('text/point-id');
+                if (pointId) await updatePointGroup(pointId, gcPath);
+              });
+            }
+
+            const gcHeader = document.createElement('div');
+            gcHeader.className = 'grandchild-group-header';
+            if (!isReadOnly) gcHeader.draggable = true;
+            gcHeader.addEventListener('dragstart', e => { e.stopPropagation(); e.dataTransfer.setData('text/group-path', gcPath); });
+
+            gcHeader.innerHTML = `
+              <input type="checkbox" onchange="toggleGroupVisibilityByPath('${gcPath}', this.checked)" title="孫グループ内を一括表示/非表示" />
+              <span class="group-title-text" onclick="toggleFold('gc-${gcSafeId}')">
+                <span id="fold-icon-gc-${gcSafeId}">${isGcOpen ? '📂' : '📁'}</span> ${gcName} (${gcPoints.length})
+              </span>
+              ${!isReadOnly ? `
+                <button class="btn-group-action btn-group-edit" onclick="editGroupUI('${gcPath}')">✏️</button>
+                <button class="btn-group-action btn-group-del" onclick="deleteGroupUI('${gcPath}')">✕</button>
+              ` : ''}
+            `;
+            gcDiv.appendChild(gcHeader);
+
+            const gcUl = renderPointList(gcPoints, gcPath);
+            gcUl.id = `container-gc-${gcSafeId}`;
+            if (!isGcOpen) gcUl.classList.add('collapsed');
+
+            gcDiv.appendChild(gcUl);
+            grandchildContainer.appendChild(gcDiv);
+          });
+
+          childDiv.appendChild(grandchildContainer);
           childContainer.appendChild(childDiv);
         });
 
@@ -1402,16 +1379,13 @@
     }
   }
 
-  /* ★施設内の最高優先順位判定（Ⅳ > Ⅲ > Ⅱ > Ⅰ）を算出する関数★ */
   function getHighestJudge(point) {
     if (!point || !point.image_url) return '';
     let imgList = [];
     try {
       imgList = JSON.parse(point.image_url);
       if (!Array.isArray(imgList)) imgList = [];
-    } catch (e) {
-      return '';
-    }
+    } catch (e) { return ''; }
 
     const priorityOrder = ['Ⅳ', 'Ⅲ', 'Ⅱ', 'Ⅰ'];
     for (const p of priorityOrder) {
@@ -1451,7 +1425,6 @@
         `;
       }
 
-      // 未実施 / 点検済 プルダウンステータスタブ
       const isChecked = !!p.is_checked;
       let statusBadgeHtml = '';
       if (isReadOnly) {
@@ -1465,7 +1438,6 @@
         `;
       }
 
-      // ★赤文字で表示する最高判定（Ⅳ > Ⅲ > Ⅱ > Ⅰ）★
       const highestJudge = getHighestJudge(p);
       const judgeRedHtml = highestJudge ? `<span class="judge-red-text">${highestJudge}</span>` : '';
 
@@ -1488,10 +1460,12 @@
         `;
       }
 
+      const dispText = p.display_title ? `${p.title} (${p.display_title})` : p.title;
+
       li.innerHTML = `
         <input type="checkbox" ${isVisible ? 'checked' : ''} id="chk-point-${p.id}" value="${p.id}" class="chk-point" onchange="togglePointVisibility(${p.id}, this.checked)" />
         <span class="point-name" onclick="focusToPoint(${p.id})">
-          <span class="point-text" title="${p.title}">${p.title}</span>
+          <span class="point-text" title="${dispText}">${p.title}</span>
           ${judgeRedHtml}
           ${tabBadgeHtml}
           ${statusBadgeHtml}
@@ -1504,27 +1478,15 @@
     return ul;
   }
 
-  function toggleParentFold(safeId) {
-    const container = document.getElementById(`parent-child-container-${safeId}`);
-    const icon = document.getElementById(`fold-icon-p-${safeId}`);
+  function toggleFold(key) {
+    const container = document.getElementById(`container-${key}`);
+    const icon = document.getElementById(`fold-icon-${key}`);
     if (container) {
       container.classList.toggle('collapsed');
       const isCollapsed = container.classList.contains('collapsed');
-      icon.innerText = isCollapsed ? '📁' : '📂';
-      if (isCollapsed) openGroupIds.delete(`p-${safeId}`);
-      else openGroupIds.add(`p-${safeId}`);
-    }
-  }
-
-  function toggleChildFold(safeId) {
-    const ul = document.getElementById(`list-child-${safeId}`);
-    const icon = document.getElementById(`fold-icon-c-${safeId}`);
-    if (ul) {
-      ul.classList.toggle('collapsed');
-      const isCollapsed = ul.classList.contains('collapsed');
-      icon.innerText = isCollapsed ? '📁' : '📂';
-      if (isCollapsed) openGroupIds.delete(`c-${safeId}`);
-      else openGroupIds.add(`c-${safeId}`);
+      if (icon) icon.innerText = isCollapsed ? '📁' : '📂';
+      if (isCollapsed) openGroupIds.delete(key);
+      else openGroupIds.add(key);
     }
   }
 
@@ -1557,7 +1519,6 @@
     if (!point) return;
 
     const newChecked = explicitValue !== null ? explicitValue : !point.is_checked;
-    
     const { error } = await supabaseClient.from('points').update({ is_checked: newChecked }).eq('id', pointId);
 
     if (!error) {
@@ -1571,7 +1532,7 @@
       }
       renderSidebarTree();
     } else {
-      alert('点検状態の更新に失敗しました。\nSupabaseの「points」テーブルに「is_checked」(boolean型)のカラムが存在するか確認してください。\n\n詳細: ' + error.message);
+      alert('点検状態の更新に失敗しました: ' + error.message);
     }
   }
 
@@ -1595,6 +1556,7 @@
       checkedPointIds.delete(idNum);
       if (chk) chk.checked = false;
     }
+    updateLeaderLines();
   }
 
   function toggleSelectAll(isChecked) {
@@ -1622,27 +1584,25 @@
         allPoints = allPoints.filter(p => !selectedIds.includes(Number(p.id)));
         updateFilterTabOptions();
         renderSidebarTree();
+        updateLeaderLines();
         updateDatabaseUsageMeter();
       }
     }
   }
 
+  /* ★テンプレートダウンロード（ピン表示名＆親・子・孫グループ列対応）★ */
   function downloadExcelTemplate() {
     const templateData = [
-      { 'スポット名': 'D360425L3', '緯度': 40.220360, '経度': 141.781950, 'グループ': '三陸 / 1工区', 'タブ': '標識', '基本画像': '※画像高さは2cm程度にする' },
-      { 'スポット名': 'D360471L1', '緯度': 40.220653, '経度': 141.781794, 'グループ': '三陸 / 2工区', 'タブ': '点検済', '基本画像': '' }
+      { 'ピン表示名': '1号標識', 'スポット名': 'D360425L3', '緯度': 40.220360, '経度': 141.781950, '親グループ': '三陸', '子グループ': '1工区', '孫グループ': 'A区画', 'タブ': '標識', '基本画像': '※画像高さは2cm程度にする' },
+      { 'ピン表示名': '', 'スポット名': 'D360471L1', '緯度': 40.220653, '経度': 141.781794, '親グループ': '三陸', '子グループ': '2工区', '孫グループ': '', 'タブ': '点検済', '基本画像': '' }
     ];
     const ws = XLSX.utils.json_to_sheet(templateData);
     
     ws['!cols'] = [
-      { wch: 18 }, { wch: 12 }, { wch: 12 }, { wch: 18 }, { wch: 12 }, { wch: 15 }
+      { wch: 15 }, { wch: 18 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 15 }
     ];
 
-    ws['!rows'] = [
-      { hpt: 24 },
-      { hpt: 63 },
-      { hpt: 63 }
-    ];
+    ws['!rows'] = [ { hpt: 24 }, { hpt: 63 }, { hpt: 63 } ];
 
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, '集計結果');
@@ -1824,7 +1784,6 @@
       });
 
       const bounds = [];
-
       Object.keys(markers).forEach(id => { map.removeLayer(markers[id]); delete markers[id]; });
 
       if (sharedIds) {
@@ -1838,6 +1797,7 @@
 
       updateFilterTabOptions();
       renderSidebarTree();
+      updateLeaderLines();
       updateDatabaseUsageMeter();
 
       if (sharedIds && bounds.length > 0) {
@@ -1849,7 +1809,7 @@
     }
   }
 
-  /* ★Excelインポート処理★ */
+  /* ★Excelインポート処理（ピン表示名＆親・子・孫グループ読込対応）★ */
   async function handleFileSelect(e) {
     if (isReadOnly) return;
     const file = e.target.files[0];
@@ -1912,10 +1872,24 @@
       const newPoints = [];
       for (let i = 0; i < json.length; i++) {
         const row = json[i];
+        const display_title = String(row['ピン表示名'] || row['表示名'] || '').trim();
         const title = row['スポット名'] || row['title'] || row['名称'] || row['名前'];
         const lat = parseFloat(row['緯度'] || row['lat'] || row['latitude']);
         const lng = parseFloat(row['経度'] || row['lng'] || row['longitude']);
-        const group_name = row['グループ'] || row['group'] || 'インポート';
+        
+        // 親・子・孫グループ列の結合処理
+        const parentG = String(row['親グループ'] || row['グループ'] || row['group'] || '').trim();
+        const childG = String(row['子グループ'] || '').trim();
+        const grandchildG = String(row['孫グループ'] || '').trim();
+        
+        let group_name = 'インポート';
+        if (parentG) {
+          const gParts = [parentG];
+          if (childG) gParts.push(childG);
+          if (grandchildG) gParts.push(grandchildG);
+          group_name = gParts.join(' / ');
+        }
+
         const tabText = row['タブ'] || row['tab'] || '';
         
         let imageUrl = rowImageMap[i + 1] || row['基本画像'] || row['画像URL'] || row['画像'] || null;
@@ -1930,6 +1904,7 @@
           const pointColor = getTabColor(tabText);
 
           newPoints.push({
+            display_title: display_title || null,
             title: String(title),
             lat: lat,
             lng: lng,
@@ -1975,6 +1950,7 @@
     if (isReadOnly) return;
     selectedLatLng = e.latlng;
     document.getElementById('form-modal-title').textContent = '新しいポイントを追加';
+    document.getElementById('spot-display-title').value = '';
     document.getElementById('spot-title').value = '';
     document.getElementById('spot-lat').value = e.latlng.lat.toFixed(6);
     document.getElementById('spot-lng').value = e.latlng.lng.toFixed(6);
@@ -1988,6 +1964,7 @@
     if (isReadOnly) return;
     selectedLatLng = null;
     document.getElementById('form-modal-title').textContent = 'ポイントを手動（個別）登録';
+    document.getElementById('spot-display-title').value = '';
     document.getElementById('spot-title').value = '';
     document.getElementById('spot-lat').value = '';
     document.getElementById('spot-lng').value = '';
@@ -1999,6 +1976,7 @@
 
   function closeForm() {
     document.getElementById('form-container').style.display = 'none';
+    document.getElementById('spot-display-title').value = '';
     document.getElementById('spot-title').value = '';
     document.getElementById('spot-lat').value = '';
     document.getElementById('spot-lng').value = '';
@@ -2010,6 +1988,7 @@
 
   async function savePoint() {
     if (isReadOnly) return;
+    const dispTitle = document.getElementById('spot-display-title').value.trim();
     const title = document.getElementById('spot-title').value.trim();
     const latVal = parseFloat(document.getElementById('spot-lat').value);
     const lngVal = parseFloat(document.getElementById('spot-lng').value);
@@ -2036,7 +2015,7 @@
       }
 
       const { error } = await supabaseClient.from('points').insert([
-        { title, lat: latVal, lng: lngVal, group_name: group, tab_name: tabText, color: color, image_url: imageUrl }
+        { display_title: dispTitle || null, title, lat: latVal, lng: lngVal, group_name: group, tab_name: tabText, color: color, image_url: imageUrl }
       ]);
       if (!error) {
         closeForm();
