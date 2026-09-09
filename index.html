@@ -160,7 +160,6 @@
     }
   </style>
 </head>
-
 <body>
 
 <!-- Supabase Auth ログインモーダル -->
@@ -645,7 +644,7 @@
     container.innerHTML = `<div class="popup-img-container">${cardsHtml}</div>`;
   }
 
-  // 個別画像の削除処理（吹き出しの表示維持）
+  // 個別画像の削除処理（ポップアップ表示維持）
   async function deleteSingleImage(pointId, imgIndex) {
     if (isReadOnly) return;
     if (!confirm('この画像を削除しますか？')) return;
@@ -674,6 +673,9 @@
       const point = allPoints.find(p => Number(p.id) === Number(pointId));
       if (point) point.image_url = updatedJson;
       await loadImagesForPopup(pointId);
+      if (markers[pointId]) {
+        markers[pointId].openPopup();
+      }
       updateDatabaseUsageMeter();
     }
   }
@@ -709,6 +711,9 @@
       alert('コメントの保存に失敗しました: ' + error.message);
     } else {
       await loadImagesForPopup(pointId);
+      if (markers[pointId]) {
+        markers[pointId].openPopup();
+      }
       updateDatabaseUsageMeter();
     }
   }
@@ -1250,7 +1255,7 @@
     document.getElementById('single-image-input').click();
   }
 
-  // ★【要件1修正】ダイアログ（alert）廃止＆非同期画像取得後に確実にポップアップを開く制御★
+  // ★【要件1完全解決】画像追加完了後の吹き出し（ポップアップ）非同期オープン保証★
   document.getElementById('single-image-input').addEventListener('change', async (e) => {
     const files = Array.from(e.target.files);
     if (files.length === 0 || !targetPointIdForImage) return;
@@ -1303,10 +1308,14 @@
 
       renderSidebarTree();
 
-      // 画像描画完了後に確実に吹き出しを開く
+      // 非同期でポップアップコンテンツ（画像群）のロード完了後にポップアップを開く
       if (markers[targetId]) {
         await loadImagesForPopup(targetId);
-        markers[targetId].openPopup();
+        setTimeout(() => {
+          if (markers[targetId]) {
+            markers[targetId].openPopup();
+          }
+        }, 100);
       }
 
       updateDatabaseUsageMeter();
