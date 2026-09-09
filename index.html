@@ -160,6 +160,7 @@
     }
   </style>
 </head>
+
 <body>
 
 <!-- Supabase Auth ログインモーダル -->
@@ -426,7 +427,7 @@
 
   L.control.layers(baseMaps, null, { position: 'topright' }).addTo(map);
 
-  // ★【要件2修正】吹き出し下の矢印がポイントTip（先端）を指すよう popupAnchor 位置補正 [0, -38] ★
+  // 吹き出し下の矢印がポイントTip（先端）を指すよう popupAnchor 位置補正 [0, -38]
   function createCustomIcon(color = 'blue') {
     const validColors = ['blue', 'red', 'green', 'orange', 'violet', 'gold', 'black', 'grey', 'cyan'];
     const c = validColors.includes(color) ? color : 'blue';
@@ -672,7 +673,7 @@
     } else {
       const point = allPoints.find(p => Number(p.id) === Number(pointId));
       if (point) point.image_url = updatedJson;
-      loadImagesForPopup(pointId);
+      await loadImagesForPopup(pointId);
       updateDatabaseUsageMeter();
     }
   }
@@ -707,7 +708,7 @@
     if (error) {
       alert('コメントの保存に失敗しました: ' + error.message);
     } else {
-      loadImagesForPopup(pointId);
+      await loadImagesForPopup(pointId);
       updateDatabaseUsageMeter();
     }
   }
@@ -1249,7 +1250,7 @@
     document.getElementById('single-image-input').click();
   }
 
-  // ★【要件1修正】画像追加保存完了後に吹き出し（ポップアップ）を自動再オープン★
+  // ★【要件1修正】ダイアログ（alert）廃止＆非同期画像取得後に確実にポップアップを開く制御★
   document.getElementById('single-image-input').addEventListener('change', async (e) => {
     const files = Array.from(e.target.files);
     if (files.length === 0 || !targetPointIdForImage) return;
@@ -1302,14 +1303,13 @@
 
       renderSidebarTree();
 
-      // 画像情報非同期読み込み後にポップアップを開く
+      // 画像描画完了後に確実に吹き出しを開く
       if (markers[targetId]) {
         await loadImagesForPopup(targetId);
         markers[targetId].openPopup();
       }
 
       updateDatabaseUsageMeter();
-      alert(`${files.length} 枚の画像を保存しました！`);
     } catch (err) {
       alert('アップロード処理中にエラーが発生しました');
       console.error(err);
