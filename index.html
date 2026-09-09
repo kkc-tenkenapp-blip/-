@@ -148,6 +148,19 @@
     #tab-rule-table th, #tab-rule-table td { border: 1px solid #ddd; padding: 6px; text-align: left; }
     #readonly-banner { display: none; background: #ffc107; color: #333; text-align: center; padding: 6px; font-size: 12px; font-weight: bold; }
 
+    /* ★ブラウザconfirm排除用のアプリ内カスタム確認ダイアログ★ */
+    #custom-confirm-modal {
+      display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+      background: rgba(0,0,0,0.5); z-index: 9999; justify-content: center; align-items: center;
+    }
+    .custom-confirm-card {
+      background: white; padding: 20px; border-radius: 8px; width: 300px; text-align: center;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.3); font-size: 13px;
+    }
+    .custom-confirm-btns { display: flex; justify-content: space-around; margin-top: 15px; }
+    .btn-confirm-yes { background: #dc3545; color: white; border: none; padding: 6px 16px; border-radius: 4px; cursor: pointer; }
+    .btn-confirm-no { background: #6c757d; color: white; border: none; padding: 6px 16px; border-radius: 4px; cursor: pointer; }
+
     @media screen and (max-width: 768px) {
       body { flex-direction: column-reverse; }
       #sidebar { width: 100%; height: 55vh; border-right: none; border-top: 2px solid #007bff; }
@@ -171,6 +184,17 @@
     <input type="password" id="login-pw" class="login-field" placeholder="パスワード" />
     <button class="login-btn" onclick="loginWithSupabase()">ログイン</button>
     <div id="login-error"></div>
+  </div>
+</div>
+
+<!-- 画像削除確認用カスタムモーダル -->
+<div id="custom-confirm-modal">
+  <div class="custom-confirm-card">
+    <p style="margin:0 0 10px 0; font-weight:bold;">この画像を削除しますか？</p>
+    <div class="custom-confirm-btns">
+      <button class="btn-confirm-yes" id="btn-confirm-yes">削除</button>
+      <button class="btn-confirm-no" id="btn-confirm-no">キャンセル</button>
+    </div>
   </div>
 </div>
 
@@ -316,6 +340,28 @@
   const checkedPointIds = new Set();
   let activePopupPointId = null;
   let isSelfOperating = false;
+
+  // アプリ内カスタム確認モーダルの呼び出し用関数
+  function showCustomConfirm(message) {
+    return new Promise((resolve) => {
+      const modal = document.getElementById('custom-confirm-modal');
+      const btnYes = document.getElementById('btn-confirm-yes');
+      const btnNo = document.getElementById('btn-confirm-no');
+      modal.style.display = 'flex';
+
+      const onYes = (e) => { e.stopPropagation(); cleanup(); resolve(true); };
+      const onNo = (e) => { e.stopPropagation(); cleanup(); resolve(false); };
+
+      function cleanup() {
+        modal.style.display = 'none';
+        btnYes.removeEventListener('click', onYes);
+        btnNo.removeEventListener('click', onNo);
+      }
+
+      btnYes.addEventListener('click', onYes);
+      btnNo.addEventListener('click', onNo);
+    });
+  }
 
   // 共有URLアクセス判定＆セッション確認
   async function checkSession() {
@@ -593,7 +639,6 @@
     const container = document.getElementById(`popup-img-area-${pointId}`);
     if (!container) return;
 
-    // 直接メモリ内の allPoints から最新画像JSONを取得して高速描画
     const point = allPoints.find(p => Number(p.id) === Number(pointId));
     let rawList = [];
 
@@ -605,7 +650,6 @@
         rawList = [point.image_url];
       }
     } else {
-      // メモリ内に存在しない場合はSupabaseから単体取得
       const { data } = await supabaseClient.from('points').select('image_url').eq('id', pointId).single();
       if (data && data.image_url) {
         try {
@@ -639,7 +683,7 @@
       `;
 
       return `
-        <div class="img-card">
+        <div class="img-card" id="img-card-${pointId}-${idx}">
           ${deleteBtnHtml}
           <img src="${url}" class="popup-img" onclick="openLightbox('${url}', '${safeComment}')" title="クリックで拡大" />
           <div class="img-comment-box">
@@ -653,7 +697,7 @@
     container.innerHTML = `<div class="popup-img-container">${cardsHtml}</div>`;
   }
 
-  // ★【完全修正】消去時もメモリ(allPoints)とDOMを同期更新し、残った画像を即座に表示★
+  // ★【完全解決】ブラウザ標準confirm廃止・DOMカードのピンポイント削除により吹き出しを100%保持★
   async function deleteSingleImage(e, pointId, imgIndex) {
     if (e) e.stopPropagation();
     if (isReadOnly) return;
@@ -661,12 +705,10 @@
     isSelfOperating = true;
     activePopupPointId = Number(pointId);
 
-    const isConfirmed = confirm('この画像を削除しますか？');
+    // ブラウザダイアログの代わりにアプリ内カスタムモーダルを使用（フォーカス喪失を防止）
+    const isConfirmed = await showCustomConfirm();
 
     if (!isConfirmed) {
-      if (markers[pointId]) {
-        markers[pointId].openPopup();
-      }
       isSelfOperating = false;
       return;
     }
@@ -685,22 +727,25 @@
       imgList = [{ url: point.image_url, comment: '' }];
     }
 
+    // 配列から削除
     imgList.splice(imgIndex, 1);
-
     const updatedJson = imgList.length > 0 ? JSON.stringify(imgList) : null;
-    point.image_url = updatedJson; // ローカルメモリを即時書き換え
+    point.image_url = updatedJson;
 
-    // DOM要素（画像カード群）を直接・非同期レスポンスなしで速やかに部分更新
-    await loadImagesForPopup(pointId);
-    if (markers[pointId]) {
-      markers[pointId].openPopup();
+    // ポップアップ内部のカードDOM要素を直接削除して即座に画面反映
+    const targetCard = document.getElementById(`img-card-${pointId}-${imgIndex}`);
+    if (targetCard) {
+      targetCard.remove();
+    } else {
+      await loadImagesForPopup(pointId);
     }
 
-    // 裏でSupabaseへ非同期保存
+    // 裏側でSupabaseへ更新保存
     const { error } = await supabaseClient.from('points').update({ image_url: updatedJson }).eq('id', pointId);
 
     if (error) {
       alert('画像の削除に失敗しました: ' + error.message);
+      await loadImagesForPopup(pointId);
     } else {
       updateDatabaseUsageMeter();
     }
@@ -708,7 +753,7 @@
     setTimeout(() => { isSelfOperating = false; }, 1000);
   }
 
-  // コメント保存時も同様にローカルメモリを即時反映し画像描画を崩さない
+  // コメント保存時も同様にメモリとDOMを直感同期更新
   async function saveImageComment(e, pointId, imgIndex) {
     if (e) e.stopPropagation();
     const inputElem = document.getElementById(`comment-input-${pointId}-${imgIndex}`);
@@ -738,9 +783,11 @@
     const updatedJson = JSON.stringify(imgList);
     point.image_url = updatedJson;
 
-    await loadImagesForPopup(pointId);
-    if (markers[pointId]) {
-      markers[pointId].openPopup();
+    // DOM部分書き換え
+    const targetCard = document.getElementById(`img-card-${pointId}-${imgIndex}`);
+    if (targetCard) {
+      const txtElem = targetCard.querySelector('.comment-text');
+      if (txtElem) txtElem.textContent = newComment || '(コメントなし)';
     }
 
     const { error } = await supabaseClient.from('points').update({ image_url: updatedJson }).eq('id', pointId);
