@@ -153,7 +153,8 @@
 <!-- Supabase Auth ログインモーダル -->
 <div id="login-overlay">
   <div class="login-card">
-    <h2>🔒 社内ログイン</h2>
+    <!-- ★要件1: モーダルタイトルを「ログイン」に変更★ -->
+    <h2>🔒 ログイン</h2>
     <p>共有のメールアドレスとパスワードを入力してください。</p>
     <input type="email" id="login-email" class="login-field" placeholder="メールアドレス" />
     <input type="password" id="login-pw" class="login-field" placeholder="パスワード" />
@@ -188,7 +189,8 @@
     </label>
     <div>
       <button id="btn-add-group-bar" class="btn-bar editable-only" onclick="addNewGroupModal()">➕ グループ追加</button>
-      <button id="btn-share-selected" class="btn-bar" onclick="shareSelectedPoints()">🔗 選択共有</button>
+      <!-- ★要件3: 選択共有ボタンを閲覧専用モード時に非表示にするため editable-only クラスを追加★ -->
+      <button id="btn-share-selected" class="btn-bar editable-only" onclick="shareSelectedPoints()">🔗 選択共有</button>
       <button id="btn-delete-selected" class="btn-bar editable-only" onclick="deleteSelectedPoints()">🗑️ 選択削除</button>
     </div>
   </div>
@@ -298,8 +300,18 @@
   // 折りたたみの開閉状態を記録するSet
   const openGroupIds = new Set();
 
-  // --- Supabase Auth 認証ロジック ---
+  // --- ★要件4: 共有URLアクセス判定＆セッション確認★ ---
   async function checkSession() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const sharedIds = urlParams.get('ids') ? urlParams.get('ids').split(',') : (urlParams.get('id') ? [urlParams.get('id')] : null);
+
+    // 共有URL（idsパラメータが存在する）の場合はログイン不要で直接読み込み
+    if (sharedIds) {
+      document.getElementById('login-overlay').style.display = 'none';
+      loadInitialPoints();
+      return;
+    }
+
     const { data: { session } } = await supabaseClient.auth.getSession();
     if (session) {
       document.getElementById('login-overlay').style.display = 'none';
@@ -715,7 +727,6 @@
     });
   }
 
-  // ★グループ一括移動用関数★
   async function moveGroupPathToNewParent(sourceGroupPath, targetParentName) {
     const targets = allPoints.filter(p => {
       const g = p.group_name || '未分類';
@@ -791,7 +802,6 @@
       const parentDiv = document.createElement('div');
       parentDiv.className = 'parent-group-item';
 
-      // ★親グループへのドロップ受付（ピンまたは子グループをドロップ可能）★
       if (!isReadOnly) {
         parentDiv.addEventListener('dragover', e => { e.preventDefault(); parentDiv.classList.add('drag-over-active'); });
         parentDiv.addEventListener('dragleave', () => parentDiv.classList.remove('drag-over-active'));
@@ -848,7 +858,6 @@
         const childSafeId = encodeURIComponent(childPath).replace(/%/g, '_');
         const isChildOpen = openGroupIds.has(`c-${childSafeId}`);
 
-        // ★子グループエリアへのドロップ受付（ピンおよびグループの移動）★
         if (!isReadOnly) {
           childDiv.addEventListener('dragover', e => { e.preventDefault(); childDiv.classList.add('drag-over-active'); });
           childDiv.addEventListener('dragleave', () => childDiv.classList.remove('drag-over-active'));
@@ -1121,13 +1130,23 @@
     }
   });
 
+  // ★要件2: 実際に画面/地図上に表示されている（チェックが入っている）ポイントのみを共有対象にする★
   function shareSelectedPoints() {
-    const selectedIds = Array.from(document.querySelectorAll('.chk-point:checked')).map(chk => chk.value);
-    if (selectedIds.length === 0) { alert('共有するポイントを選択してください'); return; }
+    const selectedIds = [];
+    allPoints.forEach(p => {
+      if (markers[p.id] && map.hasLayer(markers[p.id])) {
+        selectedIds.push(p.id);
+      }
+    });
+
+    if (selectedIds.length === 0) { 
+      alert('共有したいポイントのチェックボックスをオン（画面に表示）にしてください'); 
+      return; 
+    }
 
     const shareUrl = `${window.location.origin}${window.location.pathname}?ids=${selectedIds.join(',')}`;
     navigator.clipboard.writeText(shareUrl).then(() => {
-      alert(`選択した ${selectedIds.length} 件の共有URL（閲覧専用）をコピーしました！\n\n${shareUrl}`);
+      alert(`画面上に表示されている ${selectedIds.length} 件の共有URL（閲覧専用）をコピーしました！\n\n${shareUrl}`);
     }).catch(() => { prompt('共有用URL:', shareUrl); });
   }
 
