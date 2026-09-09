@@ -110,8 +110,17 @@
     .leaflet-popup-content-wrapper { padding: 10px; max-width: 320px !important; }
     .leaflet-popup-content { margin: 8px; width: auto !important; }
     .popup-img-container { display: flex; gap: 12px; overflow-x: auto; margin-top: 8px; max-width: 280px; padding-bottom: 6px; }
-    .img-card { display: flex; flex-direction: column; flex-shrink: 0; width: 220px; background: #f8f9fa; border: 1px solid #ddd; border-radius: 6px; padding: 6px; box-sizing: border-box; }
+    .img-card { position: relative; display: flex; flex-direction: column; flex-shrink: 0; width: 220px; background: #f8f9fa; border: 1px solid #ddd; border-radius: 6px; padding: 6px; box-sizing: border-box; }
     .popup-img { width: 100%; height: 140px; border-radius: 4px; object-fit: cover; cursor: zoom-in; }
+    
+    /* 画像個別削除ボタン */
+    .img-delete-btn {
+      position: absolute; top: 8px; right: 8px; background: rgba(220, 53, 69, 0.85); color: white; border: none;
+      border-radius: 50%; width: 22px; height: 22px; cursor: pointer; font-size: 11px; display: flex;
+      justify-content: center; align-items: center; box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    }
+    .img-delete-btn:hover { background: #dc3545; }
+
     .img-comment-box { margin-top: 6px; font-size: 11px; }
     .comment-text { background: #fff; border: 1px solid #eee; border-radius: 4px; padding: 4px 6px; color: #333; min-height: 20px; word-break: break-all; }
     .comment-edit-row { display: flex; gap: 4px; margin-top: 4px; }
@@ -295,8 +304,9 @@
   let isReadOnly = false;
   let targetPointIdForImage = null;
 
-  // 折りたたみの開閉状態を記録するSet
+  // 折りたたみの開閉状態およびチェック状態を記録するSet
   const openGroupIds = new Set();
+  const checkedPointIds = new Set();
 
   // 共有URLアクセス判定＆セッション確認
   async function checkSession() {
@@ -568,6 +578,7 @@
     document.getElementById('lightbox-modal').style.display = 'none';
   }
 
+  // ★ポップアップ内画像の取得および表示（個別削除ボタンを追加）★
   async function loadImagesForPopup(pointId) {
     const container = document.getElementById(`popup-img-area-${pointId}`);
     if (!container) return;
@@ -605,8 +616,13 @@
         </div>
       `;
 
+      const deleteBtnHtml = isReadOnly ? '' : `
+        <button class="img-delete-btn" onclick="deleteSingleImage(${pointId}, ${idx})" title="この画像を削除">✕</button>
+      `;
+
       return `
         <div class="img-card">
+          ${deleteBtnHtml}
           <img src="${url}" class="popup-img" onclick="openLightbox('${url}', '${safeComment}')" title="クリックで拡大" />
           <div class="img-comment-box">
             <div class="comment-text">${comment || '<span style="color:#aaa;">(コメントなし)</span>'}</div>
@@ -619,7 +635,37 @@
     container.innerHTML = `<div class="popup-img-container">${cardsHtml}</div>`;
   }
 
-  // ★画像コメント保存（表示状態を維持）★
+  // ★個別画像の削除処理★
+  async function deleteSingleImage(pointId, imgIndex) {
+    if (isReadOnly) return;
+    if (!confirm('この画像を削除しますか？')) return;
+
+    const { data } = await supabaseClient.from('points').select('image_url').eq('id', pointId).single();
+    if (!data || !data.image_url) return;
+
+    let imgList = [];
+    try {
+      imgList = JSON.parse(data.image_url);
+      if (!Array.isArray(imgList)) imgList = [{ url: data.image_url, comment: '' }];
+    } catch (e) {
+      imgList = [{ url: data.image_url, comment: '' }];
+    }
+
+    imgList.splice(imgIndex, 1);
+
+    const updatedJson = imgList.length > 0 ? JSON.stringify(imgList) : null;
+    const { error } = await supabaseClient.from('points').update({ image_url: updatedJson }).eq('id', pointId);
+
+    if (error) {
+      alert('画像の削除に失敗しました: ' + error.message);
+    } else {
+      const point = allPoints.find(p => Number(p.id) === Number(pointId));
+      if (point) point.image_url = updatedJson;
+      loadImagesForPopup(pointId);
+      updateDatabaseUsageMeter();
+    }
+  }
+
   async function saveImageComment(pointId, imgIndex) {
     const inputElem = document.getElementById(`comment-input-${pointId}-${imgIndex}`);
     if (!inputElem) return;
@@ -921,7 +967,9 @@
       li.addEventListener('dragend', () => li.classList.remove('dragging'));
 
       const tabBadgeHtml = p.tab_name ? `<span class="tab-badge" style="background:${colorHexMap[p.color]||'#0d6efd'};">${p.tab_name}</span>` : '';
-      const isChecked = markers[p.id] && map.hasLayer(markers[p.id]);
+      
+      // ★記録されたチェック状態・レイヤー描画状態から判定★
+      const isChecked = checkedPointIds.has(Number(p.id)) || (markers[p.id] && map.hasLayer(markers[p.id]));
 
       let actionsHtml = '';
       if (!isReadOnly) {
@@ -950,7 +998,6 @@
     return ul;
   }
 
-  // グループ開閉の記録保持ロジック
   function toggleParentFold(safeId) {
     const container = document.getElementById(`parent-child-container-${safeId}`);
     const icon = document.getElementById(`fold-icon-p-${safeId}`);
@@ -1003,8 +1050,10 @@
     await changePointTabDirect(pointId, '点検済');
   }
 
+  // ★可視性切り替え（チェック状態Setをリアルタイム維持）★
   function togglePointVisibility(id, isVisible) {
-    const point = allPoints.find(p => Number(p.id) === Number(id));
+    const idNum = Number(id);
+    const point = allPoints.find(p => Number(p.id) === idNum);
     if (!point) return;
 
     if (!markers[id]) {
@@ -1013,8 +1062,10 @@
 
     if (isVisible) {
       map.addLayer(markers[id]);
+      checkedPointIds.add(idNum);
     } else {
       map.removeLayer(markers[id]);
+      checkedPointIds.delete(idNum);
     }
   }
 
@@ -1039,6 +1090,7 @@
       } else {
         selectedIds.forEach(id => {
           if (markers[id]) { map.removeLayer(markers[id]); delete markers[id]; }
+          checkedPointIds.delete(id);
         });
         allPoints = allPoints.filter(p => !selectedIds.includes(Number(p.id)));
         updateFilterTabOptions();
@@ -1081,13 +1133,13 @@
     document.getElementById('single-image-input').click();
   }
 
-  // ★画像選択・保存処理（表示状態とチェック状態を維持）★
+  // ★画像追加処理（チェックおよびマップ描画状態の確実に復元）★
   document.getElementById('single-image-input').addEventListener('change', async (e) => {
     const files = Array.from(e.target.files);
     if (files.length === 0 || !targetPointIdForImage) return;
 
-    // アップロード前の表示（チェック）状態を保持
-    const wasVisible = markers[targetPointIdForImage] && map.hasLayer(markers[targetPointIdForImage]);
+    const targetId = targetPointIdForImage;
+    const wasVisible = checkedPointIds.has(targetId) || (markers[targetId] && map.hasLayer(markers[targetId]));
 
     try {
       const compressedImages = [];
@@ -1096,7 +1148,7 @@
         compressedImages.push({ url: compressedBase64, comment: '' });
       }
 
-      const { data } = await supabaseClient.from('points').select('image_url').eq('id', targetPointIdForImage).single();
+      const { data } = await supabaseClient.from('points').select('image_url').eq('id', targetId).single();
       let currentImages = [];
       if (data && data.image_url) {
         try {
@@ -1110,26 +1162,29 @@
       const newImageList = [...currentImages, ...compressedImages];
       const jsonImageString = JSON.stringify(newImageList);
 
-      const { error } = await supabaseClient.from('points').update({ image_url: jsonImageString }).eq('id', targetPointIdForImage);
+      const { error } = await supabaseClient.from('points').update({ image_url: jsonImageString }).eq('id', targetId);
       
       if (error) { 
         alert('画像の保存に失敗しました: ' + error.message); 
         return; 
       }
 
-      const point = allPoints.find(p => Number(p.id) === targetPointIdForImage);
+      const point = allPoints.find(p => Number(p.id) === targetId);
       if (point) point.image_url = jsonImageString;
 
-      // 表示状態（チェック状態）を復元
-      if (wasVisible && markers[targetPointIdForImage]) {
-        map.addLayer(markers[targetPointIdForImage]);
-        const chk = document.getElementById(`chk-point-${targetPointIdForImage}`);
-        if (chk) chk.checked = true;
+      // チェック状態とレイヤー表示の復元
+      if (wasVisible) {
+        checkedPointIds.add(targetId);
+        if (point) {
+          addMarkerToMap(point);
+          map.addLayer(markers[targetId]);
+        }
       }
 
-      loadImagesForPopup(targetPointIdForImage);
+      renderSidebarTree();
+      loadImagesForPopup(targetId);
       updateDatabaseUsageMeter();
-      alert(`${files.length} 枚の画像を軽量化保存しました！`);
+      alert(`${files.length} 枚の画像を保存しました！`);
     } catch (err) {
       alert('アップロード処理中にエラーが発生しました');
       console.error(err);
@@ -1173,6 +1228,7 @@
     const marker = markers[id];
     if (!map.hasLayer(marker)) map.addLayer(marker);
     
+    checkedPointIds.add(Number(id));
     const chk = document.getElementById(`chk-point-${id}`);
     if (chk) chk.checked = true;
 
@@ -1213,6 +1269,7 @@
       allPoints.forEach(p => {
         addMarkerToMap(p);
         map.addLayer(markers[p.id]);
+        checkedPointIds.add(Number(p.id));
         bounds.push([p.lat, p.lng]);
       });
     }
@@ -1376,7 +1433,6 @@
     }
   }
 
-  // ★要件: 共有閲覧モード (isReadOnly) 時はリアルタイム更新を行わない★
   supabaseClient.channel('public:points')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'points' }, () => {
       if (!isReadOnly) {
