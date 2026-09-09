@@ -593,20 +593,28 @@
     const container = document.getElementById(`popup-img-area-${pointId}`);
     if (!container) return;
 
-    container.innerHTML = '<p style="font-size:11px; color:#666; margin-top:6px;">画像を読み込み中...</p>';
-
-    const { data, error } = await supabaseClient.from('points').select('image_url').eq('id', pointId).single();
-    if (error || !data || !data.image_url) {
-      container.innerHTML = '<p style="font-size:11px; color:#999; margin-top:6px;">画像なし</p>';
-      return;
-    }
-
+    // 直接メモリ内の allPoints から最新画像JSONを取得して高速描画
+    const point = allPoints.find(p => Number(p.id) === Number(pointId));
     let rawList = [];
-    try {
-      rawList = JSON.parse(data.image_url);
-      if (!Array.isArray(rawList)) rawList = [data.image_url];
-    } catch (e) {
-      rawList = [data.image_url];
+
+    if (point && point.image_url) {
+      try {
+        rawList = JSON.parse(point.image_url);
+        if (!Array.isArray(rawList)) rawList = [point.image_url];
+      } catch (e) {
+        rawList = [point.image_url];
+      }
+    } else {
+      // メモリ内に存在しない場合はSupabaseから単体取得
+      const { data } = await supabaseClient.from('points').select('image_url').eq('id', pointId).single();
+      if (data && data.image_url) {
+        try {
+          rawList = JSON.parse(data.image_url);
+          if (!Array.isArray(rawList)) rawList = [data.image_url];
+        } catch (e) {
+          rawList = [data.image_url];
+        }
+      }
     }
 
     if (rawList.length === 0) {
@@ -645,7 +653,7 @@
     container.innerHTML = `<div class="popup-img-container">${cardsHtml}</div>`;
   }
 
-  // 個別画像の削除処理（非同期描画完了後にオープンを保証）
+  // ★【完全修正】消去時もメモリ(allPoints)とDOMを同期更新し、残った画像を即座に表示★
   async function deleteSingleImage(e, pointId, imgIndex) {
     if (e) e.stopPropagation();
     if (isReadOnly) return;
@@ -663,45 +671,44 @@
       return;
     }
 
-    const { data } = await supabaseClient.from('points').select('image_url').eq('id', pointId).single();
-    if (!data || !data.image_url) {
+    const point = allPoints.find(p => Number(p.id) === Number(pointId));
+    if (!point || !point.image_url) {
       isSelfOperating = false;
       return;
     }
 
     let imgList = [];
     try {
-      imgList = JSON.parse(data.image_url);
-      if (!Array.isArray(imgList)) imgList = [{ url: data.image_url, comment: '' }];
-    } catch (e) {
-      imgList = [{ url: data.image_url, comment: '' }];
+      imgList = JSON.parse(point.image_url);
+      if (!Array.isArray(imgList)) imgList = [{ url: point.image_url, comment: '' }];
+    } catch (err) {
+      imgList = [{ url: point.image_url, comment: '' }];
     }
 
     imgList.splice(imgIndex, 1);
 
     const updatedJson = imgList.length > 0 ? JSON.stringify(imgList) : null;
+    point.image_url = updatedJson; // ローカルメモリを即時書き換え
+
+    // DOM要素（画像カード群）を直接・非同期レスポンスなしで速やかに部分更新
+    await loadImagesForPopup(pointId);
+    if (markers[pointId]) {
+      markers[pointId].openPopup();
+    }
+
+    // 裏でSupabaseへ非同期保存
     const { error } = await supabaseClient.from('points').update({ image_url: updatedJson }).eq('id', pointId);
 
     if (error) {
       alert('画像の削除に失敗しました: ' + error.message);
     } else {
-      const point = allPoints.find(p => Number(p.id) === Number(pointId));
-      if (point) point.image_url = updatedJson;
-      
-      // ★非同期で画像一覧のDOM描画完了（await）後にオープンを保証★
-      if (markers[pointId]) {
-        markers[pointId].openPopup();
-      }
-      await loadImagesForPopup(pointId);
-      if (markers[pointId]) {
-        markers[pointId].openPopup();
-      }
       updateDatabaseUsageMeter();
     }
 
     setTimeout(() => { isSelfOperating = false; }, 1000);
   }
 
+  // コメント保存時も同様にローカルメモリを即時反映し画像描画を崩さない
   async function saveImageComment(e, pointId, imgIndex) {
     if (e) e.stopPropagation();
     const inputElem = document.getElementById(`comment-input-${pointId}-${imgIndex}`);
@@ -711,15 +718,15 @@
     isSelfOperating = true;
     activePopupPointId = Number(pointId);
 
-    const { data } = await supabaseClient.from('points').select('image_url').eq('id', pointId).single();
-    if (!data) return;
+    const point = allPoints.find(p => Number(p.id) === Number(pointId));
+    if (!point || !point.image_url) return;
 
     let imgList = [];
     try {
-      imgList = JSON.parse(data.image_url);
-      if (!Array.isArray(imgList)) imgList = [{ url: data.image_url, comment: '' }];
-    } catch (e) {
-      imgList = [{ url: data.image_url, comment: '' }];
+      imgList = JSON.parse(point.image_url);
+      if (!Array.isArray(imgList)) imgList = [{ url: point.image_url, comment: '' }];
+    } catch (err) {
+      imgList = [{ url: point.image_url, comment: '' }];
     }
 
     if (typeof imgList[imgIndex] === 'string') {
@@ -729,15 +736,18 @@
     }
 
     const updatedJson = JSON.stringify(imgList);
+    point.image_url = updatedJson;
+
+    await loadImagesForPopup(pointId);
+    if (markers[pointId]) {
+      markers[pointId].openPopup();
+    }
+
     const { error } = await supabaseClient.from('points').update({ image_url: updatedJson }).eq('id', pointId);
 
     if (error) {
       alert('コメントの保存に失敗しました: ' + error.message);
     } else {
-      await loadImagesForPopup(pointId);
-      if (markers[pointId]) {
-        markers[pointId].openPopup();
-      }
       updateDatabaseUsageMeter();
     }
 
@@ -1340,7 +1350,6 @@
         }
       }
 
-      // まずポップアップを開いてから内部エリア（#popup-img-area-${targetId}）に画像をレンダリング
       if (markers[targetId]) {
         markers[targetId].openPopup();
       }
@@ -1405,7 +1414,7 @@
 
     const { data: points, error } = await supabaseClient
       .from('points')
-      .select('id, title, lat, lng, group_name, tab_name, color')
+      .select('id, title, lat, lng, group_name, tab_name, color, image_url')
       .order('id', { ascending: true });
 
     if (error) return;
