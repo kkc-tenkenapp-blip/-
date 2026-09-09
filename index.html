@@ -83,8 +83,10 @@
     .child-group-header { font-weight: bold; background: #f1f5f9; padding: 6px 8px; display: flex; align-items: center; gap: 6px; font-size: 12px; cursor: grab; }
     .group-title-text { flex: 1; cursor: pointer; user-select: none; }
     
-    .btn-group-del { background: transparent; border: none; color: #dc3545; cursor: pointer; font-size: 12px; padding: 0 4px; }
-    .btn-group-del:hover { font-weight: bold; }
+    .btn-group-action { background: transparent; border: none; cursor: pointer; font-size: 12px; padding: 0 3px; }
+    .btn-group-action:hover { font-weight: bold; }
+    .btn-group-edit { color: #0d6efd; }
+    .btn-group-del { color: #dc3545; }
 
     .drag-over-active { background: #e0f2fe !important; border-color: #0284c7 !important; }
 
@@ -95,7 +97,7 @@
     .point-item { padding: 8px; display: flex; align-items: center; justify-content: space-between; font-size: 12px; border-bottom: 1px solid #f8f9fa; cursor: grab; gap: 4px; flex-wrap: wrap; }
     .point-item.dragging { opacity: 0.5; background: #e2e6ea; }
     .point-item:hover { background: #f8f9fa; }
-    .point-name { flex: 1; margin-left: 4px; cursor: pointer; color: #212529; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 120px; }
+    .point-name { flex: 1; margin-left: 4px; cursor: pointer; color: #212529; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 100px; }
     
     .tab-badge { font-size: 10px; padding: 2px 6px; border-radius: 10px; color: white; margin-left: 4px; font-weight: bold; white-space: nowrap; }
     
@@ -765,6 +767,64 @@
     }
   }
 
+  // グループ名の編集・変更
+  async function editGroupUI(oldGroupPath) {
+    if (isReadOnly) return;
+    const input = prompt(`グループ名変更: 「${oldGroupPath}」の新しい名称を入力してください。\n（※親子関係を変更する場合は '親 / 子' の形式で入力）`, oldGroupPath);
+    if (!input) return;
+    const newGroupPath = input.trim();
+    if (!newGroupPath || newGroupPath === oldGroupPath) return;
+
+    if (customGroups.has(oldGroupPath)) {
+      customGroups.delete(oldGroupPath);
+      customGroups.add(newGroupPath);
+    }
+
+    const targets = allPoints.filter(p => {
+      const g = p.group_name || '未分類';
+      return g === oldGroupPath || g.startsWith(oldGroupPath + ' /');
+    });
+
+    for (const p of targets) {
+      let updatedGroup = newGroupPath;
+      if (p.group_name.startsWith(oldGroupPath + ' /')) {
+        updatedGroup = p.group_name.replace(oldGroupPath, newGroupPath);
+      }
+      p.group_name = updatedGroup;
+      await supabaseClient.from('points').update({ group_name: updatedGroup }).eq('id', p.id);
+    }
+
+    renderSidebarTree();
+  }
+
+  // スポット名の編集・変更
+  async function editPointTitle(pointId) {
+    if (isReadOnly) return;
+    const point = allPoints.find(p => Number(p.id) === Number(pointId));
+    if (!point) return;
+
+    const input = prompt(`スポット名変更: 「${point.title}」の新しい名称を入力してください`, point.title);
+    if (!input) return;
+    const newTitle = input.trim();
+    if (!newTitle || newTitle === point.title) return;
+
+    point.title = newTitle;
+    const { error } = await supabaseClient.from('points').update({ title: newTitle }).eq('id', pointId);
+
+    if (error) {
+      alert('スポット名の変更に失敗しました: ' + error.message);
+    } else {
+      if (markers[pointId]) {
+        const isVisible = map.hasLayer(markers[pointId]);
+        map.removeLayer(markers[pointId]);
+        delete markers[pointId];
+        addMarkerToMap(point);
+        if (isVisible) map.addLayer(markers[pointId]);
+      }
+      renderSidebarTree();
+    }
+  }
+
   function toggleGroupVisibilityByPath(groupPath, isChecked) {
     allPoints.forEach(p => {
       const gName = p.group_name || '未分類';
@@ -774,9 +834,8 @@
     });
   }
 
-  // ★ドラッグ＆ドロップによるグループの直下（親子階層化）移動処理★
+  // ドラッグ＆ドロップによるグループの直下（親子階層化）移動処理
   async function moveGroupPathToNewParent(sourceGroupPath, targetParentName) {
-    // 自分自身への移動や循環を防ぐ
     if (sourceGroupPath === targetParentName || sourceGroupPath.startsWith(targetParentName + ' /')) return;
 
     const targets = allPoints.filter(p => {
@@ -892,7 +951,10 @@
         <span class="group-title-text" onclick="toggleParentFold('${parentSafeId}')">
           <span id="fold-icon-p-${parentSafeId}">${isParentOpen ? '📂' : '📁'}</span> <strong>${parentName}</strong>
         </span>
-        ${!isReadOnly ? `<button class="btn-group-del" onclick="deleteGroupUI('${parentName}')" title="グループ削除">✕</button>` : ''}
+        ${!isReadOnly ? `
+          <button class="btn-group-action btn-group-edit" onclick="editGroupUI('${parentName}')" title="グループ名を変更">✏️</button>
+          <button class="btn-group-action btn-group-del" onclick="deleteGroupUI('${parentName}')" title="グループ削除">✕</button>
+        ` : ''}
       `;
       parentDiv.appendChild(parentHeader);
 
@@ -937,12 +999,16 @@
           e.dataTransfer.setData('text/group-path', childPath);
         });
 
+        /* ★重複していた 📂 マークを削除し、開閉アイコン(fold-icon)だけに修正★ */
         childHeader.innerHTML = `
           <input type="checkbox" onchange="toggleGroupVisibilityByPath('${childPath}', this.checked)" title="子グループ内を一括表示/非表示" />
           <span class="group-title-text" onclick="toggleChildFold('${childSafeId}')">
-            <span id="fold-icon-c-${childSafeId}">${isChildOpen ? '📂' : '📁'}</span> 📂 ${childName} (${childPoints.length})
+            <span id="fold-icon-c-${childSafeId}">${isChildOpen ? '📂' : '📁'}</span> ${childName} (${childPoints.length})
           </span>
-          ${!isReadOnly ? `<button class="btn-group-del" onclick="deleteGroupUI('${childPath}')" title="子グループ削除">✕</button>` : ''}
+          ${!isReadOnly ? `
+            <button class="btn-group-action btn-group-edit" onclick="editGroupUI('${childPath}')" title="子グループ名を変更">✏️</button>
+            <button class="btn-group-action btn-group-del" onclick="deleteGroupUI('${childPath}')" title="子グループ削除">✕</button>
+          ` : ''}
         `;
         childDiv.appendChild(childHeader);
 
@@ -994,6 +1060,7 @@
         
         actionsHtml = `
           <div class="btn-group-actions">
+            <button class="btn-item-action" onclick="editPointTitle(${p.id})" title="スポット名を変更">✏️</button>
             <select class="tab-select-dropdown" onchange="changePointTabDirect(${p.id}, this.value)">
               <option value="">タブ選択...</option>
               ${optionsHtml}
@@ -1392,7 +1459,7 @@
     }
   });
 
-  // ★マップ上クリック時の登録フォーム呼び出し★
+  // マップ上クリック時の登録フォーム呼び出し
   map.on('click', (e) => {
     if (isReadOnly) return;
     selectedLatLng = e.latlng;
@@ -1406,7 +1473,7 @@
     document.getElementById('form-container').style.display = 'block';
   });
 
-  // ★「➕ 個別登録」ボタン用のモーダル呼び出し★
+  // 「➕ 個別登録」ボタン用のモーダル呼び出し
   function openManualRegisterModal() {
     if (isReadOnly) return;
     selectedLatLng = null;
@@ -1431,7 +1498,7 @@
     selectedLatLng = null;
   }
 
-  // ★手動登録＆保存処理★
+  // 手動登録＆保存処理
   async function savePoint() {
     if (isReadOnly) return;
     const title = document.getElementById('spot-title').value.trim();
