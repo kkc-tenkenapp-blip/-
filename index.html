@@ -645,7 +645,7 @@
     container.innerHTML = `<div class="popup-img-container">${cardsHtml}</div>`;
   }
 
-  // イベントバブリングを遮断(e.stopPropagation)し「ポイント追加画面」の誤オープンを防止
+  // 個別画像の削除処理（非同期描画完了後にオープンを保証）
   async function deleteSingleImage(e, pointId, imgIndex) {
     if (e) e.stopPropagation();
     if (isReadOnly) return;
@@ -654,12 +654,11 @@
     activePopupPointId = Number(pointId);
 
     const isConfirmed = confirm('この画像を削除しますか？');
-    
-    if (markers[pointId]) {
-      markers[pointId].openPopup();
-    }
 
     if (!isConfirmed) {
+      if (markers[pointId]) {
+        markers[pointId].openPopup();
+      }
       isSelfOperating = false;
       return;
     }
@@ -688,6 +687,8 @@
     } else {
       const point = allPoints.find(p => Number(p.id) === Number(pointId));
       if (point) point.image_url = updatedJson;
+      
+      // 非同期で描画完了を待ってから吹き出しを再表示
       await loadImagesForPopup(pointId);
       if (markers[pointId]) {
         markers[pointId].openPopup();
@@ -1285,7 +1286,7 @@
     document.getElementById('single-image-input').click();
   }
 
-  // ★【要件1完全修正】loadImagesForPopup完了をawaitで待機してから吹き出しを確実にオープン★
+  // ★【要件1修正】画像のDOM更新(loadImagesForPopup)を完了（await）してからopenPopupを実行★
   document.getElementById('single-image-input').addEventListener('change', async (e) => {
     const files = Array.from(e.target.files);
     if (files.length === 0 || !targetPointIdForImage) return;
@@ -1337,7 +1338,7 @@
         }
       }
 
-      // まずポップアップを開いてDOM要素（#popup-img-area-${targetId}）を発生させてから画像データを描写
+      // まずポップアップを開いてから内部エリア（#popup-img-area-${targetId}）に画像をレンダリング
       if (markers[targetId]) {
         markers[targetId].openPopup();
       }
