@@ -28,7 +28,6 @@
     .login-btn:hover { background: #0056b3; }
     #login-error { color: #dc3545; font-size: 12px; margin-top: 10px; display: none; word-break: break-all; }
 
-    /* ★左側リスト欄の初期幅を320pxから1.5倍の480pxに変更★ */
     #sidebar {
       width: 480px; min-width: 240px; max-width: 85vw; background: #f8f9fa; border-right: 1px solid #ccc;
       display: flex; flex-direction: column; z-index: 1000; box-shadow: 2px 0 5px rgba(0,0,0,0.1); flex-shrink: 0;
@@ -629,6 +628,7 @@
     updateFilterTabOptions();
   }
 
+  /* ★フィルタ用プルダウンに「点検済」「未実施」を追加★ */
   function updateFilterTabOptions() {
     const select = document.getElementById('filter-tab-select');
     if (!select) return;
@@ -636,6 +636,17 @@
     const currentVal = select.value;
     select.innerHTML = '<option value="">🏷️ 全てのタブを表示</option>';
     
+    // ステータス用の固定選択肢を追加
+    const optDone = document.createElement('option');
+    optDone.value = '__STATUS_DONE__';
+    optDone.textContent = '✅ 点検済';
+    select.appendChild(optDone);
+
+    const optPending = document.createElement('option');
+    optPending.value = '__STATUS_PENDING__';
+    optPending.textContent = '⏳ 未実施';
+    select.appendChild(optPending);
+
     const uniqueTabs = new Set(tabRules.map(r => r.tab_name));
     allPoints.forEach(p => { if (p.tab_name) uniqueTabs.add(p.tab_name); });
 
@@ -922,13 +933,23 @@
     markers[pId] = marker;
   }
 
+  /* ★フィルタ条件判定に「点検済」「未実施」を追加★ */
   function getFilteredPoints() {
     const keyword = (document.getElementById('search-keyword')?.value || '').trim().toLowerCase();
     const selectedTab = (document.getElementById('filter-tab-select')?.value || '').trim();
 
     return allPoints.filter(p => {
       const matchKeyword = !keyword || (p.title && p.title.toLowerCase().includes(keyword));
-      const matchTab = !selectedTab || (p.tab_name && p.tab_name === selectedTab);
+      
+      let matchTab = true;
+      if (selectedTab === '__STATUS_DONE__') {
+        matchTab = !!p.is_checked;
+      } else if (selectedTab === '__STATUS_PENDING__') {
+        matchTab = !p.is_checked;
+      } else if (selectedTab) {
+        matchTab = (p.tab_name && p.tab_name === selectedTab);
+      }
+
       return matchKeyword && matchTab;
     });
   }
@@ -1664,7 +1685,7 @@
     }
   }
 
-  /* ★以前の安定したExcelインポート処理に戻し★ */
+  /* ★F列（基本画像）値の安定読み込みに対応★ */
   async function handleFileSelect(e) {
     if (isReadOnly) return;
     const file = e.target.files[0];
@@ -1684,6 +1705,8 @@
         const lng = parseFloat(row['経度'] || row['lng'] || row['longitude']);
         const group_name = row['グループ'] || row['group'] || 'インポート';
         const tabText = row['タブ'] || row['tab'] || '';
+        
+        // F列（基本画像）または画像URL等のセルデータを取得
         let imageUrl = row['基本画像'] || row['画像URL'] || row['画像'] || null;
 
         if (imageUrl) {
