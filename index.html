@@ -38,17 +38,10 @@
     }
     #resizer:hover, #resizer.resizing { background: #007bff; }
 
-    #sidebar-header { padding: 10px 12px; background: #007bff; color: white; display: flex; flex-direction: column; gap: 6px; }
+    #sidebar-header { padding: 12px; background: #007bff; color: white; display: flex; flex-direction: column; gap: 6px; }
     .header-top { display: flex; justify-content: space-between; align-items: center; }
-    .header-top h3 { margin: 0; font-size: 15px; }
+    .header-top h3 { margin: 0; font-size: 16px; }
 
-    .usage-container {
-      background: rgba(255, 255, 255, 0.15); border-radius: 6px; padding: 6px 8px; font-size: 10px; display: flex; flex-direction: column; gap: 4px;
-    }
-    .usage-row { display: flex; justify-content: space-between; align-items: center; }
-    .progress-bar-bg { width: 100%; background: rgba(255, 255, 255, 0.3); height: 6px; border-radius: 3px; overflow: hidden; }
-    .progress-bar-fill { height: 100%; background: #28a745; width: 0%; transition: width 0.3s ease; }
-    
     .btn-logout { background: #dc3545; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; }
     
     #share-bar { padding: 8px 12px; background: #e7f1ff; border-bottom: 1px solid #b6d4fe; display: flex; justify-content: space-between; align-items: center; gap: 4px; }
@@ -188,8 +181,8 @@
       body { flex-direction: column-reverse; }
       #sidebar { width: 100% !important; max-width: 100%; height: 55vh; border-right: none; }
       #resizer { width: 100% !important; height: 10px !important; background: #ccc !important; cursor: row-resize !important; position: relative; touch-action: none; }
-      #map { width: 100%; height: 45vh; }
-      .usage-container, #import-area, #share-bar { display: none !important; }
+      map { width: 100%; height: 45vh; }
+      #import-area, #share-bar { display: none !important; }
     }
   </style>
 </head>
@@ -233,15 +226,6 @@
     <div class="header-top">
       <h3>点検管理アプリ</h3>
       <button class="btn-logout editable-only" onclick="logoutSupabase()">ログアウト</button>
-    </div>
-    <div class="usage-container" title="Supabase無料枠（500MB）に対する推定使用量">
-      <div class="usage-row">
-        <span>📊 容量使用状況 (推定)</span>
-        <span id="usage-text">0 MB / 500 MB (0%)</span>
-      </div>
-      <div class="progress-bar-bg">
-        <div id="usage-bar-fill" class="progress-bar-fill"></div>
-      </div>
     </div>
   </div>
 
@@ -392,7 +376,6 @@
   const SUPABASE_KEY = 'sb_publishable_M9om9CnvIBVUyZDWvqMSfA_dzF-oCT0';        
   const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-  // グローバル変数の定義（関数から確実に参照できるように最上部に配置）
   let selectedLatLng = null;
   const markers = {};   
   let allPoints = [];   
@@ -474,6 +457,59 @@
       map.invalidateSize();
     }
   });
+
+  async function fetchWithRetry(queryFn, maxRetries = 3, delayMs = 1500) {
+    let lastError = null;
+    for (let i = 0; i < maxRetries; i++) {
+      try {
+        const result = await queryFn();
+        if (!result.error) return result;
+        lastError = result.error;
+      } catch (err) {
+        lastError = err;
+      }
+      await new Promise(r => setTimeout(r, delayMs));
+    }
+    return { data: null, error: lastError };
+  }
+
+  /* ★Supabase Storageへの画像一括アップロードヘルパー★ */
+  async function uploadImageToStorage(fileOrBase64, filenamePrefix = 'img') {
+    try {
+      let fileBlob = null;
+      let ext = 'jpg';
+
+      if (typeof fileOrBase64 === 'string' && fileOrBase64.startsWith('data:')) {
+        const arr = fileOrBase64.split(',');
+        const mime = arr[0].match(/:(.*?);/)[1];
+        const bstr = atob(arr[1]);
+        let n = bstr.length;
+        const u8arr = new Uint8Array(n);
+        while (n--) { u8arr[n] = bstr.charCodeAt(n); }
+        fileBlob = new Blob([u8arr], { type: mime });
+        ext = mime.split('/')[1] || 'jpg';
+      } else if (fileOrBase64 instanceof Blob || fileOrBase64 instanceof File) {
+        fileBlob = fileOrBase64;
+        ext = fileOrBase64.name ? fileOrBase64.name.split('.').pop() : 'jpg';
+      } else {
+        return fileOrBase64; // すでにURLの場合はそのまま返す
+      }
+
+      const fileName = `${filenamePrefix}_${Date.now()}_${Math.random().toString(36).substring(2, 8)}.${ext}`;
+      const { data, error } = await supabaseClient.storage.from('point-images').upload(fileName, fileBlob);
+
+      if (error) {
+        console.error('Storageアップロードエラー:', error);
+        return null;
+      }
+
+      const { data: publicUrlData } = supabaseClient.storage.from('point-images').getPublicUrl(fileName);
+      return publicUrlData.publicUrl;
+    } catch (e) {
+      console.error('Storage処理失敗:', e);
+      return null;
+    }
+  }
 
   function showCustomConfirm(message) {
     return new Promise((resolve) => {
@@ -588,34 +624,6 @@
     }
   }
 
-  async function updateDatabaseUsageMeter() {
-    const { data, error } = await supabaseClient.from('points').select('image_url');
-    if (error || !data) return;
-
-    let totalBytes = 0;
-    data.forEach(item => {
-      if (item.image_url) {
-        totalBytes += new Blob([item.image_url]).size;
-      }
-    });
-
-    const totalMB = totalBytes / (1024 * 1024);
-    const limitMB = 500;
-    const percent = Math.min(100, ((totalMB / limitMB) * 100)).toFixed(1);
-
-    const usageText = document.getElementById('usage-text');
-    const usageBar = document.getElementById('usage-bar-fill');
-
-    if (usageText && usageBar) {
-      usageText.textContent = `${totalMB.toFixed(2)} MB / ${limitMB} MB (${percent}%)`;
-      usageBar.style.width = `${percent}%`;
-
-      if (percent >= 90) usageBar.style.background = '#dc3545';
-      else if (percent >= 80) usageBar.style.background = '#fd7e14';
-      else usageBar.style.background = '#28a745';
-    }
-  }
-
   const map = L.map('map', { minZoom: 5, maxZoom: 21 }).setView([40.220360, 141.781950], 13);
   leaderLineLayerGroup.addTo(map);
 
@@ -693,7 +701,7 @@
   }
 
   async function loadTabRules() {
-    const { data } = await supabaseClient.from('tab_settings').select('*');
+    const { data } = await fetchWithRetry(() => supabaseClient.from('tab_settings').select('*'));
     tabRules = data || [];
 
     renderTabRuleTable();
@@ -815,11 +823,12 @@
 
     container.innerHTML = '<p style="font-size:11px; color:#666; margin-top:6px;">⏳ 画像を読み込み中...</p>';
 
-    const { data, error } = await supabaseClient
+    const { data, error } = await fetchWithRetry(() => supabaseClient
       .from('points')
       .select('image_url')
       .eq('id', pointId)
-      .single();
+      .single()
+    );
 
     if (error || !data || !data.image_url) {
       container.innerHTML = '<p style="font-size:11px; color:#999; margin-top:6px;">画像なし</p>';
@@ -981,7 +990,6 @@
       alert('画像の削除に失敗しました: ' + error.message);
       await loadImagesForPopup(pointId);
     } else {
-      updateDatabaseUsageMeter();
       renderSidebarTree();
     }
 
@@ -1155,7 +1163,6 @@
     updateFilterTabOptions();
     renderSidebarTree();
     updateLeaderLines();
-    updateDatabaseUsageMeter();
   }
 
   async function editGroupUI(oldGroupPath) {
@@ -1182,13 +1189,27 @@
       return g === oldGroupPath || g.startsWith(oldGroupPath + ' /');
     });
 
-    for (const p of targets) {
-      let updatedGroup = newGroupPath;
-      if (p.group_name.startsWith(oldGroupPath + ' /')) {
-        updatedGroup = p.group_name.replace(oldGroupPath, newGroupPath);
+    if (targets.length > 0) {
+      const targetIds = targets.map(p => p.id);
+      
+      targets.forEach(p => {
+        if (p.group_name === oldGroupPath) {
+          p.group_name = newGroupPath;
+        } else if (p.group_name.startsWith(oldGroupPath + ' /')) {
+          p.group_name = p.group_name.replace(oldGroupPath, newGroupPath);
+        }
+      });
+
+      const { error } = await supabaseClient
+        .from('points')
+        .update({ group_name: newGroupPath })
+        .in('id', targetIds);
+
+      if (error) {
+        alert('グループ名の更新に失敗しました: ' + error.message);
+        loadInitialPoints();
+        return;
       }
-      p.group_name = updatedGroup;
-      await supabaseClient.from('points').update({ group_name: updatedGroup }).eq('id', p.id);
     }
 
     renderSidebarTree();
@@ -1241,7 +1262,9 @@
 
     if (targets.length === 0) return;
 
-    for (const p of targets) {
+    const targetIds = targets.map(p => p.id);
+    
+    targets.forEach(p => {
       const oldGroup = p.group_name || '未分類';
       let newGroupName = '未分類';
 
@@ -1251,10 +1274,10 @@
         const subSuffix = oldGroup.replace(sourceGroupPath + ' /', '');
         newGroupName = `${targetParentName} / ${sourceGroupPath} / ${subSuffix}`;
       }
-
       p.group_name = newGroupName;
-      await supabaseClient.from('points').update({ group_name: newGroupName }).eq('id', p.id);
-    }
+    });
+
+    await supabaseClient.from('points').update({ group_name: `${targetParentName} / ${sourceGroupPath}` }).in('id', targetIds);
 
     renderSidebarTree();
   }
@@ -1691,7 +1714,6 @@
         updateFilterTabOptions();
         renderSidebarTree();
         updateLeaderLines();
-        updateDatabaseUsageMeter();
       }
     }
   }
@@ -1737,7 +1759,7 @@
 
     const area = document.getElementById(`popup-img-area-${targetPointIdForImage}`);
     if (area) {
-      area.innerHTML = '<p style="font-size:11px; color:#0d6efd; margin-top:6px; font-weight:bold;">⏳ 画像処理中...</p>';
+      area.innerHTML = '<p style="font-size:11px; color:#0d6efd; margin-top:6px; font-weight:bold;">⏳ 画像アップロード中...</p>';
     }
     if (markers[targetPointIdForImage]) {
       markers[targetPointIdForImage].openPopup();
@@ -1746,6 +1768,7 @@
     document.getElementById('single-image-input').click();
   }
 
+  /* ★Supabase Storageへのアップロード処理（個別の画像追加時）★ */
   document.getElementById('single-image-input').addEventListener('change', async (e) => {
     const files = Array.from(e.target.files);
     if (files.length === 0 || !targetPointIdForImage) return;
@@ -1757,10 +1780,14 @@
     activePopupPointId = targetId;
 
     try {
-      const compressedImages = [];
+      const uploadedImageObjects = [];
       for (const file of files) {
         const compressedBase64 = await compressImageFile(file, 600, 0.65);
-        compressedImages.push({ url: compressedBase64, comment: '', judge: '' });
+        // Supabase Storageに直接アップロードし、公開URLを取得
+        const publicUrl = await uploadImageToStorage(compressedBase64, `point_${targetId}`);
+        if (publicUrl) {
+          uploadedImageObjects.push({ url: publicUrl, comment: '', judge: '' });
+        }
       }
 
       const { data } = await supabaseClient.from('points').select('image_url').eq('id', targetId).single();
@@ -1774,7 +1801,7 @@
         }
       }
 
-      const newImageList = [...currentImages, ...compressedImages];
+      const newImageList = [...currentImages, ...uploadedImageObjects];
       const jsonImageString = JSON.stringify(newImageList);
 
       const { error } = await supabaseClient.from('points').update({ image_url: jsonImageString }).eq('id', targetId);
@@ -1802,7 +1829,6 @@
       }
       await loadImagesForPopup(targetId);
 
-      updateDatabaseUsageMeter();
       renderSidebarTree();
     } catch (err) {
       alert('アップロード処理中にエラーが発生しました');
@@ -1912,7 +1938,7 @@
     }
   }
 
-  /* ★安全な初期読み込み処理（全カラムを安全に取得）★ */
+  /* ★初期読み込み処理（image_urlなどの重い列を除外して一瞬で取得）★ */
   async function loadInitialPoints() {
     try {
       await loadTabRules();
@@ -1926,10 +1952,12 @@
         document.querySelectorAll('.editable-only').forEach(el => el.style.display = 'none');
       }
 
-      const { data: points, error } = await supabaseClient
+      // ★重い image_url を除外し、軽量な列だけを指定して高速ロード
+      const { data: points, error } = await fetchWithRetry(() => supabaseClient
         .from('points')
-        .select('*')
-        .order('id', { ascending: true });
+        .select('id, title, display_title, lat, lng, group_name, tab_name, color, is_checked')
+        .order('id', { ascending: true })
+      );
 
       if (error) {
         console.error('Pointsデータ取得エラー:', error);
@@ -1962,7 +1990,6 @@
       updateFilterTabOptions();
       renderSidebarTree();
       updateLeaderLines();
-      updateDatabaseUsageMeter();
 
       if (sharedIds && bounds.length > 0) {
         map.fitBounds(bounds, { padding: [50, 50] });
@@ -1973,6 +2000,7 @@
     }
   }
 
+  /* ★Excelインポート処理（画像をStorageにアップロードしてURL化）★ */
   async function handleFileSelect(e) {
     if (isReadOnly) return;
     const file = e.target.files[0];
@@ -1985,7 +2013,7 @@
     if (progressContainer && progressFill) {
       progressContainer.style.display = 'block';
       progressFill.style.width = '10%';
-      if (dropText) dropText.textContent = '⏳ 解析中...';
+      if (dropText) dropText.textContent = '⏳ 解析・画像アップロード中...';
     }
 
     try {
@@ -2026,7 +2054,7 @@
         console.warn('Zip解析スキップ:', zipErr);
       }
 
-      if (progressFill) progressFill.style.width = '50%';
+      if (progressFill) progressFill.style.width = '40%';
 
       const workbook = XLSX.read(arrayBuffer, { type: 'array' });
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
@@ -2053,13 +2081,15 @@
         }
 
         const tabText = row['タブ'] || row['tab'] || '';
-        
-        let imageUrl = rowImageMap[i + 1] || row['基本画像'] || row['画像URL'] || row['画像'] || null;
+        let rawImg = rowImageMap[i + 1] || row['基本画像'] || row['画像URL'] || row['画像'] || null;
 
-        if (imageUrl && !String(imageUrl).startsWith('※')) {
-          imageUrl = JSON.stringify([{ url: String(imageUrl), comment: '', judge: '' }]);
-        } else {
-          imageUrl = null;
+        let imageUrl = null;
+        if (rawImg && !String(rawImg).startsWith('※')) {
+          // 画像をStorageへアップロード
+          const publicUrl = await uploadImageToStorage(rawImg, 'import');
+          if (publicUrl) {
+            imageUrl = JSON.stringify([{ url: publicUrl, comment: '', judge: '' }]);
+          }
         }
 
         if (title && !isNaN(lat) && !isNaN(lng)) {
@@ -2170,9 +2200,14 @@
         const compressedList = [];
         for (const f of files) {
           const b64 = await compressImageFile(f, 600, 0.65);
-          compressedList.push({ url: b64, comment: '', judge: '' });
+          const publicUrl = await uploadImageToStorage(b64, 'manual');
+          if (publicUrl) {
+            compressedList.push({ url: publicUrl, comment: '', judge: '' });
+          }
         }
-        imageUrl = JSON.stringify(compressedList);
+        if (compressedList.length > 0) {
+          imageUrl = JSON.stringify(compressedList);
+        }
       }
 
       const { error } = await supabaseClient.from('points').insert([
