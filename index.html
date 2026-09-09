@@ -164,7 +164,6 @@
     .btn-confirm-yes { background: #dc3545; color: white; border: none; padding: 6px 16px; border-radius: 4px; cursor: pointer; }
     .btn-confirm-no { background: #6c757d; color: white; border: none; padding: 6px 16px; border-radius: 4px; cursor: pointer; }
 
-    /* 共有結果ダイアログスタイル */
     .copy-btn-group { display: flex; flex-direction: column; gap: 8px; margin-top: 15px; }
     .btn-copy-action { background: #198754; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 12px; display: flex; align-items: center; justify-content: center; gap: 6px; }
     .btn-copy-action:hover { background: #146c43; }
@@ -403,12 +402,6 @@
   let targetPointIdForImage = null;
   let isManualRegisterMode = false;
 
-  const openGroupIds = new Set();
-  const checkedPointIds = new Set();
-  let activePopupPointId = null;
-  let isSelfOperating = false;
-
-  // 共有パラメータ管理
   let generatedShareUrl = '';
   let generatedSharePw = '';
   let shareParamsFromUrl = null;
@@ -420,7 +413,6 @@
   const resizer = document.getElementById('resizer');
   let isResizing = false;
 
-  // --- PCデスクトップ用（左右幅移動）---
   resizer.addEventListener('mousedown', (e) => {
     if (window.innerWidth > 768) {
       isResizing = true;
@@ -449,7 +441,6 @@
     }
   });
 
-  // モバイル表示用（上下スライド）
   resizer.addEventListener('touchstart', (e) => {
     if (window.innerWidth <= 768) {
       isResizing = true;
@@ -509,11 +500,10 @@
     if (sharedIds) {
       document.getElementById('login-overlay').style.display = 'none';
       
-      // 有効期限のチェック
       if (expTime) {
         const now = Date.now();
         if (now > parseInt(expTime, 10)) {
-          alert('この共有URLは有効期限（7〜28日）が切れているためアクセスできません。');
+          alert('この共有URLは有効期限が切れているためアクセスできません。');
           return;
         }
       }
@@ -532,7 +522,6 @@
     }
   }
 
-  /* ★共有閲覧モード用パスワード検証★ */
   function verifySharePassword() {
     const inputPw = document.getElementById('share-access-pw').value.trim();
     const errDiv = document.getElementById('share-auth-error');
@@ -544,7 +533,6 @@
       return;
     }
 
-    // URLのトークン（パスワードのBase64エンコード値）と照合
     const expectedToken = shareParamsFromUrl ? shareParamsFromUrl.token : '';
     const inputToken = btoa(encodeURIComponent(inputPw));
 
@@ -820,26 +808,28 @@
     const container = document.getElementById(`popup-img-area-${pointId}`);
     if (!container) return;
 
-    const point = allPoints.find(p => Number(p.id) === Number(pointId));
-    let rawList = [];
+    container.innerHTML = '<p style="font-size:11px; color:#666; margin-top:6px;">⏳ 画像を読み込み中...</p>';
 
-    if (point && point.image_url) {
-      try {
-        rawList = JSON.parse(point.image_url);
-        if (!Array.isArray(rawList)) rawList = [point.image_url];
-      } catch (e) {
-        rawList = [point.image_url];
-      }
-    } else {
-      const { data } = await supabaseClient.from('points').select('image_url').eq('id', pointId).single();
-      if (data && data.image_url) {
-        try {
-          rawList = JSON.parse(data.image_url);
-          if (!Array.isArray(rawList)) rawList = [data.image_url];
-        } catch (e) {
-          rawList = [data.image_url];
-        }
-      }
+    const { data, error } = await supabaseClient
+      .from('points')
+      .select('image_url')
+      .eq('id', pointId)
+      .single();
+
+    if (error || !data || !data.image_url) {
+      container.innerHTML = '<p style="font-size:11px; color:#999; margin-top:6px;">画像なし</p>';
+      return;
+    }
+
+    const point = allPoints.find(p => Number(p.id) === Number(pointId));
+    if (point) point.image_url = data.image_url;
+
+    let rawList = [];
+    try {
+      rawList = JSON.parse(data.image_url);
+      if (!Array.isArray(rawList)) rawList = [data.image_url];
+    } catch (e) {
+      rawList = [data.image_url];
     }
 
     if (rawList.length === 0) {
@@ -1264,6 +1254,7 @@
     renderSidebarTree();
   }
 
+  /* ★3階層ツリー表示（親・子・孫それぞれの正確な件数計算を含む）★ */
   function renderSidebarTree() {
     try {
       const treeContainer = document.getElementById('point-tree');
@@ -1321,6 +1312,17 @@
 
       Object.keys(groupTree).forEach(pName => {
         const parentData = groupTree[pName];
+        
+        // 親グループ配下の総件数を算出（直下＋子＋孫）
+        let parentTotalCount = parentData._items.length;
+        Object.keys(parentData._children).forEach(cName => {
+          const cData = parentData._children[cName];
+          parentTotalCount += cData._items.length;
+          Object.keys(cData._grandchildren).forEach(gcName => {
+            parentTotalCount += cData._grandchildren[gcName].length;
+          });
+        });
+
         const parentDiv = document.createElement('div');
         parentDiv.className = 'parent-group-item';
 
@@ -1348,7 +1350,7 @@
         parentHeader.innerHTML = `
           <input type="checkbox" onchange="toggleGroupVisibilityByPath('${pName}', this.checked)" title="親グループ内を一括表示/非表示" />
           <span class="group-title-text" onclick="toggleFold('p-${pSafeId}')">
-            <span id="fold-icon-p-${pSafeId}">${isParentOpen ? '📂' : '📁'}</span> <strong>${pName}</strong>
+            <span id="fold-icon-p-${pSafeId}">${isParentOpen ? '📂' : '📁'}</span> <strong>${pName} (${parentTotalCount})</strong>
           </span>
           ${!isReadOnly ? `
             <button class="btn-group-action btn-group-edit" onclick="editGroupUI('${pName}')" title="グループ名を変更">✏️</button>
@@ -1367,6 +1369,13 @@
 
         Object.keys(parentData._children).forEach(cName => {
           const childData = parentData._children[cName];
+          
+          // 子グループ配下の総件数を算出（直下＋孫）
+          let childTotalCount = childData._items.length;
+          Object.keys(childData._grandchildren).forEach(gcName => {
+            childTotalCount += childData._grandchildren[gcName].length;
+          });
+
           const childDiv = document.createElement('div');
           childDiv.className = 'child-group-item';
           const childPath = `${pName} / ${cName}`;
@@ -1392,7 +1401,7 @@
           childHeader.innerHTML = `
             <input type="checkbox" onchange="toggleGroupVisibilityByPath('${childPath}', this.checked)" title="子グループ内を一括表示/非表示" />
             <span class="group-title-text" onclick="toggleFold('c-${cSafeId}')">
-              <span id="fold-icon-c-${cSafeId}">${isChildOpen ? '📂' : '📁'}</span> ${cName}
+              <span id="fold-icon-c-${cSafeId}">${isChildOpen ? '📂' : '📁'}</span> ${cName} (${childTotalCount})
             </span>
             ${!isReadOnly ? `
               <button class="btn-group-action btn-group-edit" onclick="editGroupUI('${childPath}')">✏️</button>
@@ -1803,7 +1812,6 @@
     }
   });
 
-  /* ★選択共有設定ダイアログの表示★ */
   function openShareConfigModal() {
     const selectedIds = [];
     allPoints.forEach(p => {
@@ -1822,7 +1830,7 @@
     }
 
     document.getElementById('share-setting-pw').value = '';
-    document.getElementById('share-setting-days').value = '7'; // 標準7日
+    document.getElementById('share-setting-days').value = '7';
     document.getElementById('share-config-modal').style.display = 'block';
   }
 
@@ -1830,7 +1838,6 @@
     document.getElementById('share-config-modal').style.display = 'none';
   }
 
-  /* ★パスワード・有効期限付き共有リンク＆パスワード生成★ */
   function generateShareLink() {
     const selectedIds = [];
     allPoints.forEach(p => {
@@ -1851,7 +1858,7 @@
 
     const days = parseInt(document.getElementById('share-setting-days').value, 10);
     const expireTimestamp = Date.now() + (days * 24 * 60 * 60 * 1000);
-    const token = btoa(encodeURIComponent(pw)); // トークン生成
+    const token = btoa(encodeURIComponent(pw));
 
     generatedSharePw = pw;
     generatedShareUrl = `${window.location.origin}${window.location.pathname}?ids=${selectedIds.join(',')}&exp=${expireTimestamp}&token=${token}`;
@@ -1864,7 +1871,6 @@
     document.getElementById('share-result-modal').style.display = 'none';
   }
 
-  /* ★クリップボードコピー（URL）★ */
   function copyShareUrl() {
     navigator.clipboard.writeText(generatedShareUrl).then(() => {
       const icon = document.getElementById('icon-copy-url');
@@ -1876,7 +1882,6 @@
     });
   }
 
-  /* ★クリップボードコピー（パスワード）★ */
   function copySharePw() {
     navigator.clipboard.writeText(generatedSharePw).then(() => {
       const icon = document.getElementById('icon-copy-pw');
@@ -1920,7 +1925,7 @@
 
       const { data: points, error } = await supabaseClient
         .from('points')
-        .select('*')
+        .select('id, title, display_title, lat, lng, group_name, tab_name, color, is_checked')
         .order('id', { ascending: true });
 
       if (error) {
