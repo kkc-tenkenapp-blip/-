@@ -174,7 +174,7 @@
       z-index: 2000;
       white-space: nowrap;
       cursor: pointer;
-      pointer-events: auto; /* クリックイベントを有効化 */
+      pointer-events: auto;
     }
 
     /* ズーム15以下で非表示にする設定 */
@@ -1008,13 +1008,13 @@
     });
   }
 
-  /* ★ 16方向自動回避＆重なり救済アルゴリズム（226表示・230隠れ防止改修） ★ */
+  /* ★ 16方向自動回避＆丸ポイント・他吹き出し衝突回避アルゴリズム ★ */
   function adjustLabelsOverlap() {
     const currentZoom = map.getZoom();
     const placedRects = [];
     const pinRects = [];
 
-    // 丸ポイント（ピン）の判定範囲をコンパクトに計算
+    // 丸ポイント（ピン）の位置範囲を計算（半径6px）
     allPoints.forEach(p => {
       const m = markers[p.id];
       if (!m || !map.hasLayer(m)) return;
@@ -1109,7 +1109,7 @@
         }
       }
 
-      // 救済処理：16方向全埋まり時も消さずに真上へ逃がして確実に描画（226非表示解消）
+      // 救済処理：16方向全埋まり時も消さずに真上へ逃がして確実に描画
       if (!foundFreeSpot) {
         bestDir = DIRECTIONS_16[12] || DIRECTIONS_16[0];
         const candX = pinPixel.x + bestDir.x * (radius + labelWidth / 2);
@@ -1241,7 +1241,7 @@
     const sections = [
       { title: "1. 画面の基本構成", items: ["・左側サイドバー: ポイント管理、インポート、グループツリー、一括操作ボタン", "・右側マップ: ポイントピン、16方向自動回避ラベル、凡例（右下）、PDF印刷枠", "・中央リサイザー: 左右の境界線をドラッグして表示幅を変更可能"] },
       { title: "2. ポイントの登録方法", items: ["・Excel/CSV一括インポート: ドラッグ＆ドロップで一括読み込み（テンプレート有）", "・地図上からの個別登録: 「＋個別登録」を押して地図をクリックすると座標入力"] },
-      { title: "3. ポイントの編集・管理機能", items: ["・情報変更: 各スポットの「情報変更」から表示名・スポット名・緯度経度を一括編集", "・点検状態切替: 「点検済」でピンが点検済色へ変化、「未実施」で元の色へ復旧", "・写真・判定管理: 各ピンから写真追加、拡大表示でコメントや健全度判定（Ⅰ〜Ⅳ）設定"] },
+      { title: "3. ポイントの編集・管理機能", items: ["・情報変更: 各スポットの「情報変更」から表示名・スポット名・緯度経度を一括編集", "・点検状態切替: 「点検済」でピンが点検済色（グレー）へ変化、「未実施」で元の色へ復旧", "・写真・判定管理: 各ピンから写真追加、拡大表示でコメントや健全度判定（Ⅰ〜Ⅳ）設定"] },
       { title: "4. 閲覧モードと選択共有 (URL発行)", items: ["・「選択共有」から閲覧パスワードと有効期限（7〜28日）付きの閲覧用URLを発行可能"] },
       { title: "5. PDF連続印刷機能 (メッシュ分割)", items: ["・「PDF印刷」から基本ズーム（標準17）や順序を選択して連写出力", "・区画枠をクリック・ドラッグで直接位置調整でき、直下パネルでズーム変更や消去・追加が簡単に行えます"] }
     ];
@@ -1523,8 +1523,11 @@
       </div>
     `;
 
+    // 点検済みの場合はグレー(grey)色を強制適用
+    const currentColor = isCheckedDone ? 'grey' : (point.color || 'blue');
+
     const marker = L.marker([point.lat, point.lng], {
-      icon: createCombinedIcon(dispName, point.color || 'blue'),
+      icon: createCombinedIcon(dispName, currentColor),
       zIndexOffset: pId
     }).bindPopup(popupContent, { maxWidth: "none" });
 
@@ -2104,7 +2107,7 @@
     const point = allPoints.find(p => Number(p.id) === Number(pointId));
     if (!point) return;
 
-    const newColor = point.is_checked ? getTabColor('点検済') : getTabColor(newTabName);
+    const newColor = point.is_checked ? 'grey' : getTabColor(newTabName);
     const { error } = await supabaseClient.from('points').update({ tab_name: newTabName, color: newColor }).eq('id', pointId);
     
     if (!error) {
@@ -2124,13 +2127,14 @@
     }
   }
 
-  /* ★ 点検済/未実施切替時にピンの色も正しく連動変更する処理 ★ */
+  /* ★ 点検済（グレー固定）/ 未実施（元タブ色復元）更新処理 ★ */
   async function togglePointCheckedStatus(pointId, explicitValue = null) {
     const point = allPoints.find(p => Number(p.id) === Number(pointId));
     if (!point) return;
 
     const newChecked = explicitValue !== null ? explicitValue : !point.is_checked;
-    const newColor = newChecked ? getTabColor('点検済') : getTabColor(point.tab_name);
+    // 点検済みの場合はグレー色(grey)を強制適用、未実施に戻す場合は元のタブ色へ復元
+    const newColor = newChecked ? 'grey' : getTabColor(point.tab_name);
 
     const { error } = await supabaseClient.from('points').update({ 
       is_checked: newChecked,
@@ -2464,6 +2468,8 @@
 
       allPoints.forEach(p => {
         if (p.is_checked === undefined) p.is_checked = false;
+        // 点検済みのポイントは色を強制的にグレーに同期
+        if (p.is_checked) p.color = 'grey';
       });
 
       const bounds = [];
