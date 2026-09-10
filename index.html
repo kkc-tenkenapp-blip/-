@@ -140,7 +140,8 @@
 
     .modal { display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 2000; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); width: 380px; max-width: 90vw; box-sizing: border-box; }
     .modal h4 { margin: 0 0 12px 0; }
-    .modal input, .modal select { width: 100%; margin-bottom: 10px; box-sizing: border-box; padding: 8px; font-size: 12px; border: 1px solid #ccc; border-radius: 4px; }
+    .modal label { font-size: 11px; font-weight: bold; display: block; margin-top: 6px; margin-bottom: 2px; color: #333; }
+    .modal input, .modal select { width: 100%; margin-bottom: 8px; box-sizing: border-box; padding: 8px; font-size: 12px; border: 1px solid #ccc; border-radius: 4px; }
     
     #tab-rule-table { width: 100%; font-size: 12px; margin-bottom: 10px; border-collapse: collapse; }
     #tab-rule-table th, #tab-rule-table td { border: 1px solid #ddd; padding: 6px; text-align: left; }
@@ -430,21 +431,47 @@
   <button onclick="closeTabConfigModal()" style="width:100%; margin-top:10px; background:#6c757d; color:white; border:none; padding:8px; border-radius:4px; cursor:pointer;">閉じる</button>
 </div>
 
+<!-- 新規ポイント追加モーダル -->
 <div id="form-container" class="modal">
   <h4 id="form-modal-title">新しいポイントを追加</h4>
   <p id="form-hint" style="font-size:11px; color:#0d6efd; margin:0 0 8px 0; display:none;">💡 地図上をクリックすると座標が自動入力されます</p>
-  <input type="text" id="spot-display-title" placeholder="ピン表示名（任意 / 空欄時はスポット名）" />
-  <input type="text" id="spot-title" placeholder="スポット名（必須）" />
-  <input type="number" step="any" id="spot-lat" placeholder="緯度（例: 40.220360）" />
-  <input type="number" step="any" id="spot-lng" placeholder="経度（例: 141.781950）" />
-  <input type="text" id="spot-group" placeholder="グループ名（例: 三陸 / 1工区 / A区画）" />
-  <input type="text" id="spot-tab" placeholder="タブの内容（例: 標識）" />
+  <label>ピン表示名（任意 / 空欄時はスポット名）</label>
+  <input type="text" id="spot-display-title" placeholder="例: 1号標識" />
+  <label>スポット名（必須）</label>
+  <input type="text" id="spot-title" placeholder="例: D360425L3" />
+  <label>緯度</label>
+  <input type="number" step="any" id="spot-lat" placeholder="例: 40.220360" />
+  <label>経度</label>
+  <input type="number" step="any" id="spot-lng" placeholder="例: 141.781950" />
+  <label>グループ名</label>
+  <input type="text" id="spot-group" placeholder="例: 三陸 / 1工区 / A区画" />
+  <label>タブの内容</label>
+  <input type="text" id="spot-tab" placeholder="例: 標識" />
+  <label>画像添付</label>
   <input type="file" id="spot-image" accept="image/*" multiple />
   <div style="display: flex; justify-content: space-between; margin-top:10px;">
     <button id="save-btn" onclick="savePoint()" style="padding:8px 16px; background:#0d6efd; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">保存</button>
     <button onclick="closeForm()" style="padding:8px 16px; background:#6c757d; color:white; border:none; border-radius:4px; cursor:pointer;">キャンセル</button>
   </div>
   <div id="status-msg"></div>
+</div>
+
+<!-- ポイント情報変更（一括編集）モーダル -->
+<div id="edit-point-modal" class="modal">
+  <h4>✏️ ポイント情報変更</h4>
+  <input type="hidden" id="edit-point-id" />
+  <label>ピン表示名（任意 / 空欄時はスポット名）</label>
+  <input type="text" id="edit-spot-display-title" placeholder="例: 1号標識" />
+  <label>スポット名（必須）</label>
+  <input type="text" id="edit-spot-title" placeholder="例: D360425L3" />
+  <label>緯度（Latitude）</label>
+  <input type="number" step="any" id="edit-spot-lat" placeholder="例: 40.220360" />
+  <label>経度（Longitude）</label>
+  <input type="number" step="any" id="edit-spot-lng" placeholder="例: 141.781950" />
+  <div style="display: flex; justify-content: space-between; margin-top:15px;">
+    <button onclick="saveEditPointInfo()" style="padding:8px 16px; background:#0d6efd; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold; flex:1; margin-right:6px;">更新保存</button>
+    <button onclick="closeEditPointModal()" style="padding:8px 16px; background:#6c757d; color:white; border:none; border-radius:4px; cursor:pointer;">キャンセル</button>
+  </div>
 </div>
 
 <input type="file" id="single-image-input" accept="image/*" multiple style="display:none;" />
@@ -1140,16 +1167,14 @@
     markers[pId] = marker;
   }
 
-  /* ★【機能改善】重なり自動回避（他のラベルだけでなくピン/マーカー自身にも重ねない算法）★ */
   function updateLeaderLines() {
     leaderLineLayerGroup.clearLayers();
 
     const bounds = map.getBounds();
     const mapCenter = map.getCenter();
 
-    // 1. 画面内にある有効なポイントを取得
     const visiblePoints = [];
-    const pinObstacles = []; // ピン（ポイントアイコン）の障害物領域
+    const pinObstacles = [];
 
     allPoints.forEach(p => {
       const pId = Number(p.id);
@@ -1159,13 +1184,12 @@
           const dist = mapCenter.distanceTo(latLng);
           visiblePoints.push({ point: p, dist: dist, latLng: latLng });
 
-          // ピンのアイコン領域（概寸: 幅25px, 高さ41px, アンカー下中央）を障害物として保持
           const originPx = map.latLngToLayerPoint(latLng);
           pinObstacles.push({
-            left: originPx.x - 14,
-            right: originPx.x + 14,
-            top: originPx.y - 42,
-            bottom: originPx.y + 4
+            left: originPx.x - 16,
+            right: originPx.x + 16,
+            top: originPx.y - 45,
+            bottom: originPx.y + 6
           });
         }
       }
@@ -1176,9 +1200,9 @@
     visiblePoints.sort((a, b) => a.dist - b.dist);
     const targetPoints = visiblePoints.slice(0, 60);
 
-    const LABEL_WIDTH = 90;
+    const LABEL_WIDTH = 95;
     const LABEL_HEIGHT = 22;
-    const placedObstacles = [...pinObstacles]; // 障害物リスト（ピン位置 ＋ 配置済みラベル）
+    const placedObstacles = [...pinObstacles];
 
     targetPoints.forEach(item => {
       const p = item.point;
@@ -1186,15 +1210,15 @@
       const dispTitle = p.display_title || p.title;
 
       const originPx = map.latLngToLayerPoint(originLatLng);
-      let targetPx = L.point(originPx.x + 30, originPx.y - 30);
+      let targetPx = L.point(originPx.x + 35, originPx.y - 35);
 
       let attempts = 0;
-      const maxAttempts = 16;
+      const maxAttempts = 24;
       
       const directions = [
-        { x: 1, y: -1 }, { x: 1, y: 1 }, { x: -1, y: -1 }, { x: -1, y: 1 },
-        { x: 0, y: -1.8 }, { x: 0, y: 1.8 }, { x: 1.8, y: 0 }, { x: -1.8, y: 0 },
-        { x: 1.5, y: -2 }, { x: -1.5, y: -2 }, { x: 1.5, y: 2 }, { x: -1.5, y: 2 }
+        { x: 1, y: -1 }, { x: -1, y: -1 }, { x: 1, y: 1 }, { x: -1, y: 1 },
+        { x: 0, y: -2.0 }, { x: -2.0, y: 0 }, { x: 2.0, y: 0 }, { x: 0, y: 1.8 },
+        { x: 1.5, y: -2.2 }, { x: -1.5, y: -2.2 }, { x: 1.8, y: 1.5 }, { x: -1.8, y: 1.5 }
       ];
 
       while (attempts < maxAttempts) {
@@ -1205,7 +1229,6 @@
           bottom: targetPx.y + LABEL_HEIGHT / 2
         };
 
-        // ピンアイコンおよび配置済みラベルの両方と重ならないか判定
         let hasOverlap = placedObstacles.some(b => {
           return !(box.right < b.left || box.left > b.right || box.bottom < b.top || box.top > b.bottom);
         });
@@ -1217,8 +1240,8 @@
 
         const dir = directions[attempts % directions.length];
         const step = Math.floor(attempts / directions.length) + 1;
-        const offsetX = dir.x * (28 + step * 18);
-        const offsetY = dir.y * (28 + step * 16);
+        const offsetX = dir.x * (32 + step * 20);
+        const offsetY = dir.y * (32 + step * 18);
 
         targetPx = L.point(originPx.x + offsetX, originPx.y + offsetY);
         attempts++;
@@ -1376,22 +1399,55 @@
     renderSidebarTree();
   }
 
-  async function editPointTitle(pointId) {
+  function openEditPointModal(pointId) {
     if (isReadOnly) return;
     const point = allPoints.find(p => Number(p.id) === Number(pointId));
     if (!point) return;
 
-    const input = prompt(`スポット名変更: 「${point.title}」の新しい名称を入力してください`, point.title);
-    if (!input) return;
-    const newTitle = input.trim();
-    if (!newTitle || newTitle === point.title) return;
+    document.getElementById('edit-point-id').value = point.id;
+    document.getElementById('edit-spot-display-title').value = point.display_title || '';
+    document.getElementById('edit-spot-title').value = point.title || '';
+    document.getElementById('edit-spot-lat').value = point.lat;
+    document.getElementById('edit-spot-lng').value = point.lng;
 
-    point.title = newTitle;
-    const { error } = await supabaseClient.from('points').update({ title: newTitle }).eq('id', pointId);
+    document.getElementById('edit-point-modal').style.display = 'block';
+  }
+
+  function closeEditPointModal() {
+    document.getElementById('edit-point-modal').style.display = 'none';
+  }
+
+  async function saveEditPointInfo() {
+    if (isReadOnly) return;
+    const pointId = Number(document.getElementById('edit-point-id').value);
+    const point = allPoints.find(p => Number(p.id) === pointId);
+    if (!point) return;
+
+    const newDisplayTitle = document.getElementById('edit-spot-display-title').value.trim();
+    const newTitle = document.getElementById('edit-spot-title').value.trim();
+    const newLat = parseFloat(document.getElementById('edit-spot-lat').value);
+    const newLng = parseFloat(document.getElementById('edit-spot-lng').value);
+
+    if (!newTitle) { alert('スポット名を入力してください'); return; }
+    if (isNaN(newLat) || isNaN(newLng)) { alert('有効な緯度と経度を入力してください'); return; }
+
+    const updateData = {
+      display_title: newDisplayTitle || null,
+      title: newTitle,
+      lat: newLat,
+      lng: newLng
+    };
+
+    const { error } = await supabaseClient.from('points').update(updateData).eq('id', pointId);
 
     if (error) {
-      alert('スポット名の変更に失敗しました: ' + error.message);
+      alert('ポイント情報の更新に失敗しました: ' + error.message);
     } else {
+      point.display_title = newDisplayTitle || null;
+      point.title = newTitle;
+      point.lat = newLat;
+      point.lng = newLng;
+
       if (markers[pointId]) {
         const isVisible = map.hasLayer(markers[pointId]);
         map.removeLayer(markers[pointId]);
@@ -1399,6 +1455,8 @@
         addMarkerToMap(point);
         if (isVisible) map.addLayer(markers[pointId]);
       }
+
+      closeEditPointModal();
       renderSidebarTree();
       updateLeaderLines();
     }
@@ -1743,8 +1801,8 @@
       if (!isReadOnly) {
         actionsHtml = `
           <div class="btn-group-actions">
-            <button class="btn-item-action btn-checked-done" onclick="togglePointCheckedStatus(${p.id})">${isChecked ? '未実施に戻す' : '点検済'}</button>
-            <button class="btn-item-action" onclick="editPointTitle(${p.id})" title="スポット名を変更">✏️</button>
+            <button class="btn-item-action btn-checked-done" onclick="togglePointCheckedStatus(${p.id})">${isChecked ? '未実施' : '点検済'}</button>
+            <button class="btn-item-action" onclick="openEditPointModal(${p.id})" title="ピン表示名・スポット名・緯度・経度を変更">情報変更</button>
             <button class="btn-item-action" onclick="openImageUploader(${p.id})">画像</button>
           </div>
         `;
@@ -1781,24 +1839,24 @@
   }
 
   async function changePointTabDirect(pointId, newTabName) {
-    const color = getTabColor(newTabName);
-    const { error } = await supabaseClient.from('points').update({ tab_name: newTabName, color: color }).eq('id', pointId);
+    const point = allPoints.find(p => Number(p.id) === Number(pointId));
+    if (!point) return;
+
+    const newColor = point.is_checked ? getTabColor('点検済') : getTabColor(newTabName);
+    const { error } = await supabaseClient.from('points').update({ tab_name: newTabName, color: newColor }).eq('id', pointId);
     
     if (!error) {
-      const point = allPoints.find(p => Number(p.id) === Number(pointId));
-      if (point) {
-        point.tab_name = newTabName;
-        point.color = color;
-        if (markers[pointId]) {
-          const isVisible = map.hasLayer(markers[pointId]);
-          map.removeLayer(markers[pointId]);
-          delete markers[pointId];
-          addMarkerToMap(point);
-          if (isVisible) map.addLayer(markers[pointId]);
-        }
-        updateFilterTabOptions();
-        renderSidebarTree();
+      point.tab_name = newTabName;
+      point.color = newColor;
+      if (markers[pointId]) {
+        const isVisible = map.hasLayer(markers[pointId]);
+        map.removeLayer(markers[pointId]);
+        delete markers[pointId];
+        addMarkerToMap(point);
+        if (isVisible) map.addLayer(markers[pointId]);
       }
+      updateFilterTabOptions();
+      renderSidebarTree();
     } else {
       alert('タブ変更に失敗しました: ' + error.message);
     }
@@ -1809,10 +1867,17 @@
     if (!point) return;
 
     const newChecked = explicitValue !== null ? explicitValue : !point.is_checked;
-    const { error } = await supabaseClient.from('points').update({ is_checked: newChecked }).eq('id', pointId);
+    const newColor = newChecked ? getTabColor('点検済') : getTabColor(point.tab_name);
+
+    const { error } = await supabaseClient.from('points').update({ 
+      is_checked: newChecked,
+      color: newColor 
+    }).eq('id', pointId);
 
     if (!error) {
       point.is_checked = newChecked;
+      point.color = newColor;
+
       if (markers[pointId]) {
         const isVisible = map.hasLayer(markers[pointId]);
         map.removeLayer(markers[pointId]);
@@ -1943,7 +2008,7 @@
       const uploadedImageObjects = [];
       for (const file of files) {
         const compressedBase64 = await compressImageFile(file, 600, 0.65);
-        const publicUrl = await uploadImageToStorage(compressedBase64, `point_${targetId}`);
+        const publicUrl = await uploadImageToStorage(file, 'manual');
         if (publicUrl) {
           uploadedImageObjects.push({ url: publicUrl, comment: '', judge: '' });
         }
@@ -2391,7 +2456,7 @@
   }
 
   /* ==========================================================================
-   * 🖨️【機能拡張】PDF印刷・個別ズーム区分け・ページ選択・バックグラウンド出力
+   * 🖨️ PDF印刷・個別ズーム区分け・グループ名ヘッダー印字機能
    * ========================================================================== */
 
   function openPdfConfigModal() {
@@ -2411,7 +2476,6 @@
     return allPoints.filter(p => checkedPointIds.has(Number(p.id)));
   }
 
-  // ズームレベルごとの緯度・経度幅（基準値）の動的計算関数
   function getZoomSpans(zoom) {
     const baseLatSpan = 0.0028;  // Zoom 17相当
     const baseLngSpan = 0.0052;
@@ -2532,7 +2596,6 @@
       });
       const labelMarker = L.marker([grid.north, grid.west], { icon: labelIcon, interactive: true });
 
-      // 区画クリック時にズーム変更ダイアログを表示
       const onGridClick = (e) => {
         if (e) e.originalEvent.stopPropagation();
         openIndividualGridZoomModal(grid.id);
@@ -2588,7 +2651,6 @@
     });
   }
 
-  /* ★特定の区画のズームレベルを変更して再区分け★ */
   function openIndividualGridZoomModal(gridId) {
     const targetGrid = pdfGrids.find(g => g.id === gridId);
     if (!targetGrid) return;
@@ -2604,7 +2666,6 @@
 
     if (newZoom === targetGrid.zoom) return;
 
-    // 該当区画を削除し、そのエリア内を新ズームで再生成・置換
     const targetPoints = getPdfTargetPoints();
     const newSubGrids = generateGridsForArea(targetGrid.south, targetGrid.north, targetGrid.west, targetGrid.east, newZoom, targetPoints);
 
@@ -2666,7 +2727,41 @@
     document.getElementById('pdf-preview-control-modal').style.display = 'none';
   }
 
-  /* ★【機能改善】バックグラウンド画面非移動レンダリング & 印刷中オーバーレイ★ */
+  /* ★【新設】区画内のポイントからグループ名（優先順：孫＞子＞親）を自動抽出する関数★ */
+  function getGroupHeaderTextForBounds(bounds) {
+    const targetPoints = getPdfTargetPoints().filter(p => bounds.contains([p.lat, p.lng]));
+    if (targetPoints.length === 0) return '';
+
+    const grandChildren = new Set();
+    const children = new Set();
+    const parents = new Set();
+
+    targetPoints.forEach(p => {
+      const rawG = p.group_name || '未分類';
+      const parts = rawG.split('/').map(s => s.trim()).filter(Boolean);
+      if (parts.length >= 3) {
+        grandChildren.add(parts[2]);
+      } else if (parts.length === 2) {
+        children.add(parts[1]);
+      } else if (parts.length === 1) {
+        parents.add(parts[0]);
+      }
+    });
+
+    let selectedNames = [];
+    if (grandChildren.size > 0) {
+      selectedNames = Array.from(grandChildren);
+    } else if (children.size > 0) {
+      selectedNames = Array.from(children);
+    } else if (parents.size > 0) {
+      selectedNames = Array.from(parents);
+    }
+
+    if (selectedNames.length === 0) return '';
+    return selectedNames.map(name => `≪${name}≫`).join(', ');
+  }
+
+  /* ★【機能改善】PDFの余白・グループ名ヘッダー印字対応バックグラウンド生成★ */
   async function executePdfExport() {
     if (pdfGrids.length === 0) return;
 
@@ -2685,9 +2780,8 @@
       exportGrids = [...pdfGrids];
     }
 
-    if (!confirm(`全 ${exportGrids.length} ページのPDFを出力しますか？\n（処理中はバックグラウンドで出力されます）`)) return;
+    if (!confirm(`全 ${exportGrids.length} ページのPDFを出力しますか？\n（グループ名ヘッダー・マージン付きで綺麗に印刷出力されます）`)) return;
 
-    // 現在の地図ビューとオーバーレイ状態を退避
     const originalCenter = map.getCenter();
     const originalZoom = map.getZoom();
 
@@ -2701,15 +2795,17 @@
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF('landscape', 'mm', 'a4');
 
+    const margin = 10;
+    const printWidth = 277;
+    const printHeight = 190;
+
     try {
       for (let i = 0; i < exportGrids.length; i++) {
         const grid = exportGrids[i];
         loadingProgress.textContent = `PDF生成中... (${i + 1} / ${exportGrids.length} ページ目 - P.${grid.pageNumber})`;
 
-        // 地図を指定区画・指定ズームに移動（画面上のアニメーションなし）
         map.setView(grid.center, grid.zoom, { animate: false });
         
-        // タイルおよび引き出し線などのレンダリング待機
         await new Promise(r => setTimeout(r, 650));
         updateLeaderLines();
 
@@ -2722,11 +2818,27 @@
         const imgData = canvas.toDataURL('image/jpeg', 0.85);
 
         if (i > 0) pdf.addPage();
-        pdf.addImage(imgData, 'JPEG', 0, 0, 297, 210);
+        
+        // 地図画像の描画
+        pdf.addImage(imgData, 'JPEG', margin, margin, printWidth, printHeight);
 
-        pdf.setFontSize(10);
+        // 外枠線（ボーダー）
+        pdf.setDrawColor(180, 180, 180);
+        pdf.setLineWidth(0.3);
+        pdf.rect(margin, margin, printWidth, printHeight);
+
+        // ★【新設】左上にグループ名を印字（優先順: 孫＞子＞親）
+        const groupHeaderText = getGroupHeaderTextForBounds(grid.bounds);
+        if (groupHeaderText) {
+          pdf.setFontSize(11);
+          pdf.setTextColor(30, 30, 30);
+          pdf.text(groupHeaderText, margin, margin - 3);
+        }
+
+        // フッター（ページ番号印字）
+        pdf.setFontSize(9);
         pdf.setTextColor(100);
-        pdf.text(`Page ${grid.pageNumber} / ${pdfGrids.length} (Zoom ${grid.zoom})`, 10, 205);
+        pdf.text(`Page ${grid.pageNumber} / ${pdfGrids.length} (Zoom ${grid.zoom})`, margin, 205);
       }
 
       pdf.save(`点検マップ_出力_${Date.now()}.pdf`);
@@ -2736,7 +2848,6 @@
       alert('PDFの生成中にエラーが発生しました: ' + err.message);
     } finally {
       loadingOverlay.style.display = 'none';
-      // 元の地図表示位置に復元
       map.setView(originalCenter, originalZoom, { animate: false });
       cancelPdfPreview();
       updateLeaderLines();
@@ -2746,7 +2857,7 @@
   supabaseClient.channel('public:points')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'points' }, () => {
       if (!isReadOnly && !isSelfOperating) {
-        loadInitialPoints();
+ loadInitialPoints();
       }
     })
     .subscribe();
