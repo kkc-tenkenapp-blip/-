@@ -175,16 +175,29 @@
 
     /* PDF区画ラベル用スタイル */
     .pdf-grid-label {
-      background: rgba(220, 53, 69, 0.85);
+      background: rgba(220, 53, 69, 0.88);
       color: white;
       font-weight: bold;
-      font-size: 14px;
-      padding: 2px 8px;
+      font-size: 12px;
+      padding: 2px 6px;
       border-radius: 4px;
       border: 1px solid #fff;
       box-shadow: 0 2px 4px rgba(0,0,0,0.3);
       white-space: nowrap;
+      cursor: pointer;
     }
+
+    /* バックグラウンド印刷中オーバーレイ */
+    #pdf-loading-overlay {
+      display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+      background: rgba(0, 0, 0, 0.75); z-index: 10000; justify-content: center; align-items: center;
+      flex-direction: column; color: white; font-weight: bold;
+    }
+    .loading-spinner {
+      border: 5px solid #f3f3f3; border-top: 5px solid #6f42c1; border-radius: 50%;
+      width: 45px; height: 45px; animation: spin 1s linear infinite; margin-bottom: 15px;
+    }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
     @media screen and (max-width: 768px) {
       body { flex-direction: column-reverse; }
@@ -196,6 +209,13 @@
   </style>
 </head>
 <body>
+
+<!-- バックグラウンド印刷中オーバーレイ -->
+<div id="pdf-loading-overlay">
+  <div class="loading-spinner"></div>
+  <div id="pdf-loading-msg" style="font-size:16px;">⏳ バックグラウンドでPDFを作成中...</div>
+  <div id="pdf-loading-progress" style="font-size:13px; margin-top:8px; color:#ddd;">処理中 (0 / 0)</div>
+</div>
 
 <!-- Supabase Auth ログインモーダル -->
 <div id="login-overlay">
@@ -322,8 +342,19 @@
 
 <!-- PDF設定モーダル -->
 <div id="pdf-config-modal" class="modal">
-  <h4>🖨️ PDF印刷設定 (Zoom 14)</h4>
-  <p style="font-size:11px; color:#666; margin-bottom:12px;">選択・表示中ポイントの範囲をズームレベル14のグリッドで区分けして連写出力します。</p>
+  <h4>🖨️ PDF印刷設定</h4>
+  <p style="font-size:11px; color:#666; margin-bottom:12px;">基本ズームレベルとスタート方向を選択して区画をプレビュー表示します。</p>
+
+  <label style="font-size:11px; font-weight:bold; display:block; margin-bottom:4px;">基本ズームレベル (基本: 17)</label>
+  <select id="pdf-base-zoom">
+    <option value="14">ズーム 14 (広域)</option>
+    <option value="15">ズーム 15</option>
+    <option value="16">ズーム 16</option>
+    <option value="17" selected>ズーム 17 (標準・詳細)</option>
+    <option value="18">ズーム 18</option>
+    <option value="19">ズーム 19</option>
+    <option value="20">ズーム 20 (超詳細)</option>
+  </select>
 
   <label style="font-size:11px; font-weight:bold; display:block; margin-bottom:4px;">印刷順序 (スタート方向)</label>
   <select id="pdf-start-direction">
@@ -341,14 +372,21 @@
 
 <!-- PDFプレビューコントロールモーダル -->
 <div id="pdf-preview-control-modal" class="modal" style="z-index: 2500;">
-  <h4>📑 区画確認・調整</h4>
-  <p id="pdf-preview-info" style="font-size:11px; color:#333; margin-bottom:8px;">区分け数: 0 区画</p>
-  <p style="font-size:11px; color:#666; margin-bottom:12px;">「ドラッグ修正」を押すと、地図上の赤い枠をドラッグ移動して印刷範囲を微調整できます。</p>
+  <h4>📑 区画確認・個別設定</h4>
+  <p id="pdf-preview-info" style="font-size:11px; color:#333; margin-bottom:6px;">区分け数: 0 区画</p>
+  <p style="font-size:10px; color:#666; margin-bottom:10px;">💡 地図上の区画枠をクリックすると、その区画だけのズームレベル変更・再区分けができます。</p>
 
-  <div style="display: flex; flex-direction: column; gap: 8px;">
-    <button id="btn-toggle-edit-grid" onclick="toggleEditGridMode()" style="padding:8px; background:#17a2b8; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">✏️ 区画枠をドラッグ修正</button>
-    <button id="btn-start-export-pdf" onclick="executePdfExport()" style="padding:8px; background:#198754; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">🚀 印刷開始 (PDFダウンロード)</button>
-    <button onclick="cancelPdfPreview()" style="padding:6px; background:#6c757d; color:white; border:none; border-radius:4px; cursor:pointer;">キャンセル・終了</button>
+  <label style="font-size:11px; font-weight:bold; display:block; margin-bottom:2px;">印刷対象ページ選択</label>
+  <div style="display:flex; gap:10px; margin-bottom:8px; font-size:11px;">
+    <label><input type="radio" name="pdf-page-range-type" value="all" checked onchange="togglePageRangeInput()" /> すべて印刷</label>
+    <label><input type="radio" name="pdf-page-range-type" value="custom" onchange="togglePageRangeInput()" /> ページ指定</label>
+  </div>
+  <input type="text" id="pdf-page-range-input" placeholder="例: 1-3, 5" style="display:none; font-size:11px; padding:5px; margin-bottom:10px;" />
+
+  <div style="display: flex; flex-direction: column; gap: 6px;">
+    <button id="btn-toggle-edit-grid" onclick="toggleEditGridMode()" style="padding:6px; background:#17a2b8; color:white; border:none; border-radius:4px; cursor:pointer; font-size:12px; font-weight:bold;">✏️ 区画枠のドラッグ調整: OFF</button>
+    <button id="btn-start-export-pdf" onclick="executePdfExport()" style="padding:8px; background:#198754; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">🚀 印刷実行 (PDF出力)</button>
+    <button onclick="cancelPdfPreview()" style="padding:6px; background:#6c757d; color:white; border:none; border-radius:4px; cursor:pointer; font-size:12px;">閉じる</button>
   </div>
 </div>
 
@@ -448,7 +486,7 @@
   // PDF出力制御用グローバル変数
   let pdfGrids = [];
   let isGridEditMode = false;
-  let activeGridRectangles = [];
+  let activeBaseZoom = 17;
 
   const sidebar = document.getElementById('sidebar');
   const mapElem = document.getElementById('map');
@@ -1102,7 +1140,7 @@
     markers[pId] = marker;
   }
 
-  /* ★重なりを自動回避する引き出し線・ラベル更新関数★ */
+  /* ★【機能改善】重なり自動回避（他のラベルだけでなくピン/マーカー自身にも重ねない算法）★ */
   function updateLeaderLines() {
     leaderLineLayerGroup.clearLayers();
 
@@ -1111,6 +1149,8 @@
 
     // 1. 画面内にある有効なポイントを取得
     const visiblePoints = [];
+    const pinObstacles = []; // ピン（ポイントアイコン）の障害物領域
+
     allPoints.forEach(p => {
       const pId = Number(p.id);
       if (checkedPointIds.has(pId) && markers[pId] && map.hasLayer(markers[pId])) {
@@ -1118,45 +1158,46 @@
         if (bounds.contains(latLng)) {
           const dist = mapCenter.distanceTo(latLng);
           visiblePoints.push({ point: p, dist: dist, latLng: latLng });
+
+          // ピンのアイコン領域（概寸: 幅25px, 高さ41px, アンカー下中央）を障害物として保持
+          const originPx = map.latLngToLayerPoint(latLng);
+          pinObstacles.push({
+            left: originPx.x - 14,
+            right: originPx.x + 14,
+            top: originPx.y - 42,
+            bottom: originPx.y + 4
+          });
         }
       }
     });
 
-    // 件数が非常に多い場合は描画負荷軽減のためスキップ（上限60件）
     if (visiblePoints.length > 60) return;
 
-    // 中心に近い順にソート
     visiblePoints.sort((a, b) => a.dist - b.dist);
     const targetPoints = visiblePoints.slice(0, 60);
 
-    // 2. ラベルの初期配置とサイズ定義（px単位）
-    const LABEL_WIDTH = 90;   // ラベルの推定横幅(px)
-    const LABEL_HEIGHT = 22;  // ラベルの推定高さ(px)
-    const placedLabels = [];  // 配置済みラベルのバウンディングボックス保持用
+    const LABEL_WIDTH = 90;
+    const LABEL_HEIGHT = 22;
+    const placedObstacles = [...pinObstacles]; // 障害物リスト（ピン位置 ＋ 配置済みラベル）
 
     targetPoints.forEach(item => {
       const p = item.point;
       const originLatLng = item.latLng;
       const dispTitle = p.display_title || p.title;
 
-      // ピンの画面上のピクセル座標
       const originPx = map.latLngToLayerPoint(originLatLng);
-
-      // 初期位置（右上方向 offset: +30px, -30px）
       let targetPx = L.point(originPx.x + 30, originPx.y - 30);
 
-      // 3. ラベルの衝突判定（AABB）と反発・重なり回避処理
       let attempts = 0;
-      const maxAttempts = 12; // 調整の最大試行回数
+      const maxAttempts = 16;
       
-      // 8方向の移動ベクトルパターン（右上、右下、左上、左下、真上、真下など）
       const directions = [
         { x: 1, y: -1 }, { x: 1, y: 1 }, { x: -1, y: -1 }, { x: -1, y: 1 },
-        { x: 0, y: -1.5 }, { x: 0, y: 1.5 }, { x: 1.5, y: 0 }, { x: -1.5, y: 0 }
+        { x: 0, y: -1.8 }, { x: 0, y: 1.8 }, { x: 1.8, y: 0 }, { x: -1.8, y: 0 },
+        { x: 1.5, y: -2 }, { x: -1.5, y: -2 }, { x: 1.5, y: 2 }, { x: -1.5, y: 2 }
       ];
 
       while (attempts < maxAttempts) {
-        // 現在のラベル矩形（Bounding Box）
         const box = {
           left: targetPx.x,
           right: targetPx.x + LABEL_WIDTH,
@@ -1164,31 +1205,27 @@
           bottom: targetPx.y + LABEL_HEIGHT / 2
         };
 
-        // 他のラベルとの衝突をチェック
-        let hasOverlap = placedLabels.some(b => {
+        // ピンアイコンおよび配置済みラベルの両方と重ならないか判定
+        let hasOverlap = placedObstacles.some(b => {
           return !(box.right < b.left || box.left > b.right || box.bottom < b.top || box.top > b.bottom);
         });
 
         if (!hasOverlap) {
-          // 重なりがなければ位置決定
-          placedLabels.push(box);
+          placedObstacles.push(box);
           break;
         }
 
-        // 重なっている場合、試行回数に応じて段階的に遠くへずらす
         const dir = directions[attempts % directions.length];
         const step = Math.floor(attempts / directions.length) + 1;
-        const offsetX = dir.x * (30 + step * 20);
-        const offsetY = dir.y * (30 + step * 18);
+        const offsetX = dir.x * (28 + step * 18);
+        const offsetY = dir.y * (28 + step * 16);
 
         targetPx = L.point(originPx.x + offsetX, originPx.y + offsetY);
         attempts++;
       }
 
-      // 4. ピクセル座標から緯度経度（LatLng）へ変換して描画
       const labelLatLng = map.layerPointToLatLng(targetPx);
 
-      // 引き出し線（破線）の描画
       const line = L.polyline([originLatLng, labelLatLng], {
         color: '#007bff',
         weight: 1.5,
@@ -1198,7 +1235,6 @@
       });
       leaderLineLayerGroup.addLayer(line);
 
-      // ピン名ラベルの描画
       const labelIcon = L.divIcon({
         className: 'leader-line-container',
         html: `<div class="leader-label-marker" onclick="onLeaderLabelClick(event, ${p.id})">${dispTitle}</div>`,
@@ -2327,7 +2363,7 @@
         const compressedList = [];
         for (const f of files) {
           const b64 = await compressImageFile(f, 600, 0.65);
-          const publicUrl = await uploadImageToStorage(b64, 'manual');
+          const publicUrl = await uploadImageToStorage(f, 'manual');
           if (publicUrl) {
             compressedList.push({ url: publicUrl, comment: '', judge: '' });
           }
@@ -2355,7 +2391,7 @@
   }
 
   /* ==========================================================================
-   * 🖨️ PDF連写・自動区画・ドラッグ調整モジュール
+   * 🖨️【機能拡張】PDF印刷・個別ズーム区分け・ページ選択・バックグラウンド出力
    * ========================================================================== */
 
   function openPdfConfigModal() {
@@ -2375,18 +2411,25 @@
     return allPoints.filter(p => checkedPointIds.has(Number(p.id)));
   }
 
-  // ズームレベル14での標準画面範囲の緯度・経度幅（A4横相当のアスペクト比に調整）
-  const ZOOM14_LAT_SPAN = 0.022; 
-  const ZOOM14_LNG_SPAN = 0.040; 
+  // ズームレベルごとの緯度・経度幅（基準値）の動的計算関数
+  function getZoomSpans(zoom) {
+    const baseLatSpan = 0.0028;  // Zoom 17相当
+    const baseLngSpan = 0.0052;
+    const factor = Math.pow(2, 17 - zoom);
+    return {
+      latSpan: baseLatSpan * factor,
+      lngSpan: baseLngSpan * factor
+    };
+  }
 
   function startPdfPreview() {
     closePdfConfigModal();
+    activeBaseZoom = parseInt(document.getElementById('pdf-base-zoom').value, 10);
     const startDirection = document.getElementById('pdf-start-direction').value;
     const targetPoints = getPdfTargetPoints();
 
     if (targetPoints.length === 0) return;
 
-    // 1. ポイントが存在する範囲の境界を取得
     let minLat = 90, maxLat = -90, minLng = 180, maxLng = -180;
     targetPoints.forEach(p => {
       if (p.lat < minLat) minLat = p.lat;
@@ -2395,60 +2438,75 @@
       if (p.lng > maxLng) maxLng = p.lng;
     });
 
-    // 余白を追加
-    const latPadding = ZOOM14_LAT_SPAN * 0.2;
-    const lngPadding = ZOOM14_LNG_SPAN * 0.2;
+    const spans = getZoomSpans(activeBaseZoom);
+    const latPadding = spans.latSpan * 0.2;
+    const lngPadding = spans.lngSpan * 0.2;
     minLat -= latPadding; maxLat += latPadding;
     minLng -= lngPadding; maxLng += lngPadding;
 
-    // 2. ズーム14区画を網羅生成
-    let rawGrids = [];
-    for (let lat = maxLat; lat > minLat - ZOOM14_LAT_SPAN; lat -= ZOOM14_LAT_SPAN) {
-      for (let lng = minLng; lng < maxLng + ZOOM14_LNG_SPAN; lng += ZOOM14_LNG_SPAN) {
+    let rawGrids = generateGridsForArea(minLat, maxLat, minLng, maxLng, activeBaseZoom, targetPoints);
+
+    pdfGrids = sortGridsByDirection(rawGrids, startDirection);
+    reindexPdfGrids();
+
+    map.fitBounds(L.latLngBounds([[minLat, minLng], [maxLat, maxLng]]), { padding: [30, 30] });
+    renderPdfGridOverlay();
+
+    updatePreviewInfoText();
+    document.getElementById('pdf-preview-control-modal').style.display = 'block';
+  }
+
+  function generateGridsForArea(minLat, maxLat, minLng, maxLng, zoom, targetPoints) {
+    const spans = getZoomSpans(zoom);
+    const resultGrids = [];
+
+    for (let lat = maxLat; lat > minLat - spans.latSpan; lat -= spans.latSpan) {
+      for (let lng = minLng; lng < maxLng + spans.lngSpan; lng += spans.lngSpan) {
         const bounds = L.latLngBounds([
-          [lat - ZOOM14_LAT_SPAN, lng],
-          [lat, lng + ZOOM14_LNG_SPAN]
+          [lat - spans.latSpan, lng],
+          [lat, lng + spans.lngSpan]
         ]);
 
-        // 区画内にポイントが含まれているかチェック
         const hasPoint = targetPoints.some(p => bounds.contains([p.lat, p.lng]));
         if (hasPoint) {
-          rawGrids.push({
+          resultGrids.push({
+            id: 'grid_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
             bounds: bounds,
             north: lat,
-            south: lat - ZOOM14_LAT_SPAN,
+            south: lat - spans.latSpan,
             west: lng,
-            east: lng + ZOOM14_LNG_SPAN,
-            center: bounds.getCenter()
+            east: lng + spans.lngSpan,
+            center: bounds.getCenter(),
+            zoom: zoom
           });
         }
       }
     }
+    return resultGrids;
+  }
 
-    // 3. スタート方向（順序）に従ってソート
-    pdfGrids = sortGridsByDirection(rawGrids, startDirection);
+  function reindexPdfGrids() {
+    pdfGrids.forEach((g, idx) => { g.pageNumber = idx + 1; });
+  }
 
-    // 4. 地図全体表示＆区画枠レンダリング
-    map.fitBounds(L.latLngBounds([[minLat, minLng], [maxLat, maxLng]]), { padding: [30, 30] });
-    renderPdfGridOverlay();
-
+  function updatePreviewInfoText() {
+    const targetPoints = getPdfTargetPoints();
     document.getElementById('pdf-preview-info').textContent = `対象ポイント: ${targetPoints.length} 件 / 区分け数: ${pdfGrids.length} 区画`;
-    document.getElementById('pdf-preview-control-modal').style.display = 'block';
   }
 
   function sortGridsByDirection(grids, direction) {
     return grids.sort((a, b) => {
-      if (direction === 'NW') { // 北西 (y降順, x昇順)
-        if (Math.abs(a.north - b.north) > 0.005) return b.north - a.north;
+      if (direction === 'NW') {
+        if (Math.abs(a.north - b.north) > 0.0005) return b.north - a.north;
         return a.west - b.west;
-      } else if (direction === 'NE') { // 北東 (y降順, x降順)
-        if (Math.abs(a.north - b.north) > 0.005) return b.north - a.north;
+      } else if (direction === 'NE') {
+        if (Math.abs(a.north - b.north) > 0.0005) return b.north - a.north;
         return b.west - a.west;
-      } else if (direction === 'SW') { // 南西 (y昇順, x昇順)
-        if (Math.abs(a.north - b.north) > 0.005) return a.north - b.north;
+      } else if (direction === 'SW') {
+        if (Math.abs(a.north - b.north) > 0.0005) return a.north - b.north;
         return a.west - b.west;
-      } else if (direction === 'SE') { // 南東 (y昇順, x降順)
-        if (Math.abs(a.north - b.north) > 0.005) return a.north - b.north;
+      } else if (direction === 'SE') {
+        if (Math.abs(a.north - b.north) > 0.0005) return a.north - b.north;
         return b.west - a.west;
       }
       return 0;
@@ -2457,27 +2515,33 @@
 
   function renderPdfGridOverlay() {
     pdfGridLayerGroup.clearLayers();
-    activeGridRectangles = [];
 
-    pdfGrids.forEach((grid, idx) => {
+    pdfGrids.forEach((grid) => {
       const rect = L.rectangle(grid.bounds, {
-        color: '#dc3545',
+        color: '#6f42c1',
         weight: 2,
-        fillColor: '#dc3545',
-        fillOpacity: 0.08,
-        interactive: isGridEditMode
+        fillColor: '#6f42c1',
+        fillOpacity: 0.1,
+        interactive: true
       });
 
-      // ページ番号ラベル
       const labelIcon = L.divIcon({
         className: 'pdf-grid-label-container',
-        html: `<div class="pdf-grid-label">P.${idx + 1}</div>`,
-        iconAnchor: [-10, -10]
+        html: `<div class="pdf-grid-label" title="クリックしてこの区画のズーム変更">P.${grid.pageNumber} (Z:${grid.zoom})</div>`,
+        iconAnchor: [-6, -6]
       });
-      const labelMarker = L.marker([grid.north, grid.west], { icon: labelIcon, interactive: false });
+      const labelMarker = L.marker([grid.north, grid.west], { icon: labelIcon, interactive: true });
+
+      // 区画クリック時にズーム変更ダイアログを表示
+      const onGridClick = (e) => {
+        if (e) e.originalEvent.stopPropagation();
+        openIndividualGridZoomModal(grid.id);
+      };
+
+      rect.on('click', onGridClick);
+      labelMarker.on('click', onGridClick);
 
       if (isGridEditMode) {
-        // ドラッグ調整をハンドリング
         let isDragging = false;
         let startLatLng = null;
 
@@ -2521,23 +2585,79 @@
 
       pdfGridLayerGroup.addLayer(rect);
       pdfGridLayerGroup.addLayer(labelMarker);
-      activeGridRectangles.push(rect);
     });
+  }
+
+  /* ★特定の区画のズームレベルを変更して再区分け★ */
+  function openIndividualGridZoomModal(gridId) {
+    const targetGrid = pdfGrids.find(g => g.id === gridId);
+    if (!targetGrid) return;
+
+    const input = prompt(`【P.${targetGrid.pageNumber} 区画の設定】\nこの区画の新しいズームレベルを入力してください (14～20):\n※変更するとこの範囲が指定ズームで再区分けされます`, targetGrid.zoom);
+    if (!input) return;
+
+    const newZoom = parseInt(input.trim(), 10);
+    if (isNaN(newZoom) || newZoom < 14 || newZoom > 20) {
+      alert('有効なズームレベル (14～20) を入力してください');
+      return;
+    }
+
+    if (newZoom === targetGrid.zoom) return;
+
+    // 該当区画を削除し、そのエリア内を新ズームで再生成・置換
+    const targetPoints = getPdfTargetPoints();
+    const newSubGrids = generateGridsForArea(targetGrid.south, targetGrid.north, targetGrid.west, targetGrid.east, newZoom, targetPoints);
+
+    pdfGrids = pdfGrids.filter(g => g.id !== gridId);
+    pdfGrids.push(...newSubGrids);
+
+    const startDirection = document.getElementById('pdf-start-direction').value;
+    pdfGrids = sortGridsByDirection(pdfGrids, startDirection);
+    reindexPdfGrids();
+
+    renderPdfGridOverlay();
+    updatePreviewInfoText();
   }
 
   function toggleEditGridMode() {
     isGridEditMode = !isGridEditMode;
     const btn = document.getElementById('btn-toggle-edit-grid');
     if (isGridEditMode) {
-      btn.textContent = '🔓 ドラッグ修正中（完了したら再クリック）';
+      btn.textContent = '🔓 ドラッグ調整中: ON (完了したら再クリック)';
       btn.style.background = '#ffc107';
       btn.style.color = '#333';
     } else {
-      btn.textContent = '✏️ 区画枠をドラッグ修正';
+      btn.textContent = '✏️ 区画枠のドラッグ調整: OFF';
       btn.style.background = '#17a2b8';
       btn.style.color = 'white';
     }
     renderPdfGridOverlay();
+  }
+
+  function togglePageRangeInput() {
+    const isCustom = document.querySelector('input[name="pdf-page-range-type"]:checked').value === 'custom';
+    document.getElementById('pdf-page-range-input').style.display = isCustom ? 'block' : 'none';
+  }
+
+  function parsePageRange(rangeStr, totalPages) {
+    if (!rangeStr || !rangeStr.trim()) return [];
+    const pages = new Set();
+    const parts = rangeStr.split(',');
+
+    parts.forEach(part => {
+      const p = part.trim();
+      if (p.includes('-')) {
+        const [start, end] = p.split('-').map(n => parseInt(n.trim(), 10));
+        if (!isNaN(start) && !isNaN(end)) {
+          for (let i = Math.max(1, start); i <= Math.min(totalPages, end); i++) pages.add(i);
+        }
+      } else {
+        const num = parseInt(p, 10);
+        if (!isNaN(num) && num >= 1 && num <= totalPages) pages.add(num);
+      }
+    });
+
+    return Array.from(pages).sort((a, b) => a - b);
   }
 
   function cancelPdfPreview() {
@@ -2546,16 +2666,35 @@
     document.getElementById('pdf-preview-control-modal').style.display = 'none';
   }
 
+  /* ★【機能改善】バックグラウンド画面非移動レンダリング & 印刷中オーバーレイ★ */
   async function executePdfExport() {
     if (pdfGrids.length === 0) return;
 
-    if (!confirm(`全 ${pdfGrids.length} ページ（ズーム14）のPDFを出力しますか？`)) return;
+    const rangeType = document.querySelector('input[name="pdf-page-range-type"]:checked').value;
+    let exportGrids = [];
 
-    const btnExport = document.getElementById('btn-start-export-pdf');
-    btnExport.disabled = true;
-    btnExport.textContent = '⏳ PDF生成中...';
+    if (rangeType === 'custom') {
+      const rangeStr = document.getElementById('pdf-page-range-input').value;
+      const targetPages = parsePageRange(rangeStr, pdfGrids.length);
+      if (targetPages.length === 0) {
+        alert('有効なページ番号（例: 1-3, 5）を入力してください');
+        return;
+      }
+      exportGrids = pdfGrids.filter(g => targetPages.includes(g.pageNumber));
+    } else {
+      exportGrids = [...pdfGrids];
+    }
 
-    // 描画から枠線を一時隠す
+    if (!confirm(`全 ${exportGrids.length} ページのPDFを出力しますか？\n（処理中はバックグラウンドで出力されます）`)) return;
+
+    // 現在の地図ビューとオーバーレイ状態を退避
+    const originalCenter = map.getCenter();
+    const originalZoom = map.getZoom();
+
+    const loadingOverlay = document.getElementById('pdf-loading-overlay');
+    const loadingProgress = document.getElementById('pdf-loading-progress');
+    loadingOverlay.style.display = 'flex';
+
     pdfGridLayerGroup.clearLayers();
     leaderLineLayerGroup.clearLayers();
 
@@ -2563,16 +2702,17 @@
     const pdf = new jsPDF('landscape', 'mm', 'a4');
 
     try {
-      for (let i = 0; i < pdfGrids.length; i++) {
-        const grid = pdfGrids[i];
+      for (let i = 0; i < exportGrids.length; i++) {
+        const grid = exportGrids[i];
+        loadingProgress.textContent = `PDF生成中... (${i + 1} / ${exportGrids.length} ページ目 - P.${grid.pageNumber})`;
 
-        // ズーム14で中心位置へ移動
-        map.setView(grid.center, 14, { animate: false });
+        // 地図を指定区画・指定ズームに移動（画面上のアニメーションなし）
+        map.setView(grid.center, grid.zoom, { animate: false });
         
-        // 地図タイルとマーカーの描画待ち
-        await new Promise(r => setTimeout(r, 800));
+        // タイルおよび引き出し線などのレンダリング待機
+        await new Promise(r => setTimeout(r, 650));
+        updateLeaderLines();
 
-        // キャプチャ取得
         const canvas = await html2canvas(document.getElementById('map'), {
           useCORS: true,
           allowTaint: true,
@@ -2582,24 +2722,22 @@
         const imgData = canvas.toDataURL('image/jpeg', 0.85);
 
         if (i > 0) pdf.addPage();
-        
-        // A4横サイズ（297mm × 210mm）に適合
         pdf.addImage(imgData, 'JPEG', 0, 0, 297, 210);
 
-        // ページ番号刻印
         pdf.setFontSize(10);
         pdf.setTextColor(100);
-        pdf.text(`Page ${i + 1} / ${pdfGrids.length} (Zoom 14)`, 10, 205);
+        pdf.text(`Page ${grid.pageNumber} / ${pdfGrids.length} (Zoom ${grid.zoom})`, 10, 205);
       }
 
-      pdf.save(`点検マップ_連続印刷_Zoom14_${Date.now()}.pdf`);
+      pdf.save(`点検マップ_出力_${Date.now()}.pdf`);
       alert('PDFの出力が完了しました！');
     } catch (err) {
       console.error('PDF出力例外:', err);
-      alert('PDFの生成中にエラーが発生しました。: ' + err.message);
+      alert('PDFの生成中にエラーが発生しました: ' + err.message);
     } finally {
-      btnExport.disabled = false;
-      btnExport.textContent = '🚀 印刷開始 (PDFダウンロード)';
+      loadingOverlay.style.display = 'none';
+      // 元の地図表示位置に復元
+      map.setView(originalCenter, originalZoom, { animate: false });
       cancelPdfPreview();
       updateLeaderLines();
     }
