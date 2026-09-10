@@ -1075,7 +1075,7 @@
       y += 4;
     });
 
-    doc.save(`点検マップ_出力_${Date.now()}.pdf`);
+    doc.save(`点検管理アプリ_操作マニュアル_${Date.now()}.pdf`);
   }
 
   function renderTabRuleTable() {
@@ -1355,7 +1355,7 @@
     markers[pId] = marker;
   }
 
-  /* ★【全縮尺対応・ピン直近（四方）絶対固定】ラベル退避アルゴリズム★ */
+  /* ★【全縮尺対応・描画用連続ナンバー割り当て】ラベル退避アルゴリズム★ */
   function updateAutoLabels() {
     autoLabelLayerGroup.clearLayers();
 
@@ -1388,21 +1388,24 @@
     // 従来の件数表示制限（visiblePoints.length > 80）は維持
     if (visiblePoints.length > 80) return;
 
-    visiblePoints.sort((a, b) => a.dist - b.dist);
+    // 北（緯度が高い）から順、または画面中心距離順でソート
+    visiblePoints.sort((a, b) => b.latLng.lat - a.latLng.lat);
     const targetPoints = visiblePoints.slice(0, 80);
 
     const LABEL_WIDTH = 85;
     const LABEL_HEIGHT = 20;
     const placedObstacles = [...pinObstacles];
 
+    // 実際に描画される順番で 1, 2, 3... の連番を割り当てるカウンター
+    let displaySequenceNumber = 1;
+
     targetPoints.forEach(item => {
       const p = item.point;
       const originLatLng = item.latLng;
-      const dispTitle = p.display_title || p.title;
 
       const originPx = map.latLngToLayerPoint(originLatLng);
       
-      // どの縮尺でもピンのすぐそば（四方・直近）に絶対固定配置する相対ピクセルオフセット
+      // どの縮尺でもピンのそば（四方・直近）にピタリと固定配置する相対ピクセルオフセット
       const directions = [
         { x: -LABEL_WIDTH / 2, y: -62 },  // 直上（ピン先端のすぐ上）
         { x: 15, y: -25 },                // 直右（ピン胴体のすぐ右）
@@ -1442,9 +1445,8 @@
         attempts++;
       }
 
-      // 重なりを回避できない場合も遠くに飛ばさず、一番近い直上候補（1番目のオフセット）に強制吸着
+      // 重なりを回避できない場合も、遠くへ飛ばさず最も近い直上候補に固定
       if (attempts === directions.length) {
-        targetPx = L.point(originPx.x + directions[0].x, originPx.y + directions[0].y);
         placedObstacles.push({
           left: targetPx.x, right: targetPx.x + LABEL_WIDTH,
           top: targetPx.y, bottom: targetPx.y + LABEL_HEIGHT
@@ -1453,10 +1455,13 @@
 
       const labelLatLng = map.layerPointToLatLng(targetPx);
 
-      // 本来のスポット名/ピン表示名を表示
+      // 表示テキストとして欠番のない連番（1, 2, 3...）を使用
+      const labelText = String(displaySequenceNumber);
+      displaySequenceNumber++;
+
       const labelIcon = L.divIcon({
         className: 'auto-label-container',
-        html: `<div class="auto-label-marker" onclick="onAutoLabelClick(event, ${p.id})">${dispTitle}</div>`,
+        html: `<div class="auto-label-marker" onclick="onAutoLabelClick(event, ${p.id})">${labelText}</div>`,
         iconSize: [null, null],
         iconAnchor: [0, 0]
       });
@@ -2936,16 +2941,28 @@
     btnDel.style.opacity = '0.5';
   }
 
+  /* ★【重要修正】選択した区画のみをピンポイントでズーム変更・分割する関数★ */
   function applyDirectGridZoom() {
     if (!selectedGridId) return;
-    const targetGrid = pdfGrids.find(g => g.id === selectedGridId);
-    if (!targetGrid) return;
+    const targetGridIndex = pdfGrids.findIndex(g => g.id === selectedGridId);
+    if (targetGridIndex === -1) return;
 
+    const targetGrid = pdfGrids[targetGridIndex];
     const newZoom = parseInt(document.getElementById('direct-grid-zoom-select').value, 10);
     if (newZoom === targetGrid.zoom) return;
 
-    const targetPoints = getPdfTargetPoints();
-    const newSubGrids = generateGridsForArea(targetGrid.south, targetGrid.north, targetGrid.west, targetGrid.east, newZoom, targetPoints);
+    // 選択された「その区画の範囲内」に含まれる対象ポイントのみを抽出
+    const pointsInGrid = getPdfTargetPoints().filter(p => targetGrid.bounds.contains([p.lat, p.lng]));
+    
+    // 選択区画の範囲内を、変更後のズームレベルで再分割生成
+    const newSubGrids = generateGridsForArea(
+      targetGrid.south, 
+      targetGrid.north, 
+      targetGrid.west, 
+      targetGrid.east, 
+      newZoom, 
+      pointsInGrid.length > 0 ? pointsInGrid : [{ lat: targetGrid.center.lat, lng: targetGrid.center.lng }]
+    );
 
     const parentGroup = targetGrid.parentGridGroup || {
       id: targetGrid.id,
@@ -2957,8 +2974,8 @@
       sg.parentGridGroup = parentGroup;
     });
 
-    pdfGrids = pdfGrids.filter(g => g.id !== selectedGridId);
-    pdfGrids.push(...newSubGrids);
+    // 選択された元の1区画「のみ」を取り除き、新しく生成された区画（1つまたは複数）と置換
+    pdfGrids.splice(targetGridIndex, 1, ...newSubGrids);
 
     reorderAndReindexGrids();
     renderPdfGridOverlay();
