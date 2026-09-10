@@ -117,21 +117,10 @@
 
     #map { flex: 1; height: 100%; position: relative; }
 
-    /* キャプチャ印字用のオーバーレイテキスト */
     #pdf-header-print-label {
-      display: none;
-      position: absolute;
-      top: 10px;
-      left: 15px;
-      z-index: 9999;
-      font-size: 16px;
-      font-weight: bold;
-      color: #222;
-      background: rgba(255, 255, 255, 0.9);
-      padding: 4px 10px;
-      border-radius: 4px;
-      border: 1px solid #aaa;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+      display: none; position: absolute; top: 10px; left: 15px; z-index: 9999;
+      font-size: 16px; font-weight: bold; color: #222; background: rgba(255, 255, 255, 0.9);
+      padding: 4px 10px; border-radius: 4px; border: 1px solid #aaa; box-shadow: 0 2px 5px rgba(0,0,0,0.15);
     }
 
     .leaflet-popup { margin-bottom: 0px !important; }
@@ -163,44 +152,39 @@
     .modal label { font-size: 11px; font-weight: bold; display: block; margin-top: 6px; margin-bottom: 2px; color: #333; }
     .modal input, .modal select { width: 100%; margin-bottom: 8px; box-sizing: border-box; padding: 8px; font-size: 12px; border: 1px solid #ccc; border-radius: 4px; }
     
-    /* マニュアル閲覧用モーダル */
     #manual-modal { width: 620px; max-width: 92vw; max-height: 85vh; display: none; flex-direction: column; }
     #manual-modal-body { overflow-y: auto; max-height: 60vh; font-size: 12px; line-height: 1.6; color: #333; padding-right: 5px; border-top: 1px solid #eee; border-bottom: 1px solid #eee; margin: 10px 0; }
     #manual-modal-body h5 { font-size: 13px; margin: 12px 0 4px 0; color: #007bff; border-left: 3px solid #007bff; padding-left: 6px; }
     #manual-modal-body ul { margin: 4px 0 10px 18px; padding: 0; }
 
-    /* ドラッグ移動可能なウィンドウバー付きモーダル */
     .draggable-modal {
-      position: absolute;
-      top: 60px;
-      left: 520px;
-      transform: none !important;
-      margin: 0;
-      z-index: 2500;
-      cursor: default;
+      position: absolute; top: 60px; left: 520px; transform: none !important; margin: 0; z-index: 2500; cursor: default;
     }
     .modal-drag-header {
-      background: #6f42c1;
-      color: white;
-      padding: 8px 12px;
-      margin: -20px -20px 12px -20px;
-      border-top-left-radius: 8px;
-      border-top-right-radius: 8px;
-      cursor: move;
-      user-select: none;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
+      background: #6f42c1; color: white; padding: 8px 12px; margin: -20px -20px 12px -20px;
+      border-top-left-radius: 8px; border-top-right-radius: 8px; cursor: move; user-select: none;
+      display: flex; justify-content: space-between; align-items: center;
     }
     .modal-drag-header h4 { margin: 0; font-size: 14px; color: white; }
 
     .grid-control-box {
-      background: #f1f3f5;
-      border: 1px solid #ced4da;
-      padding: 8px 10px;
-      border-radius: 6px;
-      margin-bottom: 12px;
+      background: #f1f3f5; border: 1px solid #ced4da; padding: 8px 10px; border-radius: 6px; margin-bottom: 12px;
     }
+
+    /* ★一括プレビューモーダルのスタイル★ */
+    #pdf-all-pages-modal {
+      width: 780px; max-width: 95vw; height: 85vh; display: none; flex-direction: column; z-index: 2800;
+    }
+    #pdf-thumbnails-container {
+      flex: 1; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 15px; padding: 10px; background: #e9ecef; border-radius: 6px; margin: 10px 0;
+    }
+    .pdf-thumb-card {
+      background: white; border: 1px solid #ccc; border-radius: 6px; padding: 6px; text-align: center;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1); display: flex; flex-direction: column; gap: 4px;
+    }
+    .pdf-thumb-img { width: 100%; height: 140px; object-fit: contain; border: 1px solid #eee; background: #fff; }
+    .pdf-thumb-title { font-size: 11px; font-weight: bold; color: #333; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
     #tab-rule-table { width: 100%; font-size: 12px; margin-bottom: 10px; border-collapse: collapse; }
     #tab-rule-table th, #tab-rule-table td { border: 1px solid #ddd; padding: 6px; text-align: left; }
@@ -216,38 +200,20 @@
     .btn-copy-action { background: #198754; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 12px; display: flex; align-items: center; justify-content: center; gap: 6px; }
     .btn-copy-action:hover { background: #146c43; }
 
-    /* 引き出し線（Leader Line）用スタイル */
     .leader-line-container { overflow: visible !important; }
     .leader-label-marker {
-      background: rgba(255, 255, 255, 0.95);
-      border: 1px solid #007bff;
-      border-radius: 4px;
-      padding: 2px 6px;
-      font-size: 11px;
-      font-weight: bold;
-      color: #007bff;
-      white-space: nowrap;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-      cursor: pointer;
-      display: inline-block;
+      background: rgba(255, 255, 255, 0.95); border: 1px solid #007bff; border-radius: 4px;
+      padding: 2px 6px; font-size: 11px; font-weight: bold; color: #007bff; white-space: nowrap;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2); cursor: pointer; display: inline-block;
     }
     .leader-label-marker:hover { background: #007bff; color: #fff; }
 
-    /* PDF区画ラベル用スタイル */
     .pdf-grid-label {
-      background: rgba(111, 66, 193, 0.9);
-      color: white;
-      font-weight: bold;
-      font-size: 12px;
-      padding: 2px 6px;
-      border-radius: 4px;
-      border: 1px solid #fff;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-      white-space: nowrap;
-      cursor: pointer;
+      background: rgba(111, 66, 193, 0.9); color: white; font-weight: bold; font-size: 12px;
+      padding: 2px 6px; border-radius: 4px; border: 1px solid #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+      white-space: nowrap; cursor: pointer;
     }
 
-    /* バックグラウンド印刷中オーバーレイ */
     #pdf-loading-overlay {
       display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
       background: rgba(0, 0, 0, 0.75); z-index: 10000; justify-content: center; align-items: center;
@@ -272,14 +238,12 @@
 </head>
 <body>
 
-<!-- バックグラウンド印刷中オーバーレイ -->
 <div id="pdf-loading-overlay">
   <div class="loading-spinner"></div>
   <div id="pdf-loading-msg" style="font-size:16px;">⏳ バックグラウンドでPDFを作成中...</div>
   <div id="pdf-loading-progress" style="font-size:13px; margin-top:8px; color:#ddd;">処理中 (0 / 0)</div>
 </div>
 
-<!-- Supabase Auth ログインモーダル -->
 <div id="login-overlay">
   <div class="login-card">
     <h2>🔒 ログイン</h2>
@@ -291,7 +255,6 @@
   </div>
 </div>
 
-<!-- 共有閲覧認証用モーダル -->
 <div id="share-auth-overlay" style="display:none;">
   <div class="login-card">
     <h2>🔑 共有データの閲覧認証</h2>
@@ -382,7 +345,6 @@
   <div id="lightbox-caption"></div>
 </div>
 
-<!-- 操作マニュアル ポップアップモーダル -->
 <div id="manual-modal" class="modal">
   <div style="display:flex; justify-content:space-between; align-items:center;">
     <h4 style="margin:0;">📖 アプリ操作マニュアル</h4>
@@ -417,13 +379,12 @@
     <h5>5. PDF連続印刷機能</h5>
     <ul>
       <li>「🖨️ PDF印刷」から基本ズーム（標準:17）や順序を選択してプレビューします。</li>
-      <li>区画枠をクリック・ドラッグで直接位置調整でき、直下パネルでズーム変更や消去・追加が簡単に行えます。</li>
+      <li>「🖼️ 全ページ一括プレビュー」で印刷前に出力イメージを全件まとめて事前確認できます。</li>
     </ul>
   </div>
   <button onclick="closeManualModal()" style="width:100%; background:#6c757d; color:white; border:none; padding:8px; border-radius:4px; cursor:pointer;">閉じる</button>
 </div>
 
-<!-- 選択共有設定モーダル -->
 <div id="share-config-modal" class="modal">
   <h4>🔗 選択共有の設定</h4>
   <p style="font-size:11px; color:#666; margin-bottom:12px;">強力なパスワードが自動生成されました（変更も可能です）。</p>
@@ -447,7 +408,6 @@
   </div>
 </div>
 
-<!-- PDF設定モーダル -->
 <div id="pdf-config-modal" class="modal">
   <h4>🖨️ PDF印刷設定</h4>
   <p style="font-size:11px; color:#666; margin-bottom:12px;">基本ズームレベルとスタート方向を選択して区画をプレビュー表示します。</p>
@@ -477,7 +437,7 @@
   </div>
 </div>
 
-<!-- 直下に区画操作パネルを統合したドラッグ移動可能コントロールモーダル -->
+<!-- 直下に区画操作パネルを統合したコントロールモーダル -->
 <div id="pdf-preview-control-modal" class="modal draggable-modal">
   <div class="modal-drag-header" id="pdf-control-drag-handle">
     <h4>📑 区画確認・個別設定</h4>
@@ -489,7 +449,6 @@
   <label style="font-size:11px; font-weight:bold; display:block; margin-bottom:2px;">PDF左上の表示タイトル（印字文字列）</label>
   <input type="text" id="pdf-custom-header-text" placeholder="例: ≪1工区≫" style="font-size:11px; padding:5px; margin-bottom:8px;" />
 
-  <!-- 区画選択時直下の編集パネル（統合UI） -->
   <div class="grid-control-box">
     <p id="pdf-selected-grid-status" style="font-size:11px; font-weight:bold; color:#0d6efd; margin:0 0 6px 0;">選択中の区画: なし（枠をクリック）</p>
     
@@ -512,7 +471,10 @@
     </div>
   </div>
 
-  <button id="btn-toggle-add-grid" onclick="toggleAddGridMode()" style="width:100%; padding:6px; background:#ffc107; color:#333; border:none; border-radius:4px; cursor:pointer; font-size:11px; font-weight:bold; margin-bottom:10px;">➕ 区画を追加（地図をクリック）: OFF</button>
+  <button id="btn-toggle-add-grid" onclick="toggleAddGridMode()" style="width:100%; padding:6px; background:#ffc107; color:#333; border:none; border-radius:4px; cursor:pointer; font-size:11px; font-weight:bold; margin-bottom:8px;">➕ 区画を追加（地図をクリック）: OFF</button>
+  
+  <!-- ★新設：全ページ一括プレビュー表示ボタン★ -->
+  <button onclick="generateAllPagesPreview()" style="width:100%; padding:7px; background:#17a2b8; color:white; border:none; border-radius:4px; cursor:pointer; font-size:11px; font-weight:bold; margin-bottom:10px;">🖼️ 全ページ一括プレビュー表示</button>
 
   <label style="font-size:11px; font-weight:bold; display:block; margin-bottom:2px;">印刷対象ページ選択</label>
   <div style="display:flex; gap:10px; margin-bottom:8px; font-size:11px;">
@@ -527,7 +489,19 @@
   </div>
 </div>
 
-<!-- 共有発行完了結果モーダル -->
+<!-- ★新設：印刷前 全ページ一括プレビュー モーダル★ -->
+<div id="pdf-all-pages-modal" class="modal">
+  <div style="display:flex; justify-content:space-between; align-items:center;">
+    <h4 style="margin:0;">🖼️ 印刷PDF 全ページ一括プレビュー</h4>
+    <button onclick="closeAllPagesPreview()" style="padding:4px 10px; background:#6c757d; color:white; border:none; border-radius:4px; cursor:pointer;">✕ 閉じる</button>
+  </div>
+  <p style="font-size:11px; color:#666; margin:6px 0 0 0;">実際にPDF印刷される各ページのレイアウト一覧です。</p>
+  <div id="pdf-thumbnails-container">
+    <!-- 各ページのキャプチャサムネイルが動的生成されます -->
+  </div>
+  <button onclick="closeAllPagesPreview()" style="width:100%; background:#0d6efd; color:white; border:none; padding:8px; border-radius:4px; cursor:pointer; font-weight:bold;">プレビューを閉じて元に戻る</button>
+</div>
+
 <div id="share-result-modal" class="modal">
   <h4>✅ 発行完了</h4>
   <p style="font-size:11px; color:#666; margin-bottom:10px;">以下のボタンでURLとパスワードをそれぞれコピーして共有してください。</p>
@@ -567,7 +541,6 @@
   <button onclick="closeTabConfigModal()" style="width:100%; margin-top:10px; background:#6c757d; color:white; border:none; padding:8px; border-radius:4px; cursor:pointer;">閉じる</button>
 </div>
 
-<!-- 新規ポイント追加モーダル -->
 <div id="form-container" class="modal">
   <h4 id="form-modal-title">新しいポイントを追加</h4>
   <p id="form-hint" style="font-size:11px; color:#0d6efd; margin:0 0 8px 0; display:none;">💡 地図上をクリックすると座標が自動入力されます</p>
@@ -592,7 +565,6 @@
   <div id="status-msg"></div>
 </div>
 
-<!-- ポイント情報変更（一括編集）モーダル -->
 <div id="edit-point-modal" class="modal">
   <h4>✏️ ポイント情報変更</h4>
   <input type="hidden" id="edit-point-id" />
@@ -646,7 +618,6 @@
   let leaderLineLayerGroup = L.layerGroup();
   let pdfGridLayerGroup = L.layerGroup();
 
-  // PDF出力制御用グローバル変数
   let pdfGrids = [];
   let isAddingGridMode = false;
   let activeBaseZoom = 17;
@@ -1058,50 +1029,6 @@
     document.getElementById('tab-config-modal').style.display = 'none';
   }
 
-  function openManualModal() {
-    document.getElementById('manual-modal').style.display = 'flex';
-  }
-  function closeManualModal() {
-    document.getElementById('manual-modal').style.display = 'none';
-  }
-
-  function downloadManualPdf() {
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF('portrait', 'mm', 'a4');
-
-    doc.setFontSize(16);
-    doc.text("点検管理アプリ 操作マニュアル", 14, 18);
-    doc.setFontSize(10);
-    doc.setTextColor(100);
-    doc.text(`発行日: ${new Date().toLocaleDateString('ja-JP')}`, 14, 25);
-
-    let y = 35;
-    const sections = [
-      { title: "1. 画面の基本構成", items: ["・左側サイドバー: ポイント管理、インポート、グループツリー、一括操作ボタン", "・右側マップ: ポイントピン、自動回避引き出し線ラベル、凡例、PDF印刷枠", "・中央リサイザー: 左右の境界線をドラッグして表示幅を変更可能"] },
-      { title: "2. ポイントの登録方法", items: ["・Excel/CSV一括インポート: ドラッグ＆ドロップで一括読み込み（テンプレート有）", "・地図上からの個別登録: 「＋個別登録」を押して地図をクリックすると座標入力"] },
-      { title: "3. ポイントの編集・管理機能", items: ["・情報変更: 各スポットの「情報変更」から表示名・スポット名・緯度経度を一括編集", "・点検状態切替: 「点検済」でピンが点検済色へ変化、「未実施」で元の色へ復旧", "・写真・判定管理: 各ピンから写真追加、拡大表示でコメントや健全度判定（Ⅰ〜Ⅳ）設定"] },
-      { title: "4. 閲覧モードと選択共有 (URL発行)", items: ["・「選択共有」から閲覧パスワードと有効期限（7〜28日）付きの閲覧用URLを発行可能"] },
-      { title: "5. PDF連続印刷機能 (メッシュ分割)", items: ["・「PDF印刷」から基本ズーム（標準17）や順序を選択して連写出力", "・区画枠をクリック・ドラッグで直接位置調整でき、直下パネルでズーム変更や消去・追加が簡単に行えます"] }
-    ];
-
-    sections.forEach(sec => {
-      doc.setFontSize(12);
-      doc.setTextColor(0, 102, 204);
-      doc.text(sec.title, 14, y);
-      y += 6;
-      doc.setFontSize(9.5);
-      doc.setTextColor(50);
-      sec.items.forEach(item => {
-        const lines = doc.splitTextToSize(item, 180);
-        doc.text(lines, 18, y);
-        y += (lines.length * 5);
-      });
-      y += 4;
-    });
-
-    doc.save(`点検管理アプリ_操作マニュアル_${Date.now()}.pdf`);
-  }
-
   function renderTabRuleTable() {
     const tbody = document.getElementById('tab-rule-list');
     tbody.innerHTML = '';
@@ -1379,6 +1306,7 @@
     markers[pId] = marker;
   }
 
+  /* ★【重要修正】引き出し線が遠くへ伸びるのを防止し、ピン周囲にコンパクトに収めるアルゴリズム★ */
   function updateLeaderLines() {
     leaderLineLayerGroup.clearLayers();
 
@@ -1398,10 +1326,10 @@
 
           const originPx = map.latLngToLayerPoint(latLng);
           pinObstacles.push({
-            left: originPx.x - 16,
-            right: originPx.x + 16,
-            top: originPx.y - 45,
-            bottom: originPx.y + 6
+            left: originPx.x - 12,
+            right: originPx.x + 12,
+            top: originPx.y - 38,
+            bottom: originPx.y + 4
           });
         }
       }
@@ -1412,8 +1340,8 @@
     visiblePoints.sort((a, b) => a.dist - b.dist);
     const targetPoints = visiblePoints.slice(0, 60);
 
-    const LABEL_WIDTH = 95;
-    const LABEL_HEIGHT = 22;
+    const LABEL_WIDTH = 85;
+    const LABEL_HEIGHT = 20;
     const placedObstacles = [...pinObstacles];
 
     targetPoints.forEach(item => {
@@ -1422,23 +1350,25 @@
       const dispTitle = p.display_title || p.title;
 
       const originPx = map.latLngToLayerPoint(originLatLng);
-      let targetPx = L.point(originPx.x + 35, originPx.y - 35);
-
-      let attempts = 0;
-      const maxAttempts = 24;
       
+      // ピンの左右・上下すぐ横のコンパクトな探索領域（遠くへ飛ぶのを防止）
       const directions = [
-        { x: 1, y: -1 }, { x: -1, y: -1 }, { x: 1, y: 1 }, { x: -1, y: 1 },
-        { x: 0, y: -2.0 }, { x: -2.0, y: 0 }, { x: 2.0, y: 0 }, { x: 0, y: 1.8 },
-        { x: 1.5, y: -2.2 }, { x: -1.5, y: -2.2 }, { x: 1.8, y: 1.5 }, { x: -1.8, y: 1.5 }
+        { x: 25, y: -15 }, { x: -95, y: -15 }, { x: 25, y: 15 }, { x: -95, y: 15 },
+        { x: 25, y: -35 }, { x: -95, y: -35 }, { x: 25, y: 35 }, { x: -95, y: 35 }
       ];
 
-      while (attempts < maxAttempts) {
+      let targetPx = L.point(originPx.x + directions[0].x, originPx.y + directions[0].y);
+      let attempts = 0;
+
+      while (attempts < directions.length) {
+        const dir = directions[attempts];
+        const testPx = L.point(originPx.x + dir.x, originPx.y + dir.y);
+
         const box = {
-          left: targetPx.x,
-          right: targetPx.x + LABEL_WIDTH,
-          top: targetPx.y - LABEL_HEIGHT / 2,
-          bottom: targetPx.y + LABEL_HEIGHT / 2
+          left: testPx.x,
+          right: testPx.x + LABEL_WIDTH,
+          top: testPx.y,
+          bottom: testPx.y + LABEL_HEIGHT
         };
 
         let hasOverlap = placedObstacles.some(b => {
@@ -1446,24 +1376,26 @@
         });
 
         if (!hasOverlap) {
+          targetPx = testPx;
           placedObstacles.push(box);
           break;
         }
 
-        const dir = directions[attempts % directions.length];
-        const step = Math.floor(attempts / directions.length) + 1;
-        const offsetX = dir.x * (32 + step * 20);
-        const offsetY = dir.y * (32 + step * 18);
-
-        targetPx = L.point(originPx.x + offsetX, originPx.y + offsetY);
         attempts++;
+      }
+
+      if (attempts === directions.length) {
+        placedObstacles.push({
+          left: targetPx.x, right: targetPx.x + LABEL_WIDTH,
+          top: targetPx.y, bottom: targetPx.y + LABEL_HEIGHT
+        });
       }
 
       const labelLatLng = map.layerPointToLatLng(targetPx);
 
       const line = L.polyline([originLatLng, labelLatLng], {
         color: '#007bff',
-        weight: 1.5,
+        weight: 1.2,
         dashArray: '3, 3',
         opacity: 0.85,
         interactive: false
@@ -2745,19 +2677,16 @@
     document.getElementById('pdf-preview-control-modal').style.display = 'block';
   }
 
-  /* ★【重要機能改善】画像2・4枚目のようにポイント群を1つの区画に包み込む最適化アルゴリズム★ */
   function generateGridsForArea(minLat, maxLat, minLng, maxLng, zoom, targetPoints) {
     const spans = getZoomSpans(zoom);
     const gridList = [];
 
-    // ポイントが存在するクラスタ（集まり）を抽出
     let unvisited = [...targetPoints];
 
     while (unvisited.length > 0) {
       let seed = unvisited.shift();
       let cluster = [seed];
 
-      // 1区画（A4横サイズ）の範囲内に収まる近接ポイントを同一グループ化
       for (let i = unvisited.length - 1; i >= 0; i--) {
         let p = unvisited[i];
         let fitsInOneGrid = cluster.every(cp => {
@@ -2771,7 +2700,6 @@
         }
       }
 
-      // クラスタのポイント群をちょうど中央に包含する最小A4枠を計算
       let cMinLat = 90, cMaxLat = -90, cMinLng = 180, cMaxLng = -180;
       cluster.forEach(p => {
         if (p.lat < cMinLat) cMinLat = p.lat;
@@ -2843,7 +2771,6 @@
     });
   }
 
-  /* ★【重要機能改善】区画ドラッグ時に枠とラベルがスムーズにリアルタイム追従表示★ */
   function renderPdfGridOverlay() {
     pdfGridLayerGroup.clearLayers();
 
@@ -2900,7 +2827,6 @@
           [currentBounds.getNorth() + latDiff, currentBounds.getEast() + lngDiff]
         ]);
 
-        // 枠とラベルをリアルタイムに画面上へスムーズ描画追従
         rect.setBounds(newBounds);
         labelMarker.setLatLng([newBounds.getNorth(), newBounds.getWest()]);
         
@@ -2995,7 +2921,6 @@
     }
   }
 
-  /* ★【重要機能改善】ズームを戻す：分裂した全子区画を1つの元の17相当の1区画へ完全再統合★ */
   function resetDirectGridZoom() {
     if (!selectedGridId) return;
     const targetGrid = pdfGrids.find(g => g.id === selectedGridId);
@@ -3108,6 +3033,73 @@
     renderPdfGridOverlay();
     updatePreviewInfoText();
     updateDirectGridControls(newGrid);
+  }
+
+  /* ★【新設】印刷前の全ページ一括プレビュー機能（サムネイル一覧表示）★ */
+  async function generateAllPagesPreview() {
+    if (pdfGrids.length === 0) return;
+
+    const originalCenter = map.getCenter();
+    const originalZoom = map.getZoom();
+
+    const loadingOverlay = document.getElementById('pdf-loading-overlay');
+    const loadingProgress = document.getElementById('pdf-loading-progress');
+    const thumbsContainer = document.getElementById('pdf-thumbnails-container');
+    
+    loadingOverlay.style.display = 'flex';
+    thumbsContainer.innerHTML = '';
+
+    pdfGridLayerGroup.clearLayers();
+    leaderLineLayerGroup.clearLayers();
+
+    const customHeaderText = document.getElementById('pdf-custom-header-text').value.trim();
+    const headerPrintLabel = document.getElementById('pdf-header-print-label');
+    if (customHeaderText) {
+      headerPrintLabel.textContent = customHeaderText;
+      headerPrintLabel.style.display = 'block';
+    }
+
+    try {
+      for (let i = 0; i < pdfGrids.length; i++) {
+        const grid = pdfGrids[i];
+        loadingProgress.textContent = `プレビュー読み込み中... (${i + 1} / ${pdfGrids.length} ページ目)`;
+
+        map.setView(grid.center, grid.zoom, { animate: false });
+        await new Promise(r => setTimeout(r, 550));
+        updateLeaderLines();
+
+        const canvas = await html2canvas(document.getElementById('map'), {
+          useCORS: true,
+          allowTaint: true,
+          scale: 1.2
+        });
+
+        const imgData = canvas.toDataURL('image/jpeg', 0.75);
+
+        const card = document.createElement('div');
+        card.className = 'pdf-thumb-card';
+        card.innerHTML = `
+          <div class="pdf-thumb-title">Page ${grid.pageNumber} (Zoom ${grid.zoom})</div>
+          <img src="${imgData}" class="pdf-thumb-img" alt="P.${grid.pageNumber}" />
+        `;
+        thumbsContainer.appendChild(card);
+      }
+
+      document.getElementById('pdf-all-pages-modal').style.display = 'flex';
+    } catch (err) {
+      console.error('一括プレビュー例外:', err);
+      alert('一括プレビューの生成中にエラーが発生しました: ' + err.message);
+    } finally {
+      headerPrintLabel.style.display = 'none';
+      loadingOverlay.style.display = 'none';
+      map.setView(originalCenter, originalZoom, { animate: false });
+      renderPdfGridOverlay();
+      updateLeaderLines();
+    }
+  }
+
+  function closeAllPagesPreview() {
+    document.getElementById('pdf-all-pages-modal').style.display = 'none';
   }
 
   function togglePageRangeInput() {
