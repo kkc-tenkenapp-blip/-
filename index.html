@@ -1075,7 +1075,7 @@
       y += 4;
     });
 
-    doc.save(`点検管理アプリ_操作マニュアル_${Date.now()}.pdf`);
+    doc.save(`点検マップ_出力_${Date.now()}.pdf`);
   }
 
   function renderTabRuleTable() {
@@ -1402,7 +1402,7 @@
 
       const originPx = map.latLngToLayerPoint(originLatLng);
       
-      // どの縮尺でもピンのそば（四方・直近）にピタリと固定配置する相対ピクセルオフセット
+      // どの縮尺でもピンのすぐそば（四方・直近）に絶対固定配置する相対ピクセルオフセット
       const directions = [
         { x: -LABEL_WIDTH / 2, y: -62 },  // 直上（ピン先端のすぐ上）
         { x: 15, y: -25 },                // 直右（ピン胴体のすぐ右）
@@ -1442,8 +1442,9 @@
         attempts++;
       }
 
-      // 重なりを回避できない場合も、遠くへ飛ばさず最も近い直上候補に固定
+      // 重なりを回避できない場合も遠くに飛ばさず、一番近い直上候補（1番目のオフセット）に強制吸着
       if (attempts === directions.length) {
+        targetPx = L.point(originPx.x + directions[0].x, originPx.y + directions[0].y);
         placedObstacles.push({
           left: targetPx.x, right: targetPx.x + LABEL_WIDTH,
           top: targetPx.y, bottom: targetPx.y + LABEL_HEIGHT
@@ -1452,7 +1453,7 @@
 
       const labelLatLng = map.layerPointToLatLng(targetPx);
 
-      // 引き出し線は完全非表示。ピン側へくっついた位置へラベルを表示
+      // 本来のスポット名/ピン表示名を表示
       const labelIcon = L.divIcon({
         className: 'auto-label-container',
         html: `<div class="auto-label-marker" onclick="onAutoLabelClick(event, ${p.id})">${dispTitle}</div>`,
