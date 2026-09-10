@@ -41,7 +41,10 @@
     #sidebar-header { padding: 12px; background: #007bff; color: white; display: flex; flex-direction: column; gap: 6px; }
     .header-top { display: flex; justify-content: space-between; align-items: center; }
     .header-top h3 { margin: 0; font-size: 16px; }
+    .header-btns { display: flex; gap: 6px; align-items: center; }
 
+    .btn-manual-header { background: #17a2b8; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; }
+    .btn-manual-header:hover { background: #138496; }
     .btn-logout { background: #dc3545; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; }
     
     #share-bar { padding: 8px 12px; background: #e7f1ff; border-bottom: 1px solid #b6d4fe; display: flex; justify-content: space-between; align-items: center; gap: 4px; flex-wrap: wrap; }
@@ -114,6 +117,23 @@
 
     #map { flex: 1; height: 100%; position: relative; }
 
+    /* キャプチャ印字用のオーバーレイテキスト */
+    #pdf-header-print-label {
+      display: none;
+      position: absolute;
+      top: 10px;
+      left: 15px;
+      z-index: 9999;
+      font-size: 16px;
+      font-weight: bold;
+      color: #222;
+      background: rgba(255, 255, 255, 0.9);
+      padding: 4px 10px;
+      border-radius: 4px;
+      border: 1px solid #aaa;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+    }
+
     .leaflet-popup { margin-bottom: 0px !important; }
     .leaflet-popup-content-wrapper { padding: 10px; max-width: none !important; width: max-content !important; border-radius: 12px; }
     .leaflet-popup-content { margin: 8px; width: auto !important; }
@@ -143,6 +163,37 @@
     .modal label { font-size: 11px; font-weight: bold; display: block; margin-top: 6px; margin-bottom: 2px; color: #333; }
     .modal input, .modal select { width: 100%; margin-bottom: 8px; box-sizing: border-box; padding: 8px; font-size: 12px; border: 1px solid #ccc; border-radius: 4px; }
     
+    /* マニュアル閲覧用モーダル */
+    #manual-modal { width: 620px; max-width: 92vw; max-height: 85vh; display: none; flex-direction: column; }
+    #manual-modal-body { overflow-y: auto; max-height: 60vh; font-size: 12px; line-height: 1.6; color: #333; padding-right: 5px; border-top: 1px solid #eee; border-bottom: 1px solid #eee; margin: 10px 0; }
+    #manual-modal-body h5 { font-size: 13px; margin: 12px 0 4px 0; color: #007bff; border-left: 3px solid #007bff; padding-left: 6px; }
+    #manual-modal-body ul { margin: 4px 0 10px 18px; padding: 0; }
+
+    /* ドラッグ（移動）可能なウィンドウバー付きモーダル */
+    .draggable-modal {
+      position: absolute;
+      top: 60px;
+      left: 520px;
+      transform: none !important;
+      margin: 0;
+      z-index: 2500;
+      cursor: default;
+    }
+    .modal-drag-header {
+      background: #6f42c1;
+      color: white;
+      padding: 8px 12px;
+      margin: -20px -20px 12px -20px;
+      border-top-left-radius: 8px;
+      border-top-right-radius: 8px;
+      cursor: move;
+      user-select: none;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .modal-drag-header h4 { margin: 0; font-size: 14px; color: white; }
+
     #tab-rule-table { width: 100%; font-size: 12px; margin-bottom: 10px; border-collapse: collapse; }
     #tab-rule-table th, #tab-rule-table td { border: 1px solid #ddd; padding: 6px; text-align: left; }
     #readonly-banner { display: none; background: #ffc107; color: #333; text-align: center; padding: 6px; font-size: 12px; font-weight: bold; }
@@ -176,7 +227,7 @@
 
     /* PDF区画ラベル用スタイル */
     .pdf-grid-label {
-      background: rgba(220, 53, 69, 0.88);
+      background: rgba(111, 66, 193, 0.9);
       color: white;
       font-weight: bold;
       font-size: 12px;
@@ -206,6 +257,8 @@
       #resizer { width: 100% !important; height: 10px !important; background: #ccc !important; cursor: row-resize !important; position: relative; touch-action: none; }
       #map { width: 100%; height: 45vh; }
       #import-area, #share-bar { display: none !important; }
+      .btn-manual-header { display: none !important; }
+      .draggable-modal { left: 10px !important; top: 10px !important; }
     }
   </style>
 </head>
@@ -255,7 +308,10 @@
   <div id="sidebar-header">
     <div class="header-top">
       <h3>点検管理アプリ</h3>
-      <button class="btn-logout editable-only" onclick="logoutSupabase()">ログアウト</button>
+      <div class="header-btns">
+        <button class="btn-manual-header editable-only" onclick="openManualModal()">📖 マニュアル</button>
+        <button class="btn-logout editable-only" onclick="logoutSupabase()">ログアウト</button>
+      </div>
     </div>
   </div>
 
@@ -305,6 +361,7 @@
 <div id="resizer"></div>
 
 <div id="map">
+  <div id="pdf-header-print-label"></div>
   <div id="legend-box" onclick="openTabConfigModal(event)">
     <h5>凡例 (クリックで編集 ⚙️)</h5>
     <div id="legend-list">タブ設定なし</div>
@@ -315,6 +372,48 @@
   <span id="lightbox-close">&times;</span>
   <img id="lightbox-img" src="" alt="拡大表示" />
   <div id="lightbox-caption"></div>
+</div>
+
+<!-- 操作マニュアル ポップアップモーダル -->
+<div id="manual-modal" class="modal">
+  <div style="display:flex; justify-content:space-between; align-items:center;">
+    <h4 style="margin:0;">📖 アプリ操作マニュアル</h4>
+    <button onclick="downloadManualPdf()" style="padding:6px 12px; background:#17a2b8; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold; font-size:12px;">📥 PDFダウンロード</button>
+  </div>
+  <div id="manual-modal-body">
+    <h5>1. 画面の基本構成</h5>
+    <ul>
+      <li><b>左側サイドバー</b>: ポイントの登録・検索・グループ一覧（木製ツリー構造）・一括操作ボタン</li>
+      <li><b>右側マップ表示エリア</b>: 点検ポイントのピン表示、引き出し線（ピン名ラベル）、凡例、PDF区画オーバーレイ</li>
+      <li><b>中央リサイザー</b>: 左右の境界線をドラッグすることでサイドバーの幅を自由に変更可能</li>
+    </ul>
+
+    <h5>2. ポイントの登録方法</h5>
+    <ul>
+      <li><b>Excel / CSV 一括インポート</b>: 「📂 Excelをドロップ」領域にファイルをドラッグ＆ドロップします。「📥 テンプレート」からフォーマットを取得できます。</li>
+      <li><b>地図からの個別登録</b>: 「➕ 個別登録」を押した後、地図上の目的の場所をクリックすると座標が自動入力されます。</li>
+    </ul>
+
+    <h5>3. ポイントの編集・管理機能</h5>
+    <ul>
+      <li><b>情報変更</b>: 各スポットの「情報変更」ボタンからピン表示名・スポット名・緯度経度を一括編集可能です。</li>
+      <li><b>点検状態（点検済/未実施）</b>: 「点検済」を押すとピンの色が点検済タブの色へ変化、「未実施」を押すと元の色へ復旧します。</li>
+      <li><b>写真・判定管理</b>: 各ピンから写真追加、拡大表示でコメント入力や健全度判定（Ⅰ〜Ⅳ）の設定ができます。</li>
+    </ul>
+
+    <h5>4. 閲覧モードと選択共有 (URL発行)</h5>
+    <ul>
+      <li>共有したいポイントをチェックし「🔗 選択共有」から閲覧用パスワードと有効期限（7〜28日）を設定して専用URLを発行できます。</li>
+    </ul>
+
+    <h5>5. PDF連続印刷機能</h5>
+    <ul>
+      <li>「🖨️ PDF印刷」から基本ズーム（標準:17）や順序を選択してプレビューします。</li>
+      <li>区画選択や編集モードで個別ズーム調整、削除、枠のドラッグ調整が自由に行えます。</li>
+      <li>文字化けのない美しいタイトルヘッダー付きでPDF出力できます。</li>
+    </ul>
+  </div>
+  <button onclick="closeManualModal()" style="width:100%; background:#6c757d; color:white; border:none; padding:8px; border-radius:4px; cursor:pointer;">閉じる</button>
 </div>
 
 <!-- 選択共有設定モーダル -->
@@ -371,23 +470,62 @@
   </div>
 </div>
 
-<!-- PDFプレビューコントロールモーダル -->
-<div id="pdf-preview-control-modal" class="modal" style="z-index: 2500;">
-  <h4>📑 区画確認・個別設定</h4>
-  <p id="pdf-preview-info" style="font-size:11px; color:#333; margin-bottom:6px;">区分け数: 0 区画</p>
-  <p style="font-size:10px; color:#666; margin-bottom:10px;">💡 地図上の区画枠をクリックすると、その区画だけのズームレベル変更・再区分けができます。</p>
-
-  <label style="font-size:11px; font-weight:bold; display:block; margin-bottom:2px;">印刷対象ページ選択</label>
-  <div style="display:flex; gap:10px; margin-bottom:8px; font-size:11px;">
-    <label><input type="radio" name="pdf-page-range-type" value="all" checked onchange="togglePageRangeInput()" /> すべて印刷</label>
-    <label><input type="radio" name="pdf-page-range-type" value="custom" onchange="togglePageRangeInput()" /> ページ指定</label>
+<!-- ★改修：ドラッグ移動可能な区画確認・個別設定画面★ -->
+<div id="pdf-preview-control-modal" class="modal draggable-modal">
+  <div class="modal-drag-header" id="pdf-control-drag-handle">
+    <h4>📑 区画確認・個別設定</h4>
+    <span style="font-size:10px; opacity:0.8;">⠿ ドラッグで移動</span>
   </div>
-  <input type="text" id="pdf-page-range-input" placeholder="例: 1-3, 5" style="display:none; font-size:11px; padding:5px; margin-bottom:10px;" />
+  
+  <p id="pdf-preview-info" style="font-size:11px; color:#333; margin-bottom:6px;">区分け数: 0 区画</p>
+  
+  <label style="font-size:11px; font-weight:bold; display:block; margin-bottom:2px;">PDF左上の表示タイトル（印字文字列）</label>
+  <input type="text" id="pdf-custom-header-text" placeholder="例: ≪1工区≫" style="font-size:11px; padding:5px; margin-bottom:8px;" />
 
-  <div style="display: flex; flex-direction: column; gap: 6px;">
-    <button id="btn-toggle-edit-grid" onclick="toggleEditGridMode()" style="padding:6px; background:#17a2b8; color:white; border:none; border-radius:4px; cursor:pointer; font-size:12px; font-weight:bold;">✏️ 区画枠のドラッグ調整: OFF</button>
-    <button id="btn-start-export-pdf" onclick="executePdfExport()" style="padding:8px; background:#198754; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">🚀 印刷実行 (PDF出力)</button>
-    <button onclick="cancelPdfPreview()" style="padding:6px; background:#6c757d; color:white; border:none; border-radius:4px; cursor:pointer; font-size:12px;">閉じる</button>
+  <!-- 通常表示モード時の操作要素 -->
+  <div id="pdf-control-view-mode">
+    <p id="pdf-selected-grid-status" style="font-size:11px; color:#0d6efd; font-weight:bold; margin-bottom:8px;">選択中の区画: なし（枠をクリック）</p>
+    <button id="btn-enter-grid-edit" onclick="enterGridEditMode()" disabled style="width:100%; padding:7px; background:#0d6efd; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold; margin-bottom:8px; opacity:0.5;">✏️ 選択した区画を編集</button>
+
+    <label style="font-size:11px; font-weight:bold; display:block; margin-bottom:2px;">印刷対象ページ選択</label>
+    <div style="display:flex; gap:10px; margin-bottom:8px; font-size:11px;">
+      <label><input type="radio" name="pdf-page-range-type" value="all" checked onchange="togglePageRangeInput()" /> すべて印刷</label>
+      <label><input type="radio" name="pdf-page-range-type" value="custom" onchange="togglePageRangeInput()" /> ページ指定</label>
+    </div>
+    <input type="text" id="pdf-page-range-input" placeholder="例: 1-3, 5" style="display:none; font-size:11px; padding:5px; margin-bottom:10px;" />
+
+    <div style="display: flex; flex-direction: column; gap: 6px;">
+      <button id="btn-toggle-drag-grid" onclick="toggleEditGridMode()" style="padding:6px; background:#17a2b8; color:white; border:none; border-radius:4px; cursor:pointer; font-size:12px; font-weight:bold;">↔️ 区画枠のドラッグ位置調整: OFF</button>
+      <button id="btn-start-export-pdf" onclick="executePdfExport()" style="padding:8px; background:#198754; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">🚀 印刷実行 (PDF出力)</button>
+      <button onclick="cancelPdfPreview()" style="padding:6px; background:#6c757d; color:white; border:none; border-radius:4px; cursor:pointer; font-size:12px;">閉じる</button>
+    </div>
+  </div>
+
+  <!-- ★区画編集モード時の操作UI★ -->
+  <div id="pdf-control-edit-mode" style="display:none;">
+    <div style="background:#e7f1ff; border:1px solid #9ec5fe; padding:8px; border-radius:6px; margin-bottom:10px;">
+      <p id="edit-grid-title" style="font-size:12px; font-weight:bold; color:#0d6efd; margin:0 0 6px 0;">区画 P.1 の編集中</p>
+      
+      <label>ズームレベル変更</label>
+      <select id="edit-grid-zoom-select" onchange="applyEditGridZoom()">
+        <option value="14">ズーム 14</option>
+        <option value="15">ズーム 15</option>
+        <option value="16">ズーム 16</option>
+        <option value="17">ズーム 17</option>
+        <option value="18">ズーム 18</option>
+        <option value="19">ズーム 19</option>
+        <option value="20">ズーム 20</option>
+      </select>
+
+      <div style="display:flex; gap:6px; margin-top:8px;">
+        <button onclick="resetEditGridZoom()" style="flex:1; padding:5px; background:#6c757d; color:white; border:none; border-radius:4px; font-size:11px; cursor:pointer;">↩️ ズームを戻す</button>
+        <button onclick="deleteSelectedGrid()" style="flex:1; padding:5px; background:#dc3545; color:white; border:none; border-radius:4px; font-size:11px; cursor:pointer; font-weight:bold;">🗑️ 区画を消去</button>
+      </div>
+    </div>
+
+    <button id="btn-toggle-add-grid" onclick="toggleAddGridMode()" style="width:100%; padding:6px; background:#ffc107; color:#333; border:none; border-radius:4px; cursor:pointer; font-size:11px; font-weight:bold; margin-bottom:10px;">➕ 区画を追加（地図をクリック）: OFF</button>
+
+    <button onclick="exitGridEditMode()" style="width:100%; padding:8px; background:#198754; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">✅ 編集完了</button>
   </div>
 </div>
 
@@ -513,7 +651,9 @@
   // PDF出力制御用グローバル変数
   let pdfGrids = [];
   let isGridEditMode = false;
+  let isAddingGridMode = false;
   let activeBaseZoom = 17;
+  let selectedGridId = null;
 
   const sidebar = document.getElementById('sidebar');
   const mapElem = document.getElementById('map');
@@ -576,6 +716,38 @@
       map.invalidateSize();
     }
   });
+
+  /* ★ドラッグ移動可能なダイアログ設定★ */
+  function setupDraggableModal(modalId, handleId) {
+    const modal = document.getElementById(modalId);
+    const handle = document.getElementById(handleId);
+    let isDragging = false, startX, startY, initialLeft, initialTop;
+
+    handle.addEventListener('mousedown', (e) => {
+      isDragging = true;
+      startX = e.clientX;
+      startY = e.clientY;
+      initialLeft = modal.offsetLeft;
+      initialTop = modal.offsetTop;
+      document.addEventListener('mousemove', onMouseMove);
+      document.addEventListener('mouseup', onMouseUp);
+    });
+
+    function onMouseMove(e) {
+      if (!isDragging) return;
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+      modal.style.left = `${initialLeft + dx}px`;
+      modal.style.top = `${initialTop + dy}px`;
+    }
+
+    function onMouseUp() {
+      isDragging = false;
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+    }
+  }
+  setupDraggableModal('pdf-preview-control-modal', 'pdf-control-drag-handle');
 
   function generateStrongPassword(length = 8) {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
@@ -888,6 +1060,50 @@
   }
   function closeTabConfigModal() {
     document.getElementById('tab-config-modal').style.display = 'none';
+  }
+
+  function openManualModal() {
+    document.getElementById('manual-modal').style.display = 'flex';
+  }
+  function closeManualModal() {
+    document.getElementById('manual-modal').style.display = 'none';
+  }
+
+  function downloadManualPdf() {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF('portrait', 'mm', 'a4');
+
+    doc.setFontSize(16);
+    doc.text("点検管理アプリ 操作マニュアル", 14, 18);
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    doc.text(`発行日: ${new Date().toLocaleDateString('ja-JP')}`, 14, 25);
+
+    let y = 35;
+    const sections = [
+      { title: "1. 画面の基本構成", items: ["・左側サイドバー: ポイント管理、インポート、グループツリー、一括操作ボタン", "・右側マップ: ポイントピン、自動回避引き出し線ラベル、凡例、PDF印刷枠", "・中央リサイザー: 左右の境界線をドラッグして表示幅を変更可能"] },
+      { title: "2. ポイントの登録方法", items: ["・Excel/CSV一括インポート: ドラッグ＆ドロップで一括読み込み（テンプレート有）", "・地図上からの個別登録: 「＋個別登録」を押して地図をクリックすると座標入力"] },
+      { title: "3. ポイントの編集・管理機能", items: ["・情報変更: 各スポットの「情報変更」から表示名・スポット名・緯度経度を一括編集", "・点検状態切替: 「点検済」でピンが点検済色へ変化、「未実施」で元の色へ復旧", "・写真・判定管理: 各ピンから写真追加、拡大表示でコメントや健全度判定（Ⅰ〜Ⅳ）設定"] },
+      { title: "4. 閲覧モードと選択共有 (URL発行)", items: ["・「選択共有」から閲覧パスワードと有効期限（7〜28日）付きの閲覧用URLを発行可能"] },
+      { title: "5. PDF連続印刷機能 (メッシュ分割)", items: ["・「PDF印刷」から基本ズーム（標準17）や順序を選択して連写出力", "・区画選択や編集モードで個別ズーム調整、削除、枠のドラッグ調整が自由に行えます"] }
+    ];
+
+    sections.forEach(sec => {
+      doc.setFontSize(12);
+      doc.setTextColor(0, 102, 204);
+      doc.text(sec.title, 14, y);
+      y += 6;
+      doc.setFontSize(9.5);
+      doc.setTextColor(50);
+      sec.items.forEach(item => {
+        const lines = doc.splitTextToSize(item, 180);
+        doc.text(lines, 18, y);
+        y += (lines.length * 5);
+      });
+      y += 4;
+    });
+
+    doc.save(`点検管理アプリ_操作マニュアル_${Date.now()}.pdf`);
   }
 
   function renderTabRuleTable() {
@@ -2368,6 +2584,11 @@
 
   map.on('click', (e) => {
     if (isReadOnly) return;
+    if (isAddingGridMode) {
+      // 区画追加モード時の処理
+      addNewGridAtLatLng(e.latlng);
+      return;
+    }
     if (isManualRegisterMode) {
       selectedLatLng = e.latlng;
       document.getElementById('spot-lat').value = e.latlng.lat.toFixed(6);
@@ -2456,7 +2677,7 @@
   }
 
   /* ==========================================================================
-   * 🖨️ PDF印刷・個別ズーム区分け・グループ名ヘッダー印字機能
+   * 🖨️ PDF印刷・区画選択・ドラッグ移動モーダル・完全編集機能
    * ========================================================================== */
 
   function openPdfConfigModal() {
@@ -2513,6 +2734,13 @@
     pdfGrids = sortGridsByDirection(rawGrids, startDirection);
     reindexPdfGrids();
 
+    // デフォルトのヘッダー印字テキストを自動生成して入力欄にセット
+    const autoHeaderText = getGroupHeaderTextForBounds(L.latLngBounds([[minLat, minLng], [maxLat, maxLng]]));
+    document.getElementById('pdf-custom-header-text').value = autoHeaderText || '≪点検マップ≫';
+
+    selectedGridId = null;
+    exitGridEditMode();
+
     map.fitBounds(L.latLngBounds([[minLat, minLng], [maxLat, maxLng]]), { padding: [30, 30] });
     renderPdfGridOverlay();
 
@@ -2541,12 +2769,20 @@
             west: lng,
             east: lng + spans.lngSpan,
             center: bounds.getCenter(),
-            zoom: zoom
+            zoom: zoom,
+            originalZoom: zoom
           });
         }
       }
     }
     return resultGrids;
+  }
+
+  /* ★指定された方向順序に従って番号を再採番★ */
+  function reorderAndReindexGrids() {
+    const startDirection = document.getElementById('pdf-start-direction').value;
+    pdfGrids = sortGridsByDirection(pdfGrids, startDirection);
+    reindexPdfGrids();
   }
 
   function reindexPdfGrids() {
@@ -2577,32 +2813,42 @@
     });
   }
 
+  /* ★区画描画およびインタラクティブ選択（選択区画の色変化）★ */
   function renderPdfGridOverlay() {
     pdfGridLayerGroup.clearLayers();
 
     pdfGrids.forEach((grid) => {
+      const isSelected = (grid.id === selectedGridId);
+
       const rect = L.rectangle(grid.bounds, {
-        color: '#6f42c1',
-        weight: 2,
-        fillColor: '#6f42c1',
-        fillOpacity: 0.1,
+        color: isSelected ? '#fd7e14' : '#6f42c1',
+        weight: isSelected ? 3.5 : 2,
+        fillColor: isSelected ? '#fd7e14' : '#6f42c1',
+        fillOpacity: isSelected ? 0.25 : 0.08,
         interactive: true
       });
 
       const labelIcon = L.divIcon({
         className: 'pdf-grid-label-container',
-        html: `<div class="pdf-grid-label" title="クリックしてこの区画のズーム変更">P.${grid.pageNumber} (Z:${grid.zoom})</div>`,
+        html: `<div class="pdf-grid-label" style="background:${isSelected ? '#fd7e14' : 'rgba(111, 66, 193, 0.9)'}">P.${grid.pageNumber} (Z:${grid.zoom})</div>`,
         iconAnchor: [-6, -6]
       });
       const labelMarker = L.marker([grid.north, grid.west], { icon: labelIcon, interactive: true });
 
-      const onGridClick = (e) => {
+      const onGridSelect = (e) => {
         if (e) e.originalEvent.stopPropagation();
-        openIndividualGridZoomModal(grid.id);
+        selectedGridId = grid.id;
+        renderPdfGridOverlay();
+
+        // 選択された区画情報を表示し、編集ボタンを有効化
+        document.getElementById('pdf-selected-grid-status').textContent = `選択中: P.${grid.pageNumber} 区画 (Zoom ${grid.zoom})`;
+        const btnEdit = document.getElementById('btn-enter-grid-edit');
+        btnEdit.disabled = false;
+        btnEdit.style.opacity = '1.0';
       };
 
-      rect.on('click', onGridClick);
-      labelMarker.on('click', onGridClick);
+      rect.on('click', onGridSelect);
+      labelMarker.on('click', onGridSelect);
 
       if (isGridEditMode) {
         let isDragging = false;
@@ -2642,6 +2888,8 @@
             isDragging = false;
             startLatLng = null;
             map.dragging.enable();
+            reorderAndReindexGrids();
+            renderPdfGridOverlay();
           }
         });
       }
@@ -2651,44 +2899,168 @@
     });
   }
 
-  function openIndividualGridZoomModal(gridId) {
-    const targetGrid = pdfGrids.find(g => g.id === gridId);
-    if (!targetGrid) return;
+  /* ★区画編集画面への切り替え★ */
+  function enterGridEditMode() {
+    if (!selectedGridId) return;
+    const grid = pdfGrids.find(g => g.id === selectedGridId);
+    if (!grid) return;
 
-    const input = prompt(`【P.${targetGrid.pageNumber} 区画の設定】\nこの区画の新しいズームレベルを入力してください (14～20):\n※変更するとこの範囲が指定ズームで再区分けされます`, targetGrid.zoom);
-    if (!input) return;
+    document.getElementById('pdf-control-view-mode').style.display = 'none';
+    document.getElementById('pdf-control-edit-mode').style.display = 'block';
 
-    const newZoom = parseInt(input.trim(), 10);
-    if (isNaN(newZoom) || newZoom < 14 || newZoom > 20) {
-      alert('有効なズームレベル (14～20) を入力してください');
-      return;
+    document.getElementById('edit-grid-title').textContent = `区画 P.${grid.pageNumber} の編集中`;
+    document.getElementById('edit-grid-zoom-select').value = String(grid.zoom);
+  }
+
+  /* ★区画編集画面から通常画面へ戻る★ */
+  function exitGridEditMode() {
+    isAddingGridMode = false;
+    const btnAdd = document.getElementById('btn-toggle-add-grid');
+    if (btnAdd) {
+      btnAdd.textContent = '➕ 区画を追加（地図をクリック）: OFF';
+      btnAdd.style.background = '#ffc107';
     }
 
+    document.getElementById('pdf-control-edit-mode').style.display = 'none';
+    document.getElementById('pdf-control-view-mode').style.display = 'block';
+
+    reorderAndReindexGrids();
+    renderPdfGridOverlay();
+    updatePreviewInfoText();
+  }
+
+  /* ★編集画面：ズームレベル変更（数値変更時自動で再区分け）★ */
+  function applyEditGridZoom() {
+    if (!selectedGridId) return;
+    const targetGrid = pdfGrids.find(g => g.id === selectedGridId);
+    if (!targetGrid) return;
+
+    const newZoom = parseInt(document.getElementById('edit-grid-zoom-select').value, 10);
     if (newZoom === targetGrid.zoom) return;
 
     const targetPoints = getPdfTargetPoints();
     const newSubGrids = generateGridsForArea(targetGrid.south, targetGrid.north, targetGrid.west, targetGrid.east, newZoom, targetPoints);
 
-    pdfGrids = pdfGrids.filter(g => g.id !== gridId);
+    pdfGrids = pdfGrids.filter(g => g.id !== selectedGridId);
     pdfGrids.push(...newSubGrids);
 
-    const startDirection = document.getElementById('pdf-start-direction').value;
-    pdfGrids = sortGridsByDirection(pdfGrids, startDirection);
-    reindexPdfGrids();
-
+    reorderAndReindexGrids();
     renderPdfGridOverlay();
     updatePreviewInfoText();
+
+    // 先頭の分割区画を選択状態にする
+    if (newSubGrids.length > 0) {
+      selectedGridId = newSubGrids[0].id;
+      const firstG = newSubGrids[0];
+      document.getElementById('edit-grid-title').textContent = `区画 P.${firstG.pageNumber} の編集中`;
+    }
+  }
+
+  /* ★編集画面：ズームレベルを元の状態に戻す★ */
+  function resetEditGridZoom() {
+    if (!selectedGridId) return;
+    const targetGrid = pdfGrids.find(g => g.id === selectedGridId);
+    if (!targetGrid || !targetGrid.originalZoom) return;
+
+    document.getElementById('edit-grid-zoom-select').value = String(targetGrid.originalZoom);
+    applyEditGridZoom();
+  }
+
+  /* ★編集画面：区画を消去★ */
+  function deleteSelectedGrid() {
+    if (!selectedGridId) return;
+    const grid = pdfGrids.find(g => g.id === selectedGridId);
+    if (!grid) return;
+
+    if (confirm(`区画 P.${grid.pageNumber} を削除しますか？`)) {
+      pdfGrids = pdfGrids.filter(g => g.id !== selectedGridId);
+      selectedGridId = null;
+      
+      reorderAndReindexGrids();
+      renderPdfGridOverlay();
+      updatePreviewInfoText();
+
+      document.getElementById('pdf-selected-grid-status').textContent = '選択中の区画: なし（枠をクリック）';
+      const btnEdit = document.getElementById('btn-enter-grid-edit');
+      btnEdit.disabled = true;
+      btnEdit.style.opacity = '0.5';
+
+      exitGridEditMode();
+    }
+  }
+
+  // キーボード Delete / Backspace キーでも選択区画を削除可能にする
+  document.addEventListener('keydown', (e) => {
+    const editModeStyle = document.getElementById('pdf-control-edit-mode').style.display;
+    if (editModeStyle === 'block' && (e.key === 'Delete' || e.key === 'Backspace')) {
+      const activeEl = document.activeElement;
+      if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'SELECT' || activeEl.tagName === 'TEXTAREA')) {
+        return;
+      }
+      e.preventDefault();
+      deleteSelectedGrid();
+    }
+  });
+
+  /* ★編集画面：区画追加モードのトグル★ */
+  function toggleAddGridMode() {
+    isAddingGridMode = !isAddingGridMode;
+    const btn = document.getElementById('btn-toggle-add-grid');
+    if (isAddingGridMode) {
+      btn.textContent = '➕ 地図上をクリックして区画追加中... (クリックで解除)';
+      btn.style.background = '#17a2b8';
+      btn.style.color = 'white';
+    } else {
+      btn.textContent = '➕ 区画を追加（地図をクリック）: OFF';
+      btn.style.background = '#ffc107';
+      btn.style.color = '#333';
+    }
+  }
+
+  /* 地図クリック時に同じズームレベルの区画枠を1つ追加 */
+  function addNewGridAtLatLng(latLng) {
+    const currentZoom = parseInt(document.getElementById('edit-grid-zoom-select').value, 10) || activeBaseZoom;
+    const spans = getZoomSpans(currentZoom);
+
+    const lat = latLng.lat + spans.latSpan / 2;
+    const lng = latLng.lng - spans.lngSpan / 2;
+
+    const bounds = L.latLngBounds([
+      [lat - spans.latSpan, lng],
+      [lat, lng + spans.lngSpan]
+    ]);
+
+    const newGrid = {
+      id: 'grid_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
+      bounds: bounds,
+      north: lat,
+      south: lat - spans.latSpan,
+      west: lng,
+      east: lng + spans.lngSpan,
+      center: bounds.getCenter(),
+      zoom: currentZoom,
+      originalZoom: currentZoom
+    };
+
+    pdfGrids.push(newGrid);
+    selectedGridId = newGrid.id;
+
+    reorderAndReindexGrids();
+    renderPdfGridOverlay();
+    updatePreviewInfoText();
+
+    document.getElementById('edit-grid-title').textContent = `区画 P.${newGrid.pageNumber} の編集中`;
   }
 
   function toggleEditGridMode() {
     isGridEditMode = !isGridEditMode;
-    const btn = document.getElementById('btn-toggle-edit-grid');
+    const btn = document.getElementById('btn-toggle-drag-grid');
     if (isGridEditMode) {
-      btn.textContent = '🔓 ドラッグ調整中: ON (完了したら再クリック)';
+      btn.textContent = '↔️ 区画枠のドラッグ位置調整: ON (完了時再クリック)';
       btn.style.background = '#ffc107';
       btn.style.color = '#333';
     } else {
-      btn.textContent = '✏️ 区画枠のドラッグ調整: OFF';
+      btn.textContent = '↔️ 区画枠のドラッグ位置調整: OFF';
       btn.style.background = '#17a2b8';
       btn.style.color = 'white';
     }
@@ -2723,11 +3095,12 @@
 
   function cancelPdfPreview() {
     isGridEditMode = false;
+    isAddingGridMode = false;
+    selectedGridId = null;
     pdfGridLayerGroup.clearLayers();
     document.getElementById('pdf-preview-control-modal').style.display = 'none';
   }
 
-  /* ★【新設】区画内のポイントからグループ名（優先順：孫＞子＞親）を自動抽出する関数★ */
   function getGroupHeaderTextForBounds(bounds) {
     const targetPoints = getPdfTargetPoints().filter(p => bounds.contains([p.lat, p.lng]));
     if (targetPoints.length === 0) return '';
@@ -2761,7 +3134,7 @@
     return selectedNames.map(name => `≪${name}≫`).join(', ');
   }
 
-  /* ★【機能改善】PDFの余白・グループ名ヘッダー印字対応バックグラウンド生成★ */
+  /* ★【重要修正】文字化け防止：画面キャプチャ（html2canvas）に印字ラベルを含めて画像化する方式★ */
   async function executePdfExport() {
     if (pdfGrids.length === 0) return;
 
@@ -2780,7 +3153,9 @@
       exportGrids = [...pdfGrids];
     }
 
-    if (!confirm(`全 ${exportGrids.length} ページのPDFを出力しますか？\n（グループ名ヘッダー・マージン付きで綺麗に印刷出力されます）`)) return;
+    if (!confirm(`全 ${exportGrids.length} ページのPDFを出力しますか？`)) return;
+
+    const customHeaderText = document.getElementById('pdf-custom-header-text').value.trim();
 
     const originalCenter = map.getCenter();
     const originalZoom = map.getZoom();
@@ -2791,6 +3166,15 @@
 
     pdfGridLayerGroup.clearLayers();
     leaderLineLayerGroup.clearLayers();
+
+    // キャプチャ要素用のタイトル表示用Divをアクティブ化
+    const headerPrintLabel = document.getElementById('pdf-header-print-label');
+    if (customHeaderText) {
+      headerPrintLabel.textContent = customHeaderText;
+      headerPrintLabel.style.display = 'block';
+    } else {
+      headerPrintLabel.style.display = 'none';
+    }
 
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF('landscape', 'mm', 'a4');
@@ -2809,6 +3193,7 @@
         await new Promise(r => setTimeout(r, 650));
         updateLeaderLines();
 
+        // 地図と左上タイトルテキストを含めて高解像度キャプチャ
         const canvas = await html2canvas(document.getElementById('map'), {
           useCORS: true,
           allowTaint: true,
@@ -2819,23 +3204,14 @@
 
         if (i > 0) pdf.addPage();
         
-        // 地図画像の描画
         pdf.addImage(imgData, 'JPEG', margin, margin, printWidth, printHeight);
 
-        // 外枠線（ボーダー）
+        // 外枠線
         pdf.setDrawColor(180, 180, 180);
         pdf.setLineWidth(0.3);
         pdf.rect(margin, margin, printWidth, printHeight);
 
-        // ★【新設】左上にグループ名を印字（優先順: 孫＞子＞親）
-        const groupHeaderText = getGroupHeaderTextForBounds(grid.bounds);
-        if (groupHeaderText) {
-          pdf.setFontSize(11);
-          pdf.setTextColor(30, 30, 30);
-          pdf.text(groupHeaderText, margin, margin - 3);
-        }
-
-        // フッター（ページ番号印字）
+        // フッター（ページ番号印字 - 英数字のみで文字化けを防止）
         pdf.setFontSize(9);
         pdf.setTextColor(100);
         pdf.text(`Page ${grid.pageNumber} / ${pdfGrids.length} (Zoom ${grid.zoom})`, margin, 205);
@@ -2847,6 +3223,7 @@
       console.error('PDF出力例外:', err);
       alert('PDFの生成中にエラーが発生しました: ' + err.message);
     } finally {
+      headerPrintLabel.style.display = 'none';
       loadingOverlay.style.display = 'none';
       map.setView(originalCenter, originalZoom, { animate: false });
       cancelPdfPreview();
@@ -2857,7 +3234,7 @@
   supabaseClient.channel('public:points')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'points' }, () => {
       if (!isReadOnly && !isSelfOperating) {
- loadInitialPoints();
+        loadInitialPoints();
       }
     })
     .subscribe();
