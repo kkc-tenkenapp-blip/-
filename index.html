@@ -478,7 +478,7 @@
   </div>
 </div>
 
-<!-- ★改修：直下に区画操作パネルを統合したドラッグ移動可能コントロールモーダル★ -->
+<!-- 直下に区画操作パネルを統合したドラッグ移動可能コントロールモーダル -->
 <div id="pdf-preview-control-modal" class="modal draggable-modal">
   <div class="modal-drag-header" id="pdf-control-drag-handle">
     <h4>📑 区画確認・個別設定</h4>
@@ -490,7 +490,7 @@
   <label style="font-size:11px; font-weight:bold; display:block; margin-bottom:2px;">PDF左上の表示タイトル（印字文字列）</label>
   <input type="text" id="pdf-custom-header-text" placeholder="例: ≪1工区≫" style="font-size:11px; padding:5px; margin-bottom:8px;" />
 
-  <!-- ★区画選択時直下の編集パネル（統合UI）★ -->
+  <!-- 区画選択時直下の編集パネル（統合UI） -->
   <div class="grid-control-box">
     <p id="pdf-selected-grid-status" style="font-size:11px; font-weight:bold; color:#0d6efd; margin:0 0 6px 0;">選択中の区画: なし（枠をクリック）</p>
     
@@ -1057,6 +1057,50 @@
   }
   function closeTabConfigModal() {
     document.getElementById('tab-config-modal').style.display = 'none';
+  }
+
+  function openManualModal() {
+    document.getElementById('manual-modal').style.display = 'flex';
+  }
+  function closeManualModal() {
+    document.getElementById('manual-modal').style.display = 'none';
+  }
+
+  function downloadManualPdf() {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF('portrait', 'mm', 'a4');
+
+    doc.setFontSize(16);
+    doc.text("点検管理アプリ 操作マニュアル", 14, 18);
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    doc.text(`発行日: ${new Date().toLocaleDateString('ja-JP')}`, 14, 25);
+
+    let y = 35;
+    const sections = [
+      { title: "1. 画面の基本構成", items: ["・左側サイドバー: ポイント管理、インポート、グループツリー、一括操作ボタン", "・右側マップ: ポイントピン、自動回避引き出し線ラベル、凡例、PDF印刷枠", "・中央リサイザー: 左右の境界線をドラッグして表示幅を変更可能"] },
+      { title: "2. ポイントの登録方法", items: ["・Excel/CSV一括インポート: ドラッグ＆ドロップで一括読み込み（テンプレート有）", "・地図上からの個別登録: 「＋個別登録」を押して地図をクリックすると座標入力"] },
+      { title: "3. ポイントの編集・管理機能", items: ["・情報変更: 各スポットの「情報変更」から表示名・スポット名・緯度経度を一括編集", "・点検状態切替: 「点検済」でピンが点検済色へ変化、「未実施」で元の色へ復旧", "・写真・判定管理: 各ピンから写真追加、拡大表示でコメントや健全度判定（Ⅰ〜Ⅳ）設定"] },
+      { title: "4. 閲覧モードと選択共有 (URL発行)", items: ["・「選択共有」から閲覧パスワードと有効期限（7〜28日）付きの閲覧用URLを発行可能"] },
+      { title: "5. PDF連続印刷機能 (メッシュ分割)", items: ["・「PDF印刷」から基本ズーム（標準17）や順序を選択して連写出力", "・区画枠をクリック・ドラッグで直接位置調整でき、直下パネルでズーム変更や消去・追加が簡単に行えます"] }
+    ];
+
+    sections.forEach(sec => {
+      doc.setFontSize(12);
+      doc.setTextColor(0, 102, 204);
+      doc.text(sec.title, 14, y);
+      y += 6;
+      doc.setFontSize(9.5);
+      doc.setTextColor(50);
+      sec.items.forEach(item => {
+        const lines = doc.splitTextToSize(item, 180);
+        doc.text(lines, 18, y);
+        y += (lines.length * 5);
+      });
+      y += 4;
+    });
+
+    doc.save(`点検管理アプリ_操作マニュアル_${Date.now()}.pdf`);
   }
 
   function renderTabRuleTable() {
@@ -2629,7 +2673,7 @@
   }
 
   /* ==========================================================================
-   * 🖨️ PDF印刷・自動結合・10%重複・即時ドラッグ＆直下コントロールパネル
+   * 🖨️ PDF印刷・自動統合・10%重複・即時ドラッグ＆直下コントロールパネル
    * ========================================================================== */
 
   function openPdfConfigModal() {
@@ -2649,13 +2693,11 @@
     return allPoints.filter(p => checkedPointIds.has(Number(p.id)));
   }
 
-  /* ★【機能強化】10% 重複（オーバートップ）を考慮したスパン計算★ */
   function getZoomSpans(zoom) {
     const baseLatSpan = 0.0028;  // Zoom 17相当
     const baseLngSpan = 0.0052;
     const factor = Math.pow(2, 17 - zoom);
     
-    // スパン自体を算出（実質移動ステップは 0.9 倍）
     return {
       latSpan: baseLatSpan * factor,
       lngSpan: baseLngSpan * factor,
@@ -2704,12 +2746,11 @@
     document.getElementById('pdf-preview-control-modal').style.display = 'block';
   }
 
-  /* ★【重要機能改善】10%重複 ＆ 隣接区画の自動統合（枚数削減優先）★ */
+  /* ★【機能強化】Bounding Boxによる自動最小統合（無駄な空白分割を排除して1区画化）★ */
   function generateGridsForArea(minLat, maxLat, minLng, maxLng, zoom, targetPoints) {
     const spans = getZoomSpans(zoom);
     let initialBlocks = [];
 
-    // 1. 10%重複付きグリッドでブロック切り出し
     for (let lat = maxLat; lat > minLat - spans.latSpan; lat -= spans.stepLat) {
       for (let lng = minLng; lng < maxLng + spans.lngSpan; lng += spans.stepLng) {
         const bounds = L.latLngBounds([
@@ -2732,53 +2773,82 @@
       }
     }
 
-    // 2. 横方向に隣接し、1区画の最大幅(1印刷サイズ)でカバーできる場合はまとめる（枚数削減）
+    // クラスター単位にグループ化し、1つの印刷枠に収まる場合は最小Bounding Boxで1区画へ最適化統合
     const mergedGrids = [];
     let visited = new Set();
 
     for (let i = 0; i < initialBlocks.length; i++) {
       if (visited.has(i)) continue;
-      let current = initialBlocks[i];
+      let cluster = [initialBlocks[i]];
       visited.add(i);
-
-      let mergedWest = current.west;
-      let mergedEast = current.east;
-      let mergedSouth = current.south;
-      let mergedNorth = current.north;
 
       for (let j = i + 1; j < initialBlocks.length; j++) {
         if (visited.has(j)) continue;
-        let next = initialBlocks[j];
+        let testBlock = initialBlocks[j];
 
-        // 緯度位置が同等（同列）で横に並んでいるか
-        if (Math.abs(current.north - next.north) < 0.0002) {
-          const testWest = Math.min(mergedWest, next.west);
-          const testEast = Math.max(mergedEast, next.east);
+        // 距離が近い（隣接している）ブロックをクラスタ化
+        let isClose = cluster.some(b => {
+          return (Math.abs(b.north - testBlock.north) <= spans.latSpan * 1.2) &&
+                 (Math.abs(b.west - testBlock.west) <= spans.lngSpan * 1.2);
+        });
 
-          // まとめても1区画あたりの幅サイズに収まる場合は結合
-          if ((testEast - testWest) <= spans.lngSpan * 1.1) {
-            mergedWest = testWest;
-            mergedEast = testEast;
-            visited.add(j);
-          }
+        if (isClose) {
+          cluster.push(testBlock);
+          visited.add(j);
         }
       }
 
+      // クラスター内のポイント全体を包含する最小バウンディングボックスを計算
+      let cMinLat = 90, cMaxLat = -90, cMinLng = 180, cMaxLng = -180;
+      let clusterPoints = [];
+      cluster.forEach(b => {
+        b.points.forEach(p => {
+          clusterPoints.push(p);
+          if (p.lat < cMinLat) cMinLat = p.lat;
+          if (p.lat > cMaxLat) cMaxLat = p.lat;
+          if (p.lng < cMinLng) cMinLng = p.lng;
+          if (p.lng > cMaxLng) cMaxLng = p.lng;
+        });
+      });
+
+      // 印刷可能サイズ（spans）へ中心を維持して成形
+      let cCenterLat = (cMinLat + cMaxLat) / 2;
+      let cCenterLng = (cMinLng + cMaxLng) / 2;
+
+      let finalSouth = Math.min(cMinLat - spans.latSpan * 0.1, cCenterLat - spans.latSpan / 2);
+      let finalNorth = Math.max(cMaxLat + spans.latSpan * 0.1, cCenterLat + spans.latSpan / 2);
+      let finalWest = Math.min(cMinLng - spans.lngSpan * 0.1, cCenterLng - spans.lngSpan / 2);
+      let finalEast = Math.max(cMaxLng + spans.lngSpan * 0.1, cCenterLng + spans.lngSpan / 2);
+
+      // 幅や高さが規定サイズを超える場合は標準幅に補正
+      if ((finalNorth - finalSouth) < spans.latSpan) {
+        finalNorth = cCenterLat + spans.latSpan / 2;
+        finalSouth = cCenterLat - spans.latSpan / 2;
+      }
+      if ((finalEast - finalWest) < spans.lngSpan) {
+        finalEast = cCenterLng + spans.lngSpan / 2;
+        finalWest = cCenterLng - spans.lngSpan / 2;
+      }
+
       const finalBounds = L.latLngBounds([
-        [mergedSouth, mergedWest],
-        [mergedNorth, mergedEast]
+        [finalSouth, finalWest],
+        [finalNorth, finalEast]
       ]);
 
+      const gridId = 'grid_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
+
       mergedGrids.push({
-        id: 'grid_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
+        id: gridId,
+        parentGridId: null, // 親区画ID
         bounds: finalBounds,
-        north: mergedNorth,
-        south: mergedSouth,
-        west: mergedWest,
-        east: mergedEast,
+        north: finalNorth,
+        south: finalSouth,
+        west: finalWest,
+        east: finalEast,
         center: finalBounds.getCenter(),
         zoom: zoom,
-        originalZoom: zoom
+        originalZoom: zoom,
+        originalBounds: finalBounds
       });
     }
 
@@ -2819,7 +2889,6 @@
     });
   }
 
-  /* ★【重要機能改善】区画選択時の即時ドラッグ移動 ＆ 直下パネル自動連動★ */
   function renderPdfGridOverlay() {
     pdfGridLayerGroup.clearLayers();
 
@@ -2851,7 +2920,6 @@
       rect.on('click', onGridSelect);
       labelMarker.on('click', onGridSelect);
 
-      // ★区画を選択した時点で直接ドラッグ移動を有効化（ボタン操作不要）★
       let isDragging = false;
       let startLatLng = null;
 
@@ -2903,7 +2971,6 @@
     });
   }
 
-  /* 直下コントロールパネルの選択状態・コントロール更新 */
   function updateDirectGridControls(grid) {
     document.getElementById('pdf-selected-grid-status').textContent = `選択中: P.${grid.pageNumber} 区画 (Zoom ${grid.zoom})`;
     
@@ -2935,7 +3002,7 @@
     btnDel.style.opacity = '0.5';
   }
 
-  /* モーダル直下：ズームレベル直接変更 */
+  /* ★【機能改善】ズーム変更時に分解された子区画群へ親ID（parentGridId）を付与★ */
   function applyDirectGridZoom() {
     if (!selectedGridId) return;
     const targetGrid = pdfGrids.find(g => g.id === selectedGridId);
@@ -2946,6 +3013,14 @@
 
     const targetPoints = getPdfTargetPoints();
     const newSubGrids = generateGridsForArea(targetGrid.south, targetGrid.north, targetGrid.west, targetGrid.east, newZoom, targetPoints);
+
+    // 親区画の情報を保持させて分割
+    const parentId = targetGrid.parentGridId || targetGrid.id;
+    newSubGrids.forEach(sg => {
+      sg.parentGridId = parentId;
+      sg.originalBounds = targetGrid.originalBounds || targetGrid.bounds;
+      sg.originalZoom = targetGrid.originalZoom || targetGrid.zoom;
+    });
 
     pdfGrids = pdfGrids.filter(g => g.id !== selectedGridId);
     pdfGrids.push(...newSubGrids);
@@ -2963,17 +3038,47 @@
     }
   }
 
-  /* モーダル直下：ズームレベルを復元 */
+  /* ★【重要機能改善】ズームを戻す：19等で分かれた子区画群を、元の17相当の1区画へ再復元★ */
   function resetDirectGridZoom() {
     if (!selectedGridId) return;
     const targetGrid = pdfGrids.find(g => g.id === selectedGridId);
-    if (!targetGrid || !targetGrid.originalZoom) return;
+    if (!targetGrid) return;
 
-    document.getElementById('direct-grid-zoom-select').value = String(targetGrid.originalZoom);
-    applyDirectGridZoom();
+    // 親区画ID、または元のバウンディングボックスを所有しているかチェック
+    const parentId = targetGrid.parentGridId;
+    const origZoom = targetGrid.originalZoom || activeBaseZoom;
+    const origBounds = targetGrid.originalBounds || targetGrid.bounds;
+
+    if (parentId) {
+      // 同じ親から分裂した子区画をすべて除去し、元の1つの区画に戻す
+      pdfGrids = pdfGrids.filter(g => g.parentGridId !== parentId && g.id !== parentId && g.id !== selectedGridId);
+    } else {
+      pdfGrids = pdfGrids.filter(g => g.id !== selectedGridId);
+    }
+
+    const restoredGrid = {
+      id: parentId || ('grid_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6)),
+      parentGridId: null,
+      bounds: origBounds,
+      north: origBounds.getNorth(),
+      south: origBounds.getSouth(),
+      west: origBounds.getWest(),
+      east: origBounds.getEast(),
+      center: origBounds.getCenter(),
+      zoom: origZoom,
+      originalZoom: origZoom,
+      originalBounds: origBounds
+    };
+
+    pdfGrids.push(restoredGrid);
+    selectedGridId = restoredGrid.id;
+
+    reorderAndReindexGrids();
+    renderPdfGridOverlay();
+    updatePreviewInfoText();
+    updateDirectGridControls(restoredGrid);
   }
 
-  /* モーダル直下およびDeleteキー：区画消去 */
   function deleteSelectedGrid() {
     if (!selectedGridId) return;
     const grid = pdfGrids.find(g => g.id === selectedGridId);
@@ -2990,7 +3095,6 @@
     }
   }
 
-  // Delete / Backspace キー選択時消去イベント
   document.addEventListener('keydown', (e) => {
     const modalStyle = document.getElementById('pdf-preview-control-modal').style.display;
     if (modalStyle === 'block' && selectedGridId && (e.key === 'Delete' || e.key === 'Backspace')) {
@@ -3031,6 +3135,7 @@
 
     const newGrid = {
       id: 'grid_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
+      parentGridId: null,
       bounds: bounds,
       north: lat,
       south: lat - spans.latSpan,
@@ -3038,7 +3143,8 @@
       east: lng + spans.lngSpan,
       center: bounds.getCenter(),
       zoom: currentZoom,
-      originalZoom: currentZoom
+      originalZoom: currentZoom,
+      originalBounds: bounds
     };
 
     pdfGrids.push(newGrid);
