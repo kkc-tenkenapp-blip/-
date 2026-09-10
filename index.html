@@ -133,7 +133,7 @@
     .legend-item { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; }
     .legend-color { width: 12px; height: 12px; border-radius: 50%; display: inline-block; border: 1px solid rgba(0,0,0,0.2); }
 
-    /* ★ 丸ポイントの中にテキストを入れるCSS設定（文字はみ出し許可） ★ */
+    /* 丸ポイント基本スタイル */
     .circle-marker-badge {
       position: relative;
       width: 24px;
@@ -150,10 +150,26 @@
       font-size: 11px;
       font-weight: bold;
       color: #ffffff;
-      white-space: nowrap;       /* 改行せず横に伸ばす */
-      overflow: visible;         /* はみ出しを許可 */
-      text-shadow: 1px 1px 2px #000, -1px -1px 2px #000, 1px -1px 2px #000, -1px 1px 2px #000; /* 視認性向上の黒縁取り */
+      white-space: nowrap;
+      overflow: visible;
+      text-shadow: 1px 1px 2px #000, -1px -1px 2px #000, 1px -1px 2px #000, -1px 1px 2px #000;
       pointer-events: none;
+    }
+
+    /* ピン近接・重なり時にラベルを丸の上に浮き上がらせるクラス */
+    .circle-marker-badge.is-overlapping .circle-marker-label {
+      position: absolute;
+      bottom: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      margin-bottom: 3px;
+      background: rgba(0, 0, 0, 0.8);
+      color: #ffffff;
+      padding: 1px 5px;
+      border-radius: 4px;
+      font-size: 10px;
+      text-shadow: none;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.3);
     }
 
     /* PDF右上のインセット広域マップスタイル */
@@ -958,12 +974,12 @@
     yellow: '#ffc107'
   };
 
-  /* ★【重要】丸ポイントの中にラベル名（テキスト）を表示するアイコン生成機能（はみ出し可）★ */
-  function createCombinedIcon(dispName, color = 'blue') {
+  /* ★ 重なり判定を行い、近接している場合は上部にラベルを載せるアイコン機能 ★ */
+  function createCombinedIcon(dispName, color = 'blue', isOverlapping = false) {
     const hexColor = colorHexMap[color] || '#0d6efd';
 
     const iconHtml = `
-      <div class="circle-marker-badge" style="background-color:${hexColor};">
+      <div class="circle-marker-badge ${isOverlapping ? 'is-overlapping' : ''}" style="background-color:${hexColor};">
         <span class="circle-marker-label">${dispName}</span>
       </div>
     `;
@@ -1355,6 +1371,14 @@
     const isCheckedDone = !!point.is_checked;
     const dispName = point.display_title || point.title;
 
+    // ピン同士の近接・重なり判定（閾値: 緯度・経度差 約 0.0003）
+    const isOverlapping = allPoints.some(other => {
+      if (other.id === point.id) return false;
+      const latDiff = Math.abs(other.lat - point.lat);
+      const lngDiff = Math.abs(other.lng - point.lng);
+      return latDiff < 0.0003 && lngDiff < 0.0003;
+    });
+
     const popupContent = `
       <div style="width: auto; white-space: nowrap;">
         <small style="color:#666;">${point.group_name || 'グループなし'}</small>
@@ -1367,9 +1391,9 @@
       </div>
     `;
 
-    // 丸型ポイント＋テキスト内包型アイコンを使用
+    // 重なり判定結果を渡してアイコンを作成
     const marker = L.marker([point.lat, point.lng], {
-      icon: createCombinedIcon(dispName, point.color || 'blue')
+      icon: createCombinedIcon(dispName, point.color || 'blue', isOverlapping)
     }).bindPopup(popupContent, { maxWidth: "none" });
 
     marker.on('popupopen', () => {
@@ -2560,7 +2584,7 @@
   }
 
   /* ==========================================================================
-   * 🖨️ PDF印刷・拡大地図（ズーム11）オーバーレイ描画＆キャプチャ対応
+   * 🖨️ PDF印刷機能（右上ズーム14全体図＆全区画グレー／対象区画赤枠表示）
    * ========================================================================== */
 
   function openPdfConfigModal() {
@@ -2999,8 +3023,8 @@
     updateDirectGridControls(newGrid);
   }
 
-  /* ★ 右上用ズーム11拡大（広域）地図作成・削除ヘルパー ★ */
-  function createInsetMap(centerLatLng, targetBounds) {
+  /* ★ 右上用ズーム14全体図（全区画グレー描画＆対象区画赤枠表示）生成ヘルパー ★ */
+  function createInsetMap(centerLatLng, currentGrid) {
     const insetDiv = document.createElement('div');
     insetDiv.id = 'pdf-inset-map';
     document.getElementById('map').appendChild(insetDiv);
@@ -3008,19 +3032,23 @@
     const insetMap = L.map('pdf-inset-map', {
       zoomControl: false,
       attributionControl: false
-    }).setView(centerLatLng, 11);
+    }).setView(centerLatLng, 14);
 
     L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png', {
       maxZoom: 18
     }).addTo(insetMap);
 
-    // 現在の印刷範囲を赤枠で囲む
-    L.rectangle(targetBounds, {
-      color: '#dc3545',
-      weight: 2,
-      fillColor: '#dc3545',
-      fillOpacity: 0.25
-    }).addTo(insetMap);
+    // 全区画枠を描画（非対象区画: グレー点滅枠、対象区画: 太線赤枠）
+    pdfGrids.forEach(grid => {
+      const isCurrent = (grid.id === currentGrid.id);
+      L.rectangle(grid.bounds, {
+        color: isCurrent ? '#dc3545' : '#6c757d',
+        weight: isCurrent ? 2.5 : 1,
+        fillColor: isCurrent ? '#dc3545' : '#6c757d',
+        fillOpacity: isCurrent ? 0.35 : 0.08,
+        dashArray: isCurrent ? null : '3, 3'
+      }).addTo(insetMap);
+    });
 
     return { insetDiv, insetMap };
   }
@@ -3063,8 +3091,8 @@
 
         map.setView(grid.center, grid.zoom, { animate: false });
         
-        // ★ 右上に広域地図（ズーム11）を動的配置
-        const inset = createInsetMap(grid.center, grid.bounds);
+        // 右上にズーム14のインセット広域地図を描画（全区画＆対象区画強調）
+        const inset = createInsetMap(grid.center, grid);
         
         await new Promise(r => setTimeout(r, 650));
 
@@ -3074,7 +3102,6 @@
           scale: 1.2
         });
 
-        // 撮影後に広域地図を撤去
         removeInsetMap(inset);
 
         const imgData = canvas.toDataURL('image/jpeg', 0.75);
@@ -3223,8 +3250,8 @@
 
         map.setView(grid.center, grid.zoom, { animate: false });
         
-        // ★ 右上に広域地図（ズーム11）を動的配置
-        const inset = createInsetMap(grid.center, grid.bounds);
+        // 右上にズーム14のインセット広域地図を描画（全区画＆対象区画強調）
+        const inset = createInsetMap(grid.center, grid);
         
         await new Promise(r => setTimeout(r, 700));
 
@@ -3234,7 +3261,6 @@
           scale: 2
         });
 
-        // 撮影後に広域地図を撤去
         removeInsetMap(inset);
 
         const imgData = canvas.toDataURL('image/jpeg', 0.85);
