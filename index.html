@@ -2746,11 +2746,12 @@
     document.getElementById('pdf-preview-control-modal').style.display = 'block';
   }
 
-  /* ★【機能強化】Bounding Boxによる自動最小統合（無駄な空白分割を排除して1区画化）★ */
+  /* ★【機能改善】固定アスペクト比（A4横比率）の10%重複メッシュ生成★ */
   function generateGridsForArea(minLat, maxLat, minLng, maxLng, zoom, targetPoints) {
     const spans = getZoomSpans(zoom);
-    let initialBlocks = [];
+    const gridList = [];
 
+    // 10%重複（stepLat/stepLng）でA4横サイズの固定枠（latSpan, lngSpan）を配置
     for (let lat = maxLat; lat > minLat - spans.latSpan; lat -= spans.stepLat) {
       for (let lng = minLng; lng < maxLng + spans.lngSpan; lng += spans.stepLng) {
         const bounds = L.latLngBounds([
@@ -2758,101 +2759,28 @@
           [lat, lng + spans.lngSpan]
         ]);
 
+        // ポイントが存在する区画のみを抽出
         const containedPoints = targetPoints.filter(p => bounds.contains([p.lat, p.lng]));
         if (containedPoints.length > 0) {
-          initialBlocks.push({
+          const gridId = 'grid_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
+          gridList.push({
+            id: gridId,
+            parentGridId: null,
             bounds: bounds,
             north: lat,
             south: lat - spans.latSpan,
             west: lng,
             east: lng + spans.lngSpan,
-            points: containedPoints,
-            zoom: zoom
+            center: bounds.getCenter(),
+            zoom: zoom,
+            originalZoom: zoom,
+            originalBounds: bounds
           });
         }
       }
     }
 
-    // クラスター単位にグループ化し、1つの印刷枠に収まる場合は最小Bounding Boxで1区画へ最適化統合
-    const mergedGrids = [];
-    let visited = new Set();
-
-    for (let i = 0; i < initialBlocks.length; i++) {
-      if (visited.has(i)) continue;
-      let cluster = [initialBlocks[i]];
-      visited.add(i);
-
-      for (let j = i + 1; j < initialBlocks.length; j++) {
-        if (visited.has(j)) continue;
-        let testBlock = initialBlocks[j];
-
-        // 距離が近い（隣接している）ブロックをクラスタ化
-        let isClose = cluster.some(b => {
-          return (Math.abs(b.north - testBlock.north) <= spans.latSpan * 1.2) &&
-                 (Math.abs(b.west - testBlock.west) <= spans.lngSpan * 1.2);
-        });
-
-        if (isClose) {
-          cluster.push(testBlock);
-          visited.add(j);
-        }
-      }
-
-      // クラスター内のポイント全体を包含する最小バウンディングボックスを計算
-      let cMinLat = 90, cMaxLat = -90, cMinLng = 180, cMaxLng = -180;
-      let clusterPoints = [];
-      cluster.forEach(b => {
-        b.points.forEach(p => {
-          clusterPoints.push(p);
-          if (p.lat < cMinLat) cMinLat = p.lat;
-          if (p.lat > cMaxLat) cMaxLat = p.lat;
-          if (p.lng < cMinLng) cMinLng = p.lng;
-          if (p.lng > cMaxLng) cMaxLng = p.lng;
-        });
-      });
-
-      // 印刷可能サイズ（spans）へ中心を維持して成形
-      let cCenterLat = (cMinLat + cMaxLat) / 2;
-      let cCenterLng = (cMinLng + cMaxLng) / 2;
-
-      let finalSouth = Math.min(cMinLat - spans.latSpan * 0.1, cCenterLat - spans.latSpan / 2);
-      let finalNorth = Math.max(cMaxLat + spans.latSpan * 0.1, cCenterLat + spans.latSpan / 2);
-      let finalWest = Math.min(cMinLng - spans.lngSpan * 0.1, cCenterLng - spans.lngSpan / 2);
-      let finalEast = Math.max(cMaxLng + spans.lngSpan * 0.1, cCenterLng + spans.lngSpan / 2);
-
-      // 幅や高さが規定サイズを超える場合は標準幅に補正
-      if ((finalNorth - finalSouth) < spans.latSpan) {
-        finalNorth = cCenterLat + spans.latSpan / 2;
-        finalSouth = cCenterLat - spans.latSpan / 2;
-      }
-      if ((finalEast - finalWest) < spans.lngSpan) {
-        finalEast = cCenterLng + spans.lngSpan / 2;
-        finalWest = cCenterLng - spans.lngSpan / 2;
-      }
-
-      const finalBounds = L.latLngBounds([
-        [finalSouth, finalWest],
-        [finalNorth, finalEast]
-      ]);
-
-      const gridId = 'grid_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
-
-      mergedGrids.push({
-        id: gridId,
-        parentGridId: null, // 親区画ID
-        bounds: finalBounds,
-        north: finalNorth,
-        south: finalSouth,
-        west: finalWest,
-        east: finalEast,
-        center: finalBounds.getCenter(),
-        zoom: zoom,
-        originalZoom: zoom,
-        originalBounds: finalBounds
-      });
-    }
-
-    return mergedGrids;
+    return gridList;
   }
 
   function reorderAndReindexGrids() {
@@ -3002,7 +2930,7 @@
     btnDel.style.opacity = '0.5';
   }
 
-  /* ★【機能改善】ズーム変更時に分解された子区画群へ親ID（parentGridId）を付与★ */
+  /* ★【機能改善】ズーム変更時に元の親区画情報（parentGridGroup）を記憶させて分割★ */
   function applyDirectGridZoom() {
     if (!selectedGridId) return;
     const targetGrid = pdfGrids.find(g => g.id === selectedGridId);
@@ -3014,12 +2942,15 @@
     const targetPoints = getPdfTargetPoints();
     const newSubGrids = generateGridsForArea(targetGrid.south, targetGrid.north, targetGrid.west, targetGrid.east, newZoom, targetPoints);
 
-    // 親区画の情報を保持させて分割
-    const parentId = targetGrid.parentGridId || targetGrid.id;
+    // 親区画の情報を記憶
+    const parentGridData = targetGrid.parentGridData || {
+      id: targetGrid.id,
+      bounds: targetGrid.originalBounds || targetGrid.bounds,
+      zoom: targetGrid.originalZoom || targetGrid.zoom
+    };
+
     newSubGrids.forEach(sg => {
-      sg.parentGridId = parentId;
-      sg.originalBounds = targetGrid.originalBounds || targetGrid.bounds;
-      sg.originalZoom = targetGrid.originalZoom || targetGrid.zoom;
+      sg.parentGridData = parentGridData;
     });
 
     pdfGrids = pdfGrids.filter(g => g.id !== selectedGridId);
@@ -3038,45 +2969,44 @@
     }
   }
 
-  /* ★【重要機能改善】ズームを戻す：19等で分かれた子区画群を、元の17相当の1区画へ再復元★ */
+  /* ★【重要機能改善】ズームを戻す：19等で細分化された区画群を、元の17相当の1区画へ完全に統合復元★ */
   function resetDirectGridZoom() {
     if (!selectedGridId) return;
     const targetGrid = pdfGrids.find(g => g.id === selectedGridId);
     if (!targetGrid) return;
 
-    // 親区画ID、または元のバウンディングボックスを所有しているかチェック
-    const parentId = targetGrid.parentGridId;
-    const origZoom = targetGrid.originalZoom || activeBaseZoom;
-    const origBounds = targetGrid.originalBounds || targetGrid.bounds;
+    const parentData = targetGrid.parentGridData;
 
-    if (parentId) {
-      // 同じ親から分裂した子区画をすべて除去し、元の1つの区画に戻す
-      pdfGrids = pdfGrids.filter(g => g.parentGridId !== parentId && g.id !== parentId && g.id !== selectedGridId);
+    if (parentData) {
+      // 同じ親区画から分岐した全子区画を取り除いて1区画に統合
+      pdfGrids = pdfGrids.filter(g => (!g.parentGridData || g.parentGridData.id !== parentData.id) && g.id !== targetGrid.id);
+
+      const restoredGrid = {
+        id: parentData.id,
+        parentGridData: null,
+        bounds: parentData.bounds,
+        north: parentData.bounds.getNorth(),
+        south: parentData.bounds.getSouth(),
+        west: parentData.bounds.getWest(),
+        east: parentData.bounds.getEast(),
+        center: parentData.bounds.getCenter(),
+        zoom: parentData.zoom,
+        originalZoom: parentData.zoom,
+        originalBounds: parentData.bounds
+      };
+
+      pdfGrids.push(restoredGrid);
+      selectedGridId = restoredGrid.id;
+
+      reorderAndReindexGrids();
+      renderPdfGridOverlay();
+      updatePreviewInfoText();
+      updateDirectGridControls(restoredGrid);
     } else {
-      pdfGrids = pdfGrids.filter(g => g.id !== selectedGridId);
+      // 親情報がなければ基本ズームレベルへ直接復元
+      document.getElementById('direct-grid-zoom-select').value = String(targetGrid.originalZoom || activeBaseZoom);
+      applyDirectGridZoom();
     }
-
-    const restoredGrid = {
-      id: parentId || ('grid_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6)),
-      parentGridId: null,
-      bounds: origBounds,
-      north: origBounds.getNorth(),
-      south: origBounds.getSouth(),
-      west: origBounds.getWest(),
-      east: origBounds.getEast(),
-      center: origBounds.getCenter(),
-      zoom: origZoom,
-      originalZoom: origZoom,
-      originalBounds: origBounds
-    };
-
-    pdfGrids.push(restoredGrid);
-    selectedGridId = restoredGrid.id;
-
-    reorderAndReindexGrids();
-    renderPdfGridOverlay();
-    updatePreviewInfoText();
-    updateDirectGridControls(restoredGrid);
   }
 
   function deleteSelectedGrid() {
@@ -3135,7 +3065,7 @@
 
     const newGrid = {
       id: 'grid_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
-      parentGridId: null,
+      parentGridData: null,
       bounds: bounds,
       north: lat,
       south: lat - spans.latSpan,
