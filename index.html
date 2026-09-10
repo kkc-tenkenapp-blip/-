@@ -1019,7 +1019,7 @@
       const labelElem = iconElem.querySelector('.circle-marker-label');
       if (!labelElem) return;
 
-      // ★ ズーム15以下はラベル非表示（動作の高速化）
+      // ズーム15以下はラベル非表示（動作の高速化）
       if (currentZoom <= 15) {
         labelElem.classList.add('zoom-hide');
         return;
@@ -1030,7 +1030,7 @@
       const pinPixel = map.latLngToContainerPoint([point.lat, point.lng]);
       const radius = 20; // 回避時の離隔距離(px)
 
-      // ★ 自身より「後（配列順/ID順で上に来る）」に描画される近接ピンが存在するかチェック
+      // 自身より「後（配列順/ID順で上に来る）」に描画される近接ピンが存在するかチェック
       // ＝ 自分が【背面（下側）】になる場合のみ 吹き出し化の対象とする
       const isBehindOther = allPoints.some(other => {
         if (other.id === point.id) return false;
@@ -1038,7 +1038,6 @@
         const dist = Math.hypot(pinPixel.x - otherPixel.x, pinPixel.y - otherPixel.y);
         const isClose = dist < 35; // 35px以内の重なり判定
 
-        // 相手の方がIDが大きい（前面に描画される）場合は自分が背面
         return isClose && Number(other.id) > Number(point.id);
       });
 
@@ -2714,9 +2713,10 @@
     return allPoints.filter(p => checkedPointIds.has(Number(p.id)));
   }
 
+  /* ★ A4横比率（277:190）に合わせた区画スパン設定 ★ */
   function getZoomSpans(zoom) {
-    const baseLatSpan = 0.0028;   // Zoom 17相当
-    const baseLngSpan = 0.0052;
+    const baseLatSpan = 0.0038;  // 縦方向
+    const baseLngSpan = 0.0055;  // 横方向
     const factor = Math.pow(2, 17 - zoom);
     
     return {
@@ -2767,6 +2767,7 @@
     document.getElementById('pdf-preview-control-modal').style.display = 'block';
   }
 
+  /* ★ 集約判定を最適化した区画生成アルゴリズム ★ */
   function generateGridsForArea(minLat, maxLat, minLng, maxLng, zoom, targetPoints) {
     const spans = getZoomSpans(zoom);
     const gridList = [];
@@ -2780,8 +2781,8 @@
       for (let i = unvisited.length - 1; i >= 0; i--) {
         let p = unvisited[i];
         let fitsInOneGrid = cluster.every(cp => {
-          return Math.abs(cp.lat - p.lat) <= spans.latSpan * 0.95 &&
-                 Math.abs(cp.lng - p.lng) <= spans.lngSpan * 0.95;
+          return Math.abs(cp.lat - p.lat) <= spans.latSpan * 0.98 &&
+                 Math.abs(cp.lng - p.lng) <= spans.lngSpan * 0.98;
         });
 
         if (fitsInOneGrid) {
@@ -3133,7 +3134,7 @@
     updateDirectGridControls(newGrid);
   }
 
-  /* ★ 右上用ズーム14（全体図）全区画＆対象区画（赤枠）表示ヘルパー ★ */
+  /* ★ 右上用ズーム14（全体図）表示位置ズレ完全補正バージョン ★ */
   function createInsetMap(centerLatLng, currentGrid) {
     const insetDiv = document.createElement('div');
     insetDiv.id = 'pdf-inset-map';
@@ -3142,7 +3143,7 @@
     const insetMap = L.map('pdf-inset-map', {
       zoomControl: false,
       attributionControl: false
-    }).setView(centerLatLng, 14);
+    });
 
     L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png', {
       maxZoom: 18
@@ -3159,6 +3160,10 @@
       }).addTo(insetMap);
     });
 
+    // サイズ補正を呼び出してから中心座標を確実に適用
+    insetMap.invalidateSize();
+    insetMap.setView(centerLatLng, 14, { animate: false });
+
     return { insetDiv, insetMap };
   }
 
@@ -3174,6 +3179,9 @@
   async function generateAllPagesPreview() {
     if (pdfGrids.length === 0) return;
 
+    const mapElem = document.getElementById('map');
+    const origWidth = mapElem.style.width;
+    const origHeight = mapElem.style.height;
     const originalCenter = map.getCenter();
     const originalZoom = map.getZoom();
 
@@ -3194,6 +3202,11 @@
     }
 
     try {
+      // キャプチャ用に一時的にA4横の比率（1108px x 760px）にマップサイズを完全統一
+      mapElem.style.width = '1108px';
+      mapElem.style.height = '760px';
+      map.invalidateSize();
+
       for (let i = 0; i < pdfGrids.length; i++) {
         const grid = pdfGrids[i];
         loadingProgress.textContent = `プレビュー読み込み中... (${i + 1} / ${pdfGrids.length} ページ目)`;
@@ -3204,7 +3217,7 @@
         
         await new Promise(r => setTimeout(r, 650));
 
-        const canvas = await html2canvas(document.getElementById('map'), {
+        const canvas = await html2canvas(mapElem, {
           useCORS: true,
           allowTaint: true,
           scale: 1.2
@@ -3228,6 +3241,11 @@
       console.error('一括プレビュー例外:', err);
       alert('一括プレビューの生成中にエラーが発生しました: ' + err.message);
     } finally {
+      // マップサイズを元に戻す
+      mapElem.style.width = origWidth;
+      mapElem.style.height = origHeight;
+      map.invalidateSize();
+
       headerPrintLabel.style.display = 'none';
       loadingOverlay.style.display = 'none';
       map.setView(originalCenter, originalZoom, { animate: false });
@@ -3305,6 +3323,7 @@
     return selectedNames.map(name => `≪${name}≫`).join(', ');
   }
 
+  /* ★ 画面枠と印刷PDFの出力範囲100%一致対応 ★ */
   async function executePdfExport() {
     if (pdfGrids.length === 0) return;
 
@@ -3327,6 +3346,9 @@
 
     const customHeaderText = document.getElementById('pdf-custom-header-text').value.trim();
 
+    const mapElem = document.getElementById('map');
+    const origWidth = mapElem.style.width;
+    const origHeight = mapElem.style.height;
     const originalCenter = map.getCenter();
     const originalZoom = map.getZoom();
 
@@ -3352,6 +3374,11 @@
     const printHeight = 190;
 
     try {
+      // キャプチャ用に一時的にA4横の比率（1108px x 760px）にマップサイズを完全統一
+      mapElem.style.width = '1108px';
+      mapElem.style.height = '760px';
+      map.invalidateSize();
+
       for (let i = 0; i < exportGrids.length; i++) {
         const grid = exportGrids[i];
         loadingProgress.textContent = `PDF生成中... (${i + 1} / ${exportGrids.length} ページ目 - P.${grid.pageNumber})`;
@@ -3362,7 +3389,7 @@
         
         await new Promise(r => setTimeout(r, 700));
 
-        const canvas = await html2canvas(document.getElementById('map'), {
+        const canvas = await html2canvas(mapElem, {
           useCORS: true,
           allowTaint: true,
           scale: 2
@@ -3391,6 +3418,11 @@
       console.error('PDF出力例外:', err);
       alert('PDFの生成中にエラーが発生しました: ' + err.message);
     } finally {
+      // マップサイズを元に戻す
+      mapElem.style.width = origWidth;
+      mapElem.style.height = origHeight;
+      map.invalidateSize();
+
       headerPrintLabel.style.display = 'none';
       loadingOverlay.style.display = 'none';
       map.setView(originalCenter, originalZoom, { animate: false });
