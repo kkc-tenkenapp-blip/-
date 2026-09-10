@@ -133,11 +133,11 @@
     .legend-item { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; }
     .legend-color { width: 12px; height: 12px; border-radius: 50%; display: inline-block; border: 1px solid rgba(0,0,0,0.2); }
 
-    /* 丸ポイント基本構造 */
+    /* 丸ポイント基本CSS設定 */
     .circle-marker-badge {
       position: relative;
-      width: 22px;
-      height: 22px;
+      width: 24px;
+      height: 24px;
       border-radius: 50%;
       border: 2px solid #ffffff;
       box-shadow: 0 2px 5px rgba(0,0,0,0.4);
@@ -156,21 +156,21 @@
       pointer-events: none;
     }
 
-    /* 重なった後ろのピン専用：黒背景の上部ラベル表示 */
-    .circle-marker-badge.is-overlapping-behind .circle-marker-label {
+    /* ★ 背面（下側）に隠れるポイント用スタイル：ラベルを押し上げて上に表示 ★ */
+    .circle-marker-badge.is-behind .circle-marker-label {
       position: absolute;
       bottom: 100%;
       left: 50%;
       transform: translateX(-50%);
-      margin-bottom: 2px;
-      background: rgba(0, 0, 0, 0.85);
+      margin-bottom: 3px;
+      background: rgba(33, 37, 41, 0.9);
       color: #ffffff;
       padding: 1px 5px;
       border-radius: 3px;
       font-size: 10px;
       text-shadow: none;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.4);
-      border: 1px solid #ffffff;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+      border: 1px solid rgba(255,255,255,0.4);
     }
 
     /* PDF右上のインセット広域マップスタイル */
@@ -185,20 +185,6 @@
       border-radius: 4px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.3);
       background: #fff;
-    }
-
-    /* ★ 区画内の文字を黒文字に変更 ★ */
-    .pdf-grid-label {
-      background: rgba(255, 255, 255, 0.9);
-      color: #000000;
-      font-weight: bold;
-      font-size: 12px;
-      padding: 2px 6px;
-      border-radius: 4px;
-      border: 1.5px solid #6f42c1;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-      white-space: nowrap;
-      cursor: pointer;
     }
 
     .leaflet-popup { margin-bottom: 0px !important; }
@@ -276,6 +262,12 @@
     .copy-btn-group { display: flex; flex-direction: column; gap: 8px; margin-top: 15px; }
     .btn-copy-action { background: #198754; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 12px; display: flex; align-items: center; justify-content: center; gap: 6px; }
     .btn-copy-action:hover { background: #146c43; }
+
+    .pdf-grid-label {
+      background: rgba(111, 66, 193, 0.9); color: white; font-weight: bold; font-size: 12px;
+      padding: 2px 6px; border-radius: 4px; border: 1px solid #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+      white-space: nowrap; cursor: pointer;
+    }
 
     #pdf-loading-overlay {
       display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
@@ -550,25 +542,14 @@
   </div>
 </div>
 
-<!-- 全ページ一括プレビューモーダル（ページ指定を追加） -->
 <div id="pdf-all-pages-modal" class="modal">
   <div style="display:flex; justify-content:space-between; align-items:center;">
     <h4 style="margin:0;">🖼️ 印刷PDF 全ページ一括プレビュー</h4>
     <button onclick="closeAllPagesPreview()" style="padding:4px 10px; background:#6c757d; color:white; border:none; border-radius:4px; cursor:pointer;">✕ 閉じる</button>
   </div>
   <p style="font-size:11px; color:#666; margin:6px 0 0 0;">実際にPDF印刷される各ページのレイアウト一覧です。</p>
-  
-  <div style="margin-top:8px; padding:6px; background:#f8f9fa; border:1px solid #ddd; border-radius:4px; font-size:11px;">
-    <label style="font-weight:bold; margin-bottom:4px; display:block;">プレビュー生成ページ選択</label>
-    <div style="display:flex; gap:12px; margin-bottom:4px;">
-      <label><input type="radio" name="preview-page-range-type" value="all" checked onchange="togglePreviewPageRangeInput()" /> すべて表示</label>
-      <label><input type="radio" name="preview-page-range-type" value="custom" onchange="togglePreviewPageRangeInput()" /> ページ指定</label>
-    </div>
-    <input type="text" id="preview-page-range-input" placeholder="例: 1-3, 5" style="display:none; font-size:11px; padding:4px; width:100%; box-sizing:border-box; margin-bottom:4px;" />
-    <button onclick="generateAllPagesPreview()" style="width:100%; padding:4px; background:#17a2b8; color:white; border:none; border-radius:3px; cursor:pointer; font-weight:bold; margin-top:2px;">🔄 指定ページでプレビュー再生成</button>
+  <div id="pdf-thumbnails-container">
   </div>
-
-  <div id="pdf-thumbnails-container"></div>
   <button onclick="closeAllPagesPreview()" style="width:100%; background:#0d6efd; color:white; border:none; padding:8px; border-radius:4px; cursor:pointer; font-weight:bold;">プレビューを閉じて元に戻る</button>
 </div>
 
@@ -994,13 +975,12 @@
     yellow: '#ffc107'
   };
 
-  /* ★【ピクセル距離による動的重なり判定】★
-   * 前面（IDが若い／上に重ねられる側）は丸内表示、後ろのピンのみ上部ラベル表示 */
-  function createCombinedIcon(dispName, color = 'blue', isOverlappingBehind = false) {
+  /* アイコン生成（isBehind: 背面ピン判定） */
+  function createCombinedIcon(dispName, color = 'blue', isBehind = false) {
     const hexColor = colorHexMap[color] || '#0d6efd';
 
     const iconHtml = `
-      <div class="circle-marker-badge ${isOverlappingBehind ? 'is-overlapping-behind' : ''}" style="background-color:${hexColor};">
+      <div class="circle-marker-badge ${isBehind ? 'is-behind' : ''}" style="background-color:${hexColor};">
         <span class="circle-marker-label">${dispName}</span>
       </div>
     `;
@@ -1012,49 +992,6 @@
       iconAnchor: [0, 0]
     });
   }
-
-  function updateMarkerIconsOverlapState() {
-    const zoom = map.getZoom();
-    const activePoints = allPoints.filter(p => checkedPointIds.has(Number(p.id)));
-
-    // 各ポイントのピクセル座標を計算
-    const pointPosMap = {};
-    activePoints.forEach(p => {
-      pointPosMap[p.id] = map.project([p.lat, p.lng], zoom);
-    });
-
-    activePoints.forEach(p1 => {
-      const p1Id = Number(p1.id);
-      const pos1 = pointPosMap[p1.id];
-      if (!pos1 || !markers[p1Id]) return;
-
-      let isBehind = false;
-
-      // 自分より後（IDが大きい＝手前に描画される）のピンとの画面距離を判定
-      for (const p2 of activePoints) {
-        if (p2.id === p1.id) continue;
-        const pos2 = pointPosMap[p2.id];
-        if (!pos2) continue;
-
-        const distancePx = pos1.distanceTo(pos2);
-        // 重なり閾値（28ピクセル未満）
-        if (distancePx < 28) {
-          if (Number(p1.id) < Number(p2.id)) {
-            isBehind = true; // 自分は後ろになる
-            break;
-          }
-        }
-      }
-
-      const dispName = p1.display_title || p1.title;
-      markers[p1Id].setIcon(createCombinedIcon(dispName, p1.color || 'blue', isBehind));
-    });
-  }
-
-  // ズーム変更や画面移動時に動的に判定更新
-  map.on('zoomend moveend', () => {
-    updateMarkerIconsOverlapState();
-  });
 
   function getTabColor(tabText) {
     if (!tabText) return 'blue';
@@ -1428,12 +1365,26 @@
     setTimeout(() => { isSelfOperating = false; }, 1000);
   }
 
+  /* ★ 背面ピン判定＆重なり順（zIndex）固定ロジック ★ */
   function addMarkerToMap(point) {
     const pId = Number(point.id);
     if (markers[pId]) return;
 
     const isCheckedDone = !!point.is_checked;
     const dispName = point.display_title || point.title;
+
+    // 自身より「後（配列上で前面に来る）」に描画される近接ピンが存在するかチェック
+    // ＝ 自分が背面（下側）になる場合のみ isBehind = true
+    const isBehind = allPoints.some((other) => {
+      if (Number(other.id) === pId) return false;
+      
+      const latDiff = Math.abs(other.lat - point.lat);
+      const lngDiff = Math.abs(other.lng - point.lng);
+      const isClose = latDiff < 0.0003 && lngDiff < 0.0003;
+
+      // 距離が近く、相手の方が配列IDが大きい（前面に重なる）場合
+      return isClose && Number(other.id) > pId;
+    });
 
     const popupContent = `
       <div style="width: auto; white-space: nowrap;">
@@ -1448,7 +1399,8 @@
     `;
 
     const marker = L.marker([point.lat, point.lng], {
-      icon: createCombinedIcon(dispName, point.color || 'blue', false)
+      icon: createCombinedIcon(dispName, point.color || 'blue', isBehind),
+      zIndexOffset: pId // IDが大きいものを上に配置して重なり順を明確化
     }).bindPopup(popupContent, { maxWidth: "none" });
 
     marker.on('popupopen', () => {
@@ -1463,7 +1415,6 @@
     });
 
     markers[pId] = marker;
-    updateMarkerIconsOverlapState();
   }
 
   function getFilteredPoints() {
@@ -2095,7 +2046,6 @@
       checkedPointIds.delete(idNum);
       if (chk) chk.checked = false;
     }
-    updateMarkerIconsOverlapState();
   }
 
   function toggleSelectAll(isChecked) {
@@ -2641,7 +2591,7 @@
   }
 
   /* ==========================================================================
-   * 🖨️ PDF印刷・区画管理・ズレ補正対応インセットマップ
+   * 🖨️ PDF印刷機能
    * ========================================================================== */
 
   function openPdfConfigModal() {
@@ -2822,10 +2772,9 @@
         interactive: true
       });
 
-      /* ★ 文字色を黒文字に設定 ★ */
       const labelIcon = L.divIcon({
         className: 'pdf-grid-label-container',
-        html: `<div class="pdf-grid-label" style="border-color:${isSelected ? '#fd7e14' : '#6f42c1'};">P.${grid.pageNumber} (Z:${grid.zoom})</div>`,
+        html: `<div class="pdf-grid-label" style="background:${isSelected ? '#fd7e14' : 'rgba(111, 66, 193, 0.9)'}">P.${grid.pageNumber} (Z:${grid.zoom})</div>`,
         iconAnchor: [-6, -6]
       });
       const labelMarker = L.marker([grid.north, grid.west], { icon: labelIcon, interactive: true });
@@ -3081,45 +3030,30 @@
     updateDirectGridControls(newGrid);
   }
 
-  /* ★【位置ズレ完全防止】右上全体図（ズーム14）生成処理 ★ */
-  async function createInsetMap(centerLatLng, currentGrid) {
+  /* ★ 右上用ズーム14全体図＆全区画表示（対象赤枠）ヘルパー ★ */
+  function createInsetMap(centerLatLng, currentGrid) {
     const insetDiv = document.createElement('div');
     insetDiv.id = 'pdf-inset-map';
     document.getElementById('map').appendChild(insetDiv);
 
     const insetMap = L.map('pdf-inset-map', {
       zoomControl: false,
-      attributionControl: false,
-      fadeAnimation: false,
-      zoomAnimation: false
+      attributionControl: false
     }).setView(centerLatLng, 14);
 
-    const tileLayer = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png', {
+    L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png', {
       maxZoom: 18
     }).addTo(insetMap);
-
-    // Canvasレンダラーを使用して即時描画・ずれを排除
-    const canvasRenderer = L.canvas();
 
     pdfGrids.forEach(grid => {
       const isCurrent = (grid.id === currentGrid.id);
       L.rectangle(grid.bounds, {
-        renderer: canvasRenderer,
         color: isCurrent ? '#dc3545' : '#6c757d',
         weight: isCurrent ? 2.5 : 1,
         fillColor: isCurrent ? '#dc3545' : '#6c757d',
         fillOpacity: isCurrent ? 0.35 : 0.08,
         dashArray: isCurrent ? null : '3, 3'
       }).addTo(insetMap);
-    });
-
-    insetMap.invalidateSize();
-
-    // タイル画像の完了を待機
-    await new Promise(resolve => {
-      let loaded = false;
-      tileLayer.on('load', () => { loaded = true; resolve(); });
-      setTimeout(() => { if (!loaded) resolve(); }, 500);
     });
 
     return { insetDiv, insetMap };
@@ -3134,28 +3068,8 @@
     }
   }
 
-  function togglePreviewPageRangeInput() {
-    const isCustom = document.querySelector('input[name="preview-page-range-type"]:checked').value === 'custom';
-    document.getElementById('preview-page-range-input').style.display = isCustom ? 'block' : 'none';
-  }
-
   async function generateAllPagesPreview() {
     if (pdfGrids.length === 0) return;
-
-    const rangeType = document.querySelector('input[name="preview-page-range-type"]:checked')?.value || 'all';
-    let targetGrids = [];
-
-    if (rangeType === 'custom') {
-      const rangeStr = document.getElementById('preview-page-range-input').value;
-      const targetPages = parsePageRange(rangeStr, pdfGrids.length);
-      if (targetPages.length === 0) {
-        alert('有効なページ番号（例: 1-3, 5）を入力してください');
-        return;
-      }
-      targetGrids = pdfGrids.filter(g => targetPages.includes(g.pageNumber));
-    } else {
-      targetGrids = [...pdfGrids];
-    }
 
     const originalCenter = map.getCenter();
     const originalZoom = map.getZoom();
@@ -3177,16 +3091,15 @@
     }
 
     try {
-      for (let i = 0; i < targetGrids.length; i++) {
-        const grid = targetGrids[i];
-        loadingProgress.textContent = `プレビュー生成中... (${i + 1} / ${targetGrids.length} ページ目)`;
+      for (let i = 0; i < pdfGrids.length; i++) {
+        const grid = pdfGrids[i];
+        loadingProgress.textContent = `プレビュー読み込み中... (${i + 1} / ${pdfGrids.length} ページ目)`;
 
         map.setView(grid.center, grid.zoom, { animate: false });
-        updateMarkerIconsOverlapState();
-
-        const insetData = await createInsetMap(grid.center, grid);
         
-        await new Promise(r => setTimeout(r, 600));
+        const inset = createInsetMap(grid.center, grid);
+        
+        await new Promise(r => setTimeout(r, 650));
 
         const canvas = await html2canvas(document.getElementById('map'), {
           useCORS: true,
@@ -3194,7 +3107,7 @@
           scale: 1.2
         });
 
-        removeInsetMap(insetData);
+        removeInsetMap(inset);
 
         const imgData = canvas.toDataURL('image/jpeg', 0.75);
 
@@ -3216,7 +3129,6 @@
       loadingOverlay.style.display = 'none';
       map.setView(originalCenter, originalZoom, { animate: false });
       renderPdfGridOverlay();
-      updateMarkerIconsOverlapState();
     }
   }
 
@@ -3342,11 +3254,10 @@
         loadingProgress.textContent = `PDF生成中... (${i + 1} / ${exportGrids.length} ページ目 - P.${grid.pageNumber})`;
 
         map.setView(grid.center, grid.zoom, { animate: false });
-        updateMarkerIconsOverlapState();
-
-        const insetData = await createInsetMap(grid.center, grid);
-
-        await new Promise(r => setTimeout(r, 650));
+        
+        const inset = createInsetMap(grid.center, grid);
+        
+        await new Promise(r => setTimeout(r, 700));
 
         const canvas = await html2canvas(document.getElementById('map'), {
           useCORS: true,
@@ -3354,7 +3265,7 @@
           scale: 2
         });
 
-        removeInsetMap(insetData);
+        removeInsetMap(inset);
 
         const imgData = canvas.toDataURL('image/jpeg', 0.85);
 
