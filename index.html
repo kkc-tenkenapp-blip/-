@@ -44,11 +44,12 @@
 
     .btn-logout { background: #dc3545; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; }
     
-    #share-bar { padding: 8px 12px; background: #e7f1ff; border-bottom: 1px solid #b6d4fe; display: flex; justify-content: space-between; align-items: center; gap: 4px; }
+    #share-bar { padding: 8px 12px; background: #e7f1ff; border-bottom: 1px solid #b6d4fe; display: flex; justify-content: space-between; align-items: center; gap: 4px; flex-wrap: wrap; }
     .btn-bar { border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; color: white; }
     #btn-add-group-bar { background: #0d6efd; }
     #btn-share-selected { background: #198754; }
     #btn-delete-selected { background: #dc3545; }
+    #btn-print-pdf { background: #6f42c1; }
 
     #import-area { padding: 6px 12px; background: #e9ecef; border-bottom: 1px solid #ddd; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
     
@@ -172,6 +173,19 @@
     }
     .leader-label-marker:hover { background: #007bff; color: #fff; }
 
+    /* PDF区画ラベル用スタイル */
+    .pdf-grid-label {
+      background: rgba(220, 53, 69, 0.85);
+      color: white;
+      font-weight: bold;
+      font-size: 14px;
+      padding: 2px 8px;
+      border-radius: 4px;
+      border: 1px solid #fff;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+      white-space: nowrap;
+    }
+
     @media screen and (max-width: 768px) {
       body { flex-direction: column-reverse; }
       #sidebar { width: 100% !important; max-width: 100%; height: 55vh; border-right: none; }
@@ -233,6 +247,7 @@
     <div>
       <button id="btn-add-group-bar" class="btn-bar editable-only" onclick="addNewGroupModal()">➕ グループ追加</button>
       <button id="btn-share-selected" class="btn-bar editable-only" onclick="openShareConfigModal()">🔗 選択共有</button>
+      <button id="btn-print-pdf" class="btn-bar" onclick="openPdfConfigModal()">🖨️ PDF印刷</button>
       <button id="btn-delete-selected" class="btn-bar editable-only" onclick="deleteSelectedPoints()">🗑️ 選択削除</button>
     </div>
   </div>
@@ -305,6 +320,38 @@
   </div>
 </div>
 
+<!-- PDF設定モーダル -->
+<div id="pdf-config-modal" class="modal">
+  <h4>🖨️ PDF印刷設定 (Zoom 14)</h4>
+  <p style="font-size:11px; color:#666; margin-bottom:12px;">選択・表示中ポイントの範囲をズームレベル14のグリッドで区分けして連写出力します。</p>
+
+  <label style="font-size:11px; font-weight:bold; display:block; margin-bottom:4px;">印刷順序 (スタート方向)</label>
+  <select id="pdf-start-direction">
+    <option value="NW" selected>↖️ 北西 (左上) スタート</option>
+    <option value="NE">↗️ 北東 (右上) スタート</option>
+    <option value="SW">↙️ 南西 (左下) スタート</option>
+    <option value="SE">↘️ 南東 (右下) スタート</option>
+  </select>
+
+  <div style="display: flex; justify-content: space-between; margin-top:15px;">
+    <button onclick="startPdfPreview()" style="padding:8px 16px; background:#6f42c1; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold; flex:1; margin-right:6px;">区画プレビュー表示</button>
+    <button onclick="closePdfConfigModal()" style="padding:8px 16px; background:#6c757d; color:white; border:none; border-radius:4px; cursor:pointer;">キャンセル</button>
+  </div>
+</div>
+
+<!-- PDFプレビューコントロールモーダル -->
+<div id="pdf-preview-control-modal" class="modal" style="z-index: 2500;">
+  <h4>📑 区画確認・調整</h4>
+  <p id="pdf-preview-info" style="font-size:11px; color:#333; margin-bottom:8px;">区分け数: 0 区画</p>
+  <p style="font-size:11px; color:#666; margin-bottom:12px;">「ドラッグ修正」を押すと、地図上の赤い枠をドラッグ移動して印刷範囲を微調整できます。</p>
+
+  <div style="display: flex; flex-direction: column; gap: 8px;">
+    <button id="btn-toggle-edit-grid" onclick="toggleEditGridMode()" style="padding:8px; background:#17a2b8; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">✏️ 区画枠をドラッグ修正</button>
+    <button id="btn-start-export-pdf" onclick="executePdfExport()" style="padding:8px; background:#198754; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">🚀 印刷開始 (PDFダウンロード)</button>
+    <button onclick="cancelPdfPreview()" style="padding:6px; background:#6c757d; color:white; border:none; border-radius:4px; cursor:pointer;">キャンセル・終了</button>
+  </div>
+</div>
+
 <!-- 共有発行完了結果モーダル -->
 <div id="share-result-modal" class="modal">
   <h4>✅ 発行完了</h4>
@@ -368,6 +415,9 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<!-- PDF作成・画面キャプチャ用ライブラリ -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
 <script>
   const SUPABASE_URL = 'https://yrtismmwpbinvceugvqm.supabase.co'; 
@@ -393,6 +443,12 @@
   let shareParamsFromUrl = null;
 
   let leaderLineLayerGroup = L.layerGroup();
+  let pdfGridLayerGroup = L.layerGroup();
+
+  // PDF出力制御用グローバル変数
+  let pdfGrids = [];
+  let isGridEditMode = false;
+  let activeGridRectangles = [];
 
   const sidebar = document.getElementById('sidebar');
   const mapElem = document.getElementById('map');
@@ -456,7 +512,6 @@
     }
   });
 
-  /* ★強力なランダムパスワード自動生成関数（英大文字・小文字・数字 8桁）★ */
   function generateStrongPassword(length = 8) {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
     let result = '';
@@ -634,6 +689,7 @@
 
   const map = L.map('map', { minZoom: 5, maxZoom: 21 }).setView([40.220360, 141.781950], 13);
   leaderLineLayerGroup.addTo(map);
+  pdfGridLayerGroup.addTo(map);
 
   const gsiPale = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png', {
     maxZoom: 21, maxNativeZoom: 18,
@@ -1046,12 +1102,14 @@
     markers[pId] = marker;
   }
 
+  /* ★重なりを自動回避する引き出し線・ラベル更新関数★ */
   function updateLeaderLines() {
     leaderLineLayerGroup.clearLayers();
 
     const bounds = map.getBounds();
     const mapCenter = map.getCenter();
 
+    // 1. 画面内にある有効なポイントを取得
     const visiblePoints = [];
     allPoints.forEach(p => {
       const pId = Number(p.id);
@@ -1064,29 +1122,83 @@
       }
     });
 
-    if (visiblePoints.length > 50) return;
+    // 件数が非常に多い場合は描画負荷軽減のためスキップ（上限60件）
+    if (visiblePoints.length > 60) return;
 
+    // 中心に近い順にソート
     visiblePoints.sort((a, b) => a.dist - b.dist);
-    const targetPoints = visiblePoints.slice(0, 50);
+    const targetPoints = visiblePoints.slice(0, 60);
+
+    // 2. ラベルの初期配置とサイズ定義（px単位）
+    const LABEL_WIDTH = 90;   // ラベルの推定横幅(px)
+    const LABEL_HEIGHT = 22;  // ラベルの推定高さ(px)
+    const placedLabels = [];  // 配置済みラベルのバウンディングボックス保持用
 
     targetPoints.forEach(item => {
       const p = item.point;
       const originLatLng = item.latLng;
       const dispTitle = p.display_title || p.title;
 
-      const originPoint = map.latLngToLayerPoint(originLatLng);
-      const labelPoint = L.point(originPoint.x + 35, originPoint.y - 35);
-      const labelLatLng = map.layerPointToLatLng(labelPoint);
+      // ピンの画面上のピクセル座標
+      const originPx = map.latLngToLayerPoint(originLatLng);
 
+      // 初期位置（右上方向 offset: +30px, -30px）
+      let targetPx = L.point(originPx.x + 30, originPx.y - 30);
+
+      // 3. ラベルの衝突判定（AABB）と反発・重なり回避処理
+      let attempts = 0;
+      const maxAttempts = 12; // 調整の最大試行回数
+      
+      // 8方向の移動ベクトルパターン（右上、右下、左上、左下、真上、真下など）
+      const directions = [
+        { x: 1, y: -1 }, { x: 1, y: 1 }, { x: -1, y: -1 }, { x: -1, y: 1 },
+        { x: 0, y: -1.5 }, { x: 0, y: 1.5 }, { x: 1.5, y: 0 }, { x: -1.5, y: 0 }
+      ];
+
+      while (attempts < maxAttempts) {
+        // 現在のラベル矩形（Bounding Box）
+        const box = {
+          left: targetPx.x,
+          right: targetPx.x + LABEL_WIDTH,
+          top: targetPx.y - LABEL_HEIGHT / 2,
+          bottom: targetPx.y + LABEL_HEIGHT / 2
+        };
+
+        // 他のラベルとの衝突をチェック
+        let hasOverlap = placedLabels.some(b => {
+          return !(box.right < b.left || box.left > b.right || box.bottom < b.top || box.top > b.bottom);
+        });
+
+        if (!hasOverlap) {
+          // 重なりがなければ位置決定
+          placedLabels.push(box);
+          break;
+        }
+
+        // 重なっている場合、試行回数に応じて段階的に遠くへずらす
+        const dir = directions[attempts % directions.length];
+        const step = Math.floor(attempts / directions.length) + 1;
+        const offsetX = dir.x * (30 + step * 20);
+        const offsetY = dir.y * (30 + step * 18);
+
+        targetPx = L.point(originPx.x + offsetX, originPx.y + offsetY);
+        attempts++;
+      }
+
+      // 4. ピクセル座標から緯度経度（LatLng）へ変換して描画
+      const labelLatLng = map.layerPointToLatLng(targetPx);
+
+      // 引き出し線（破線）の描画
       const line = L.polyline([originLatLng, labelLatLng], {
         color: '#007bff',
         weight: 1.5,
         dashArray: '3, 3',
-        opacity: 0.8,
+        opacity: 0.85,
         interactive: false
       });
       leaderLineLayerGroup.addLayer(line);
 
+      // ピン名ラベルの描画
       const labelIcon = L.divIcon({
         className: 'leader-line-container',
         html: `<div class="leader-label-marker" onclick="onLeaderLabelClick(event, ${p.id})">${dispTitle}</div>`,
@@ -1855,7 +1967,6 @@
     }
   });
 
-  /* ★共有設定モーダルを開く際に自動で強力パスワードをセット★ */
   function openShareConfigModal() {
     const selectedIds = [];
     allPoints.forEach(p => {
@@ -1873,13 +1984,11 @@
       return; 
     }
 
-    // 強力なパスワードを自動セット
     document.getElementById('share-setting-pw').value = generateStrongPassword(8);
     document.getElementById('share-setting-days').value = '7';
     document.getElementById('share-config-modal').style.display = 'block';
   }
 
-  /* ★モーダル内でパスワードを再生成する処理★ */
   function regenerateSharePwInModal() {
     document.getElementById('share-setting-pw').value = generateStrongPassword(8);
   }
@@ -2242,6 +2351,257 @@
       console.error(err);
     } finally {
       saveBtn.disabled = false;
+    }
+  }
+
+  /* ==========================================================================
+   * 🖨️ PDF連写・自動区画・ドラッグ調整モジュール
+   * ========================================================================== */
+
+  function openPdfConfigModal() {
+    const selectedPoints = getPdfTargetPoints();
+    if (selectedPoints.length === 0) {
+      alert('PDF化する対象ポイントがありません。チェックボックスをオンにしてポイントを表示させてください。');
+      return;
+    }
+    document.getElementById('pdf-config-modal').style.display = 'block';
+  }
+
+  function closePdfConfigModal() {
+    document.getElementById('pdf-config-modal').style.display = 'none';
+  }
+
+  function getPdfTargetPoints() {
+    return allPoints.filter(p => checkedPointIds.has(Number(p.id)));
+  }
+
+  // ズームレベル14での標準画面範囲の緯度・経度幅（A4横相当のアスペクト比に調整）
+  const ZOOM14_LAT_SPAN = 0.022; 
+  const ZOOM14_LNG_SPAN = 0.040; 
+
+  function startPdfPreview() {
+    closePdfConfigModal();
+    const startDirection = document.getElementById('pdf-start-direction').value;
+    const targetPoints = getPdfTargetPoints();
+
+    if (targetPoints.length === 0) return;
+
+    // 1. ポイントが存在する範囲の境界を取得
+    let minLat = 90, maxLat = -90, minLng = 180, maxLng = -180;
+    targetPoints.forEach(p => {
+      if (p.lat < minLat) minLat = p.lat;
+      if (p.lat > maxLat) maxLat = p.lat;
+      if (p.lng < minLng) minLng = p.lng;
+      if (p.lng > maxLng) maxLng = p.lng;
+    });
+
+    // 余白を追加
+    const latPadding = ZOOM14_LAT_SPAN * 0.2;
+    const lngPadding = ZOOM14_LNG_SPAN * 0.2;
+    minLat -= latPadding; maxLat += latPadding;
+    minLng -= lngPadding; maxLng += lngPadding;
+
+    // 2. ズーム14区画を網羅生成
+    let rawGrids = [];
+    for (let lat = maxLat; lat > minLat - ZOOM14_LAT_SPAN; lat -= ZOOM14_LAT_SPAN) {
+      for (let lng = minLng; lng < maxLng + ZOOM14_LNG_SPAN; lng += ZOOM14_LNG_SPAN) {
+        const bounds = L.latLngBounds([
+          [lat - ZOOM14_LAT_SPAN, lng],
+          [lat, lng + ZOOM14_LNG_SPAN]
+        ]);
+
+        // 区画内にポイントが含まれているかチェック
+        const hasPoint = targetPoints.some(p => bounds.contains([p.lat, p.lng]));
+        if (hasPoint) {
+          rawGrids.push({
+            bounds: bounds,
+            north: lat,
+            south: lat - ZOOM14_LAT_SPAN,
+            west: lng,
+            east: lng + ZOOM14_LNG_SPAN,
+            center: bounds.getCenter()
+          });
+        }
+      }
+    }
+
+    // 3. スタート方向（順序）に従ってソート
+    pdfGrids = sortGridsByDirection(rawGrids, startDirection);
+
+    // 4. 地図全体表示＆区画枠レンダリング
+    map.fitBounds(L.latLngBounds([[minLat, minLng], [maxLat, maxLng]]), { padding: [30, 30] });
+    renderPdfGridOverlay();
+
+    document.getElementById('pdf-preview-info').textContent = `対象ポイント: ${targetPoints.length} 件 / 区分け数: ${pdfGrids.length} 区画`;
+    document.getElementById('pdf-preview-control-modal').style.display = 'block';
+  }
+
+  function sortGridsByDirection(grids, direction) {
+    return grids.sort((a, b) => {
+      if (direction === 'NW') { // 北西 (y降順, x昇順)
+        if (Math.abs(a.north - b.north) > 0.005) return b.north - a.north;
+        return a.west - b.west;
+      } else if (direction === 'NE') { // 北東 (y降順, x降順)
+        if (Math.abs(a.north - b.north) > 0.005) return b.north - a.north;
+        return b.west - a.west;
+      } else if (direction === 'SW') { // 南西 (y昇順, x昇順)
+        if (Math.abs(a.north - b.north) > 0.005) return a.north - b.north;
+        return a.west - b.west;
+      } else if (direction === 'SE') { // 南東 (y昇順, x降順)
+        if (Math.abs(a.north - b.north) > 0.005) return a.north - b.north;
+        return b.west - a.west;
+      }
+      return 0;
+    });
+  }
+
+  function renderPdfGridOverlay() {
+    pdfGridLayerGroup.clearLayers();
+    activeGridRectangles = [];
+
+    pdfGrids.forEach((grid, idx) => {
+      const rect = L.rectangle(grid.bounds, {
+        color: '#dc3545',
+        weight: 2,
+        fillColor: '#dc3545',
+        fillOpacity: 0.08,
+        interactive: isGridEditMode
+      });
+
+      // ページ番号ラベル
+      const labelIcon = L.divIcon({
+        className: 'pdf-grid-label-container',
+        html: `<div class="pdf-grid-label">P.${idx + 1}</div>`,
+        iconAnchor: [-10, -10]
+      });
+      const labelMarker = L.marker([grid.north, grid.west], { icon: labelIcon, interactive: false });
+
+      if (isGridEditMode) {
+        // ドラッグ調整をハンドリング
+        let isDragging = false;
+        let startLatLng = null;
+
+        rect.on('mousedown', (e) => {
+          isDragging = true;
+          startLatLng = e.latlng;
+          map.dragging.disable();
+        });
+
+        map.on('mousemove', (e) => {
+          if (!isDragging || !startLatLng) return;
+          const latDiff = e.latlng.lat - startLatLng.lat;
+          const lngDiff = e.latlng.lng - startLatLng.lng;
+          startLatLng = e.latlng;
+
+          const currentBounds = rect.getBounds();
+          const newBounds = L.latLngBounds([
+            [currentBounds.getSouth() + latDiff, currentBounds.getWest() + lngDiff],
+            [currentBounds.getNorth() + latDiff, currentBounds.getEast() + lngDiff]
+          ]);
+
+          rect.setBounds(newBounds);
+          labelMarker.setLatLng([newBounds.getNorth(), newBounds.getWest()]);
+          
+          grid.bounds = newBounds;
+          grid.north = newBounds.getNorth();
+          grid.south = newBounds.getSouth();
+          grid.west = newBounds.getWest();
+          grid.east = newBounds.getEast();
+          grid.center = newBounds.getCenter();
+        });
+
+        map.on('mouseup', () => {
+          if (isDragging) {
+            isDragging = false;
+            startLatLng = null;
+            map.dragging.enable();
+          }
+        });
+      }
+
+      pdfGridLayerGroup.addLayer(rect);
+      pdfGridLayerGroup.addLayer(labelMarker);
+      activeGridRectangles.push(rect);
+    });
+  }
+
+  function toggleEditGridMode() {
+    isGridEditMode = !isGridEditMode;
+    const btn = document.getElementById('btn-toggle-edit-grid');
+    if (isGridEditMode) {
+      btn.textContent = '🔓 ドラッグ修正中（完了したら再クリック）';
+      btn.style.background = '#ffc107';
+      btn.style.color = '#333';
+    } else {
+      btn.textContent = '✏️ 区画枠をドラッグ修正';
+      btn.style.background = '#17a2b8';
+      btn.style.color = 'white';
+    }
+    renderPdfGridOverlay();
+  }
+
+  function cancelPdfPreview() {
+    isGridEditMode = false;
+    pdfGridLayerGroup.clearLayers();
+    document.getElementById('pdf-preview-control-modal').style.display = 'none';
+  }
+
+  async function executePdfExport() {
+    if (pdfGrids.length === 0) return;
+
+    if (!confirm(`全 ${pdfGrids.length} ページ（ズーム14）のPDFを出力しますか？`)) return;
+
+    const btnExport = document.getElementById('btn-start-export-pdf');
+    btnExport.disabled = true;
+    btnExport.textContent = '⏳ PDF生成中...';
+
+    // 描画から枠線を一時隠す
+    pdfGridLayerGroup.clearLayers();
+    leaderLineLayerGroup.clearLayers();
+
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF('landscape', 'mm', 'a4');
+
+    try {
+      for (let i = 0; i < pdfGrids.length; i++) {
+        const grid = pdfGrids[i];
+
+        // ズーム14で中心位置へ移動
+        map.setView(grid.center, 14, { animate: false });
+        
+        // 地図タイルとマーカーの描画待ち
+        await new Promise(r => setTimeout(r, 800));
+
+        // キャプチャ取得
+        const canvas = await html2canvas(document.getElementById('map'), {
+          useCORS: true,
+          allowTaint: true,
+          scale: 2
+        });
+
+        const imgData = canvas.toDataURL('image/jpeg', 0.85);
+
+        if (i > 0) pdf.addPage();
+        
+        // A4横サイズ（297mm × 210mm）に適合
+        pdf.addImage(imgData, 'JPEG', 0, 0, 297, 210);
+
+        // ページ番号刻印
+        pdf.setFontSize(10);
+        pdf.setTextColor(100);
+        pdf.text(`Page ${i + 1} / ${pdfGrids.length} (Zoom 14)`, 10, 205);
+      }
+
+      pdf.save(`点検マップ_連続印刷_Zoom14_${Date.now()}.pdf`);
+      alert('PDFの出力が完了しました！');
+    } catch (err) {
+      console.error('PDF出力例外:', err);
+      alert('PDFの生成中にエラーが発生しました。: ' + err.message);
+    } finally {
+      btnExport.disabled = false;
+      btnExport.textContent = '🚀 印刷開始 (PDFダウンロード)';
+      cancelPdfPreview();
+      updateLeaderLines();
     }
   }
 
