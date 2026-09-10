@@ -106,14 +106,35 @@
       font-size: 10px; padding: 2px 6px; border-radius: 10px; font-weight: bold; white-space: nowrap; flex-shrink: 0; outline: none; cursor: pointer; appearance: none; text-align: center;
     }
     .tab-badge-select { color: white; border: none; }
-    .status-badge-select.is-pending { background: #ffffff; color: #333333; border: 1px solid #999999; }
-    .status-badge-select.is-done { background: #6c757d; color: #ffffff; border: 1px solid #6c757d; }
+    
+    /* ★ 未実施（白抜き）および点検済バッジスタイル ★ */
+    .status-badge-select.is-pending { 
+      background: #ffffff !important; 
+      color: #555555 !important; 
+      border: 1.5px solid #999999 !important; 
+    }
+    .status-badge-select.is-done { 
+      background: #6c757d !important; 
+      color: #ffffff !important; 
+      border: 1.5px solid #6c757d !important; 
+    }
     .tab-badge-select option, .status-badge-select option { background: white; color: #333; }
     
     .btn-group-actions { display: flex; gap: 4px; align-items: center; margin-left: auto; flex-shrink: 0; }
     .btn-item-action { border: 1px solid #6c757d; background: #fff; color: #333; padding: 3px 6px; border-radius: 4px; cursor: pointer; font-size: 11px; white-space: nowrap; }
     .btn-item-action:hover { background: #e2e6ea; }
-    .btn-checked-done { background: #6c757d; color: white; border: 1px solid #5a6268; }
+    
+    /* ★ ボタン表示の白抜き未実施スタイル ★ */
+    .btn-checked-done { 
+      background: #6c757d; 
+      color: white; 
+      border: 1px solid #5a6268; 
+    }
+    .btn-checked-pending { 
+      background: #ffffff; 
+      color: #444444; 
+      border: 1px solid #999999; 
+    }
 
     #map { flex: 1; height: 100%; position: relative; }
 
@@ -431,7 +452,7 @@
     <h5>3. ポイントの編集・管理機能</h5>
     <ul>
       <li><b>情報変更</b>: 各スポットの「情報変更」ボタンからピン表示名・スポット名・緯度経度を一括編集可能です。</li>
-      <li><b>点検状態（点検済/未実施）</b>: 「点検済」を押すとピンの色が点検済タブの色へ変化、「未実施」を押すと元の色へ復旧します。</li>
+      <li><b>点検状態（点検済/未実施）</b>: 「点検済」を押すとピンの色が点検済色（グレー）へ変化、「未実施」を押すと元の色へ復旧します。</li>
       <li><b>写真・判定管理</b>: 各ピンから写真追加、拡大表示でコメント入力や健全度判定（Ⅰ〜Ⅳ）の設定ができます。</li>
     </ul>
 
@@ -1008,7 +1029,7 @@
     });
   }
 
-  /* ★ 16方向自動回避＆丸ポイント・他吹き出し衝突回避アルゴリズム ★ */
+  /* ★ 16方向自動回避＆重なり救済アルゴリズム ★ */
   function adjustLabelsOverlap() {
     const currentZoom = map.getZoom();
     const placedRects = [];
@@ -2009,6 +2030,7 @@
     return '';
   }
 
+  /* ★ リストアイテムのレンダリング（着色タブの色保持＆白抜き未実施ボタン） ★ */
   function renderPointList(points, groupPath) {
     const ul = document.createElement('ul');
     ul.className = 'point-list';
@@ -2026,13 +2048,16 @@
       });
       li.addEventListener('dragend', () => li.classList.remove('dragging'));
 
+      // ★ リスト側の着色タブは元のタブ設定色（getTabColor）を常に維持
+      const originalTabColor = getTabColor(p.tab_name);
+
       let tabBadgeHtml = '';
       if (isReadOnly) {
-        tabBadgeHtml = p.tab_name ? `<span class="tab-badge-select" style="background:${colorHexMap[p.color]||'#0d6efd'}; pointer-events:none;">${p.tab_name}</span>` : '';
+        tabBadgeHtml = p.tab_name ? `<span class="tab-badge-select" style="background:${colorHexMap[originalTabColor]||'#0d6efd'}; pointer-events:none;">${p.tab_name}</span>` : '';
       } else {
         const optionsHtml = tabRules.map(r => `<option value="${r.tab_name}" ${p.tab_name === r.tab_name ? 'selected' : ''}>${r.tab_name}</option>`).join('');
         tabBadgeHtml = `
-          <select class="tab-badge-select" style="background:${colorHexMap[p.color]||'#0d6efd'};" onclick="event.stopPropagation()" onchange="changePointTabDirect(${p.id}, this.value)">
+          <select class="tab-badge-select" style="background:${colorHexMap[originalTabColor]||'#0d6efd'};" onclick="event.stopPropagation()" onchange="changePointTabDirect(${p.id}, this.value)">
             ${optionsHtml}
           </select>
         `;
@@ -2066,7 +2091,7 @@
       if (!isReadOnly) {
         actionsHtml = `
           <div class="btn-group-actions">
-            <button class="btn-item-action btn-checked-done" onclick="togglePointCheckedStatus(${p.id})">${isChecked ? '未実施' : '点検済'}</button>
+            <button class="btn-item-action ${isChecked ? 'btn-checked-pending' : 'btn-checked-done'}" onclick="togglePointCheckedStatus(${p.id})">${isChecked ? '未実施' : '点検済'}</button>
             <button class="btn-item-action" onclick="openEditPointModal(${p.id})" title="ピン表示名・スポット名・緯度・経度を変更">情報変更</button>
             <button class="btn-item-action" onclick="openImageUploader(${p.id})">画像</button>
           </div>
@@ -2127,13 +2152,13 @@
     }
   }
 
-  /* ★ 点検済（グレー固定）/ 未実施（元タブ色復元）更新処理 ★ */
+  /* ★ 点検済（マップ上のみグレー固定）/ 未実施（マップ上の元タブ色復元）更新処理 ★ */
   async function togglePointCheckedStatus(pointId, explicitValue = null) {
     const point = allPoints.find(p => Number(p.id) === Number(pointId));
     if (!point) return;
 
     const newChecked = explicitValue !== null ? explicitValue : !point.is_checked;
-    // 点検済みの場合はグレー色(grey)を強制適用、未実施に戻す場合は元のタブ色へ復元
+    // マップ上のピンの色：点検済みの場合はグレー色(grey)を適用、未実施に戻す場合は元のタブ色へ復元
     const newColor = newChecked ? 'grey' : getTabColor(point.tab_name);
 
     const { error } = await supabaseClient.from('points').update({ 
@@ -2468,7 +2493,7 @@
 
       allPoints.forEach(p => {
         if (p.is_checked === undefined) p.is_checked = false;
-        // 点検済みのポイントは色を強制的にグレーに同期
+        // マップ上のピンの色：点検済みの場合はグレー色に強制同期
         if (p.is_checked) p.color = 'grey';
       });
 
@@ -3193,7 +3218,6 @@
       }).addTo(insetMap);
     });
 
-    // タイルレンダリング完了を十分待機
     insetMap.setView(centerLatLng, 14, { animate: false });
     await new Promise(resolve => setTimeout(resolve, 350));
     insetMap.invalidateSize();
