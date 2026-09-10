@@ -133,7 +133,7 @@
     .legend-item { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; }
     .legend-color { width: 12px; height: 12px; border-radius: 50%; display: inline-block; border: 1px solid rgba(0,0,0,0.2); }
 
-    /* 丸ポイント基本CSS設定 */
+    /* ★ 丸ポイント＆重なり自動回避ラベル設定 ★ */
     .circle-marker-badge {
       position: relative;
       width: 24px;
@@ -146,6 +146,8 @@
       justify-content: center;
       transform: translate(-50%, -50%);
     }
+
+    /* 通常時（丸内表示） */
     .circle-marker-label {
       font-size: 11px;
       font-weight: bold;
@@ -154,23 +156,26 @@
       overflow: visible;
       text-shadow: 1px 1px 2px #000, -1px -1px 2px #000, 1px -1px 2px #000, -1px 1px 2px #000;
       pointer-events: none;
+      transition: all 0.15s ease-out;
     }
 
-    /* ★ 背面（下側）に隠れるポイント用スタイル：ラベルを押し上げて上に表示 ★ */
-    .circle-marker-badge.is-behind .circle-marker-label {
+    /* 重なり回避移動時（吹き出しスタイル） */
+    .circle-marker-label.is-escaped {
       position: absolute;
-      bottom: 100%;
-      left: 50%;
-      transform: translateX(-50%);
-      margin-bottom: 3px;
-      background: rgba(33, 37, 41, 0.9);
+      background: rgba(0, 0, 0, 0.85);
       color: #ffffff;
-      padding: 1px 5px;
-      border-radius: 3px;
-      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 11px;
       text-shadow: none;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.3);
-      border: 1px solid rgba(255,255,255,0.4);
+      box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+      z-index: 1000;
+      white-space: nowrap;
+    }
+
+    /* ズーム11以下でラベル非表示（高速化） */
+    .zoom-hide {
+      display: none !important;
     }
 
     /* PDF右上のインセット広域マップスタイル */
@@ -409,7 +414,7 @@
     <h5>1. 画面の基本構成</h5>
     <ul>
       <li><b>左側サイドバー</b>: ポイントの登録・検索・グループ一覧（木製ツリー構造）・一括操作ボタン</li>
-      <li><b>右側マップ表示エリア</b>: 点検ポイントのピン表示（ラベル一体型）、凡例（右下）、PDF区画オーバーレイ</li>
+      <li><b>右側マップ表示エリア</b>: 点検ポイントのピン表示（自動回避機能付）、凡例（右下）、PDF区画オーバーレイ</li>
       <li><b>中央リサイザー</b>: 左右の境界線をドラッグすることでサイドバーの幅を自由に変更可能</li>
     </ul>
 
@@ -672,6 +677,12 @@
   let isAddingGridMode = false;
   let activeBaseZoom = 17;
   let selectedGridId = null;
+
+  // 16方向のベクトル定義（0度から22.5度刻みで360度）
+  const DIRECTIONS_16 = Array.from({ length: 16 }, (_, i) => {
+    const angle = (i * 22.5) * (Math.PI / 180);
+    return { x: Math.cos(angle), y: Math.sin(angle) };
+  });
 
   const sidebar = document.getElementById('sidebar');
   const mapElem = document.getElementById('map');
@@ -975,12 +986,12 @@
     yellow: '#ffc107'
   };
 
-  /* アイコン生成（isBehind: 背面ピン判定） */
-  function createCombinedIcon(dispName, color = 'blue', isBehind = false) {
+  /* ★ 丸ポイントアイコンの生成 ★ */
+  function createCombinedIcon(dispName, color = 'blue') {
     const hexColor = colorHexMap[color] || '#0d6efd';
 
     const iconHtml = `
-      <div class="circle-marker-badge ${isBehind ? 'is-behind' : ''}" style="background-color:${hexColor};">
+      <div class="circle-marker-badge" style="background-color:${hexColor};">
         <span class="circle-marker-label">${dispName}</span>
       </div>
     `;
@@ -992,6 +1003,103 @@
       iconAnchor: [0, 0]
     });
   }
+
+  /* ★ 16方向・自動重なり回避＆ズーム制御アルゴリズム ★ */
+  function adjustLabelsOverlap() {
+    const currentZoom = map.getZoom();
+    const placedRects = [];
+
+    allPoints.forEach(point => {
+      const marker = markers[point.id];
+      if (!marker || !map.hasLayer(marker)) return;
+
+      const iconElem = marker.getElement();
+      if (!iconElem) return;
+
+      const labelElem = iconElem.querySelector('.circle-marker-label');
+      if (!labelElem) return;
+
+      // ズーム11以下ではラベル非表示（動作高速化）
+      if (currentZoom <= 11) {
+        labelElem.classList.add('zoom-hide');
+        return;
+      } else {
+        labelElem.classList.remove('zoom-hide');
+      }
+
+      const pinPixel = map.latLngToContainerPoint([point.lat, point.lng]);
+      const radius = 20; // 最小離隔ピクセル距離
+
+      // 近接する他ピンが存在するか判定
+      const hasNearbyPin = allPoints.some(other => {
+        if (other.id === point.id) return false;
+        const otherPixel = map.latLngToContainerPoint([other.lat, other.lng]);
+        const dist = Math.hypot(pinPixel.x - otherPixel.x, pinPixel.y - otherPixel.y);
+        return dist < 35; // 35px以内の近接
+      });
+
+      if (!hasNearbyPin) {
+        labelElem.classList.remove('is-escaped');
+        labelElem.style.left = '';
+        labelElem.style.top = '';
+        labelElem.style.transform = '';
+        return;
+      }
+
+      labelElem.classList.add('is-escaped');
+      const labelWidth = labelElem.offsetWidth || 30;
+      const labelHeight = labelElem.offsetHeight || 18;
+
+      let bestDir = DIRECTIONS_16[0];
+      let foundFreeSpot = false;
+
+      // 16方向から重ならない最良の位置を計算
+      for (const dir of DIRECTIONS_16) {
+        const candX = pinPixel.x + dir.x * (radius + labelWidth / 2);
+        const candY = pinPixel.y + dir.y * (radius + labelHeight / 2);
+
+        const candRect = {
+          left: candX - labelWidth / 2,
+          right: candX + labelWidth / 2,
+          top: candY - labelHeight / 2,
+          bottom: candY + labelHeight / 2
+        };
+
+        const isOverlap = placedRects.some(r => !(
+          candRect.right < r.left ||
+          candRect.left > r.right ||
+          candRect.bottom < r.top ||
+          candRect.top > r.bottom
+        ));
+
+        if (!isOverlap) {
+          bestDir = dir;
+          placedRects.push(candRect);
+          foundFreeSpot = true;
+          break;
+        }
+      }
+
+      if (!foundFreeSpot) {
+        const candX = pinPixel.x + bestDir.x * (radius + labelWidth / 2);
+        const candY = pinPixel.y + bestDir.y * (radius + labelHeight / 2);
+        placedRects.push({
+          left: candX - labelWidth / 2, right: candX + labelWidth / 2,
+          top: candY - labelHeight / 2, bottom: candY + labelHeight / 2
+        });
+      }
+
+      const offsetX = bestDir.x * radius;
+      const offsetY = bestDir.y * radius;
+
+      labelElem.style.left = `calc(50% + ${offsetX}px)`;
+      labelElem.style.top = `calc(50% + ${offsetY}px)`;
+      labelElem.style.transform = 'translate(-50%, -50%)';
+    });
+  }
+
+  // マップの移動・ズーム完了時に重なり回避計算を実行
+  map.on('moveend zoomend', adjustLabelsOverlap);
 
   function getTabColor(tabText) {
     if (!tabText) return 'blue';
@@ -1100,7 +1208,7 @@
 
     let y = 35;
     const sections = [
-      { title: "1. 画面の基本構成", items: ["・左側サイドバー: ポイント管理、インポート、グループツリー、一括操作ボタン", "・右側マップ: ポイントピン、自動回避引き出し線ラベル、凡例（右下）、PDF印刷枠", "・中央リサイザー: 左右の境界線をドラッグして表示幅を変更可能"] },
+      { title: "1. 画面の基本構成", items: ["・左側サイドバー: ポイント管理、インポート、グループツリー、一括操作ボタン", "・右側マップ: ポイントピン、16方向自動回避ラベル、凡例（右下）、PDF印刷枠", "・中央リサイザー: 左右の境界線をドラッグして表示幅を変更可能"] },
       { title: "2. ポイントの登録方法", items: ["・Excel/CSV一括インポート: ドラッグ＆ドロップで一括読み込み（テンプレート有）", "・地図上からの個別登録: 「＋個別登録」を押して地図をクリックすると座標入力"] },
       { title: "3. ポイントの編集・管理機能", items: ["・情報変更: 各スポットの「情報変更」から表示名・スポット名・緯度経度を一括編集", "・点検状態切替: 「点検済」でピンが点検済色へ変化、「未実施」で元の色へ復旧", "・写真・判定管理: 各ピンから写真追加、拡大表示でコメントや健全度判定（Ⅰ〜Ⅳ）設定"] },
       { title: "4. 閲覧モードと選択共有 (URL発行)", items: ["・「選択共有」から閲覧パスワードと有効期限（7〜28日）付きの閲覧用URLを発行可能"] },
@@ -1365,26 +1473,12 @@
     setTimeout(() => { isSelfOperating = false; }, 1000);
   }
 
-  /* ★ 背面ピン判定＆重なり順（zIndex）固定ロジック ★ */
   function addMarkerToMap(point) {
     const pId = Number(point.id);
     if (markers[pId]) return;
 
     const isCheckedDone = !!point.is_checked;
     const dispName = point.display_title || point.title;
-
-    // 自身より「後（配列上で前面に来る）」に描画される近接ピンが存在するかチェック
-    // ＝ 自分が背面（下側）になる場合のみ isBehind = true
-    const isBehind = allPoints.some((other) => {
-      if (Number(other.id) === pId) return false;
-      
-      const latDiff = Math.abs(other.lat - point.lat);
-      const lngDiff = Math.abs(other.lng - point.lng);
-      const isClose = latDiff < 0.0003 && lngDiff < 0.0003;
-
-      // 距離が近く、相手の方が配列IDが大きい（前面に重なる）場合
-      return isClose && Number(other.id) > pId;
-    });
 
     const popupContent = `
       <div style="width: auto; white-space: nowrap;">
@@ -1399,8 +1493,8 @@
     `;
 
     const marker = L.marker([point.lat, point.lng], {
-      icon: createCombinedIcon(dispName, point.color || 'blue', isBehind),
-      zIndexOffset: pId // IDが大きいものを上に配置して重なり順を明確化
+      icon: createCombinedIcon(dispName, point.color || 'blue'),
+      zIndexOffset: pId
     }).bindPopup(popupContent, { maxWidth: "none" });
 
     marker.on('popupopen', () => {
@@ -1856,6 +1950,9 @@
           }
         }, 50);
       }
+
+      // サイドバー描画後にラベルの自動位置計算を呼び出す
+      setTimeout(adjustLabelsOverlap, 100);
     } catch (err) {
       console.error('サイドバー描画エラー:', err);
       document.getElementById('point-tree').innerHTML = '<div style="color:red; font-size:12px; padding:10px;">表示エラーが発生しました</div>';
@@ -2046,6 +2143,7 @@
       checkedPointIds.delete(idNum);
       if (chk) chk.checked = false;
     }
+    setTimeout(adjustLabelsOverlap, 50);
   }
 
   function toggleSelectAll(isChecked) {
@@ -2591,7 +2689,7 @@
   }
 
   /* ==========================================================================
-   * 🖨️ PDF印刷機能
+   * 🖨️ PDF印刷・拡大地図（ズーム14）オーバーレイ描画＆キャプチャ対応
    * ========================================================================== */
 
   function openPdfConfigModal() {
@@ -3030,7 +3128,7 @@
     updateDirectGridControls(newGrid);
   }
 
-  /* ★ 右上用ズーム14全体図＆全区画表示（対象赤枠）ヘルパー ★ */
+  /* ★ 右上用ズーム14（全体図）全区画＆対象区画（赤枠）表示ヘルパー ★ */
   function createInsetMap(centerLatLng, currentGrid) {
     const insetDiv = document.createElement('div');
     insetDiv.id = 'pdf-inset-map';
