@@ -199,13 +199,13 @@
     .btn-copy-action { background: #198754; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 12px; display: flex; align-items: center; justify-content: center; gap: 6px; }
     .btn-copy-action:hover { background: #146c43; }
 
-    .leader-line-container { overflow: visible !important; }
-    .leader-label-marker {
+    .auto-label-container { overflow: visible !important; }
+    .auto-label-marker {
       background: rgba(255, 255, 255, 0.95); border: 1px solid #007bff; border-radius: 4px;
       padding: 2px 6px; font-size: 11px; font-weight: bold; color: #007bff; white-space: nowrap;
       box-shadow: 0 2px 5px rgba(0,0,0,0.2); cursor: pointer; display: inline-block;
     }
-    .leader-label-marker:hover { background: #007bff; color: #fff; }
+    .auto-label-marker:hover { background: #007bff; color: #fff; }
 
     .pdf-grid-label {
       background: rgba(111, 66, 193, 0.9); color: white; font-weight: bold; font-size: 12px;
@@ -353,7 +353,7 @@
     <h5>1. 画面の基本構成</h5>
     <ul>
       <li><b>左側サイドバー</b>: ポイントの登録・検索・グループ一覧（木製ツリー構造）・一括操作ボタン</li>
-      <li><b>右側マップ表示エリア</b>: 点検ポイントのピン表示、引き出し線（ピン名ラベル）、凡例、PDF区画オーバーレイ</li>
+      <li><b>右側マップ表示エリア</b>: 点検ポイントのピン表示、自動オフセットラベル、凡例、PDF区画オーバーレイ</li>
       <li><b>中央リサイザー</b>: 左右の境界線をドラッグすることでサイドバーの幅を自由に変更可能</li>
     </ul>
 
@@ -610,7 +610,7 @@
   let generatedSharePw = '';
   let shareParamsFromUrl = null;
 
-  let leaderLineLayerGroup = L.layerGroup();
+  let autoLabelLayerGroup = L.layerGroup();
   let pdfGridLayerGroup = L.layerGroup();
 
   let pdfGrids = [];
@@ -887,7 +887,7 @@
   }
 
   const map = L.map('map', { minZoom: 5, maxZoom: 21 }).setView([40.220360, 141.781950], 13);
-  leaderLineLayerGroup.addTo(map);
+  autoLabelLayerGroup.addTo(map);
   pdfGridLayerGroup.addTo(map);
 
   const gsiPale = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png', {
@@ -1345,9 +1345,9 @@
     markers[pId] = marker;
   }
 
-  /* ★【重要修正】引き出し線が遠くへ伸びるのを防止し、ピン周囲にコンパクトに収めるアルゴリズム★ */
-  function updateLeaderLines() {
-    leaderLineLayerGroup.clearLayers();
+  /* ★【引き出し線不要・8方向自動レイアウト】ラベル重複・交差回避アルゴリズム★ */
+  function updateAutoLabels() {
+    autoLabelLayerGroup.clearLayers();
 
     const bounds = map.getBounds();
     const mapCenter = map.getCenter();
@@ -1364,6 +1364,7 @@
           visiblePoints.push({ point: p, dist: dist, latLng: latLng });
 
           const originPx = map.latLngToLayerPoint(latLng);
+          // ピンアイコン自体を遮らないための障害物領域
           pinObstacles.push({
             left: originPx.x - 12,
             right: originPx.x + 12,
@@ -1374,10 +1375,10 @@
       }
     });
 
-    if (visiblePoints.length > 60) return;
+    if (visiblePoints.length > 80) return;
 
     visiblePoints.sort((a, b) => a.dist - b.dist);
-    const targetPoints = visiblePoints.slice(0, 60);
+    const targetPoints = visiblePoints.slice(0, 80);
 
     const LABEL_WIDTH = 85;
     const LABEL_HEIGHT = 20;
@@ -1390,9 +1391,16 @@
 
       const originPx = map.latLngToLayerPoint(originLatLng);
       
+      // 上・下・左・右・斜めの8方向の配置候補（ピクセルオフセット）
       const directions = [
-        { x: 25, y: -15 }, { x: -95, y: -15 }, { x: 25, y: 15 }, { x: -95, y: 15 },
-        { x: 25, y: -35 }, { x: -95, y: -35 }, { x: 25, y: 35 }, { x: -95, y: 35 }
+        { x: -LABEL_WIDTH / 2, y: -45 },  // 上
+        { x: -LABEL_WIDTH / 2, y: 10 },   // 下
+        { x: 18, y: -10 },                // 右
+        { x: -LABEL_WIDTH - 18, y: -10 }, // 左
+        { x: 15, y: -38 },                // 右上
+        { x: -LABEL_WIDTH - 15, y: -38 }, // 左上
+        { x: 15, y: 10 },                 // 右下
+        { x: -LABEL_WIDTH - 15, y: 10 }   // 左下
       ];
 
       let targetPx = L.point(originPx.x + directions[0].x, originPx.y + directions[0].y);
@@ -1409,6 +1417,7 @@
           bottom: testPx.y + LABEL_HEIGHT
         };
 
+        // 他のピン・既に配置された他のラベルと衝突しないか検証
         let hasOverlap = placedObstacles.some(b => {
           return !(box.right < b.left || box.left > b.right || box.bottom < b.top || box.top > b.bottom);
         });
@@ -1431,28 +1440,20 @@
 
       const labelLatLng = map.layerPointToLatLng(targetPx);
 
-      const line = L.polyline([originLatLng, labelLatLng], {
-        color: '#007bff',
-        weight: 1.2,
-        dashArray: '3, 3',
-        opacity: 0.85,
-        interactive: false
-      });
-      leaderLineLayerGroup.addLayer(line);
-
+      // 引き出し線を描画せず、ラベル本体のみを配置（PDF印刷時の位置不整合を完全解消）
       const labelIcon = L.divIcon({
-        className: 'leader-line-container',
-        html: `<div class="leader-label-marker" onclick="onLeaderLabelClick(event, ${p.id})">${dispTitle}</div>`,
+        className: 'auto-label-container',
+        html: `<div class="auto-label-marker" onclick="onAutoLabelClick(event, ${p.id})">${dispTitle}</div>`,
         iconSize: [null, null],
-        iconAnchor: [0, 10]
+        iconAnchor: [0, 0]
       });
 
       const labelMarker = L.marker(labelLatLng, { icon: labelIcon, interactive: true });
-      leaderLineLayerGroup.addLayer(labelMarker);
+      autoLabelLayerGroup.addLayer(labelMarker);
     });
   }
 
-  function onLeaderLabelClick(e, pointId) {
+  function onAutoLabelClick(e, pointId) {
     if (e) {
       e.preventDefault();
       e.stopPropagation();
@@ -1460,7 +1461,7 @@
     focusToPoint(pointId);
   }
 
-  map.on('moveend zoomend resize', updateLeaderLines);
+  map.on('moveend zoomend resize', updateAutoLabels);
 
   function getFilteredPoints() {
     const keyword = (document.getElementById('search-keyword')?.value || '').trim().toLowerCase();
@@ -1528,7 +1529,7 @@
 
     updateFilterTabOptions();
     renderSidebarTree();
-    updateLeaderLines();
+    updateAutoLabels();
   }
 
   async function editGroupUI(oldGroupPath) {
@@ -1640,7 +1641,7 @@
 
       closeEditPointModal();
       renderSidebarTree();
-      updateLeaderLines();
+      updateAutoLabels();
     }
   }
 
@@ -2093,7 +2094,7 @@
       checkedPointIds.delete(idNum);
       if (chk) chk.checked = false;
     }
-    updateLeaderLines();
+    updateAutoLabels();
   }
 
   function toggleSelectAll(isChecked) {
@@ -2121,7 +2122,7 @@
         allPoints = allPoints.filter(p => !selectedIds.includes(Number(p.id)));
         updateFilterTabOptions();
         renderSidebarTree();
-        updateLeaderLines();
+        updateAutoLabels();
       }
     }
   }
@@ -2401,7 +2402,7 @@
 
       updateFilterTabOptions();
       renderSidebarTree();
-      updateLeaderLines();
+      updateAutoLabels();
 
       if (sharedIds && bounds.length > 0) {
         map.fitBounds(bounds, { padding: [50, 50] });
@@ -3087,7 +3088,7 @@
     thumbsContainer.innerHTML = '';
 
     pdfGridLayerGroup.clearLayers();
-    leaderLineLayerGroup.clearLayers();
+    autoLabelLayerGroup.clearLayers();
 
     const customHeaderText = document.getElementById('pdf-custom-header-text').value.trim();
     const headerPrintLabel = document.getElementById('pdf-header-print-label');
@@ -3103,7 +3104,7 @@
 
         map.setView(grid.center, grid.zoom, { animate: false });
         await new Promise(r => setTimeout(r, 650));
-        updateLeaderLines();
+        updateAutoLabels();
 
         const canvas = await html2canvas(document.getElementById('map'), {
           useCORS: true,
@@ -3131,7 +3132,7 @@
       loadingOverlay.style.display = 'none';
       map.setView(originalCenter, originalZoom, { animate: false });
       renderPdfGridOverlay();
-      updateLeaderLines();
+      updateAutoLabels();
     }
   }
 
@@ -3206,7 +3207,6 @@
     return selectedNames.map(name => `≪${name}≫`).join(', ');
   }
 
-  /* ★キャプチャ出力時、待機時間を確保して画像キャプチャのレンダリング位置ずれを完全解消★ */
   async function executePdfExport() {
     if (pdfGrids.length === 0) return;
 
@@ -3237,7 +3237,7 @@
     loadingOverlay.style.display = 'flex';
 
     pdfGridLayerGroup.clearLayers();
-    leaderLineLayerGroup.clearLayers();
+    autoLabelLayerGroup.clearLayers();
 
     const headerPrintLabel = document.getElementById('pdf-header-print-label');
     if (customHeaderText) {
@@ -3261,9 +3261,8 @@
 
         map.setView(grid.center, grid.zoom, { animate: false });
         
-        // 描画および座標ズレ防止のための待機時間
         await new Promise(r => setTimeout(r, 700));
-        updateLeaderLines();
+        updateAutoLabels();
 
         const canvas = await html2canvas(document.getElementById('map'), {
           useCORS: true,
@@ -3296,7 +3295,7 @@
       loadingOverlay.style.display = 'none';
       map.setView(originalCenter, originalZoom, { animate: false });
       cancelPdfPreview();
-      updateLeaderLines();
+      updateAutoLabels();
     }
   }
 
