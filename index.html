@@ -1004,23 +1004,23 @@
     });
   }
 
-  /* ★ 16方向自動回避＆丸ポイント衝突防止判定アルゴリズム ★ */
+  /* ★ 16方向自動回避＆丸ポイント・他吹き出し衝突回避アルゴリズム ★ */
   function adjustLabelsOverlap() {
     const currentZoom = map.getZoom();
     const placedRects = [];
-    const pinRects = []; // ピンの丸部分の描画領域リスト
+    const pinRects = [];
 
-    // 最初にすべてのピンの領域を記録
+    // 全ての丸ポイント（ピン）の位置範囲を正確に計算
     allPoints.forEach(p => {
       const m = markers[p.id];
       if (!m || !map.hasLayer(m)) return;
       const pix = map.latLngToContainerPoint([p.lat, p.lng]);
       pinRects.push({
         id: p.id,
-        left: pix.x - 14,
-        right: pix.x + 14,
-        top: pix.y - 14,
-        bottom: pix.y + 14
+        left: pix.x - 10,
+        right: pix.x + 10,
+        top: pix.y - 10,
+        bottom: pix.y + 10
       });
     });
 
@@ -1034,7 +1034,7 @@
       const labelElem = iconElem.querySelector('.circle-marker-label');
       if (!labelElem) return;
 
-      // ズーム15以下はラベル非表示
+      // ズーム15以下は非表示
       if (currentZoom <= 15) {
         labelElem.classList.add('zoom-hide');
         return;
@@ -1043,14 +1043,14 @@
       }
 
       const pinPixel = map.latLngToContainerPoint([point.lat, point.lng]);
-      const radius = 22; // 離隔距離
+      const radius = 22; // 丸ピンの中心からの距離
 
-      // 自身よりIDが大きい（前面に来る）近接ピンの判定
+      // 重なり判定（30px以内に他ピンがあれば背面候補）
       const isBehindOther = allPoints.some(other => {
         if (other.id === point.id) return false;
         const otherPixel = map.latLngToContainerPoint([other.lat, other.lng]);
         const dist = Math.hypot(pinPixel.x - otherPixel.x, pinPixel.y - otherPixel.y);
-        return dist < 35 && Number(other.id) > Number(point.id);
+        return dist < 30 && Number(other.id) > Number(point.id);
       });
 
       // 単独・前面のピンは丸内表示
@@ -1062,9 +1062,9 @@
         return;
       }
 
-      // 背面ピンは吹き出し化して回避位置を探索
+      // 背面ピンは吹き出し化して16方向から安全な場所を探す
       labelElem.classList.add('is-escaped');
-      const labelWidth = labelElem.offsetWidth || 32;
+      const labelWidth = labelElem.offsetWidth || 30;
       const labelHeight = labelElem.offsetHeight || 18;
 
       let bestDir = DIRECTIONS_16[0];
@@ -1081,7 +1081,7 @@
           bottom: candY + labelHeight / 2
         };
 
-        // 他ラベルとの重なり判定
+        // 既に配置された吹き出しラベルとの重なり判定
         const overlapLabel = placedRects.some(r => !(
           candRect.right < r.left ||
           candRect.left > r.right ||
@@ -1089,7 +1089,7 @@
           candRect.top > r.bottom
         ));
 
-        // 他のピンの丸部分との重なり判定（自分のピン以外の丸に被らない）
+        // 他のピンの丸部分（自分のピン以外）との重なり判定
         const overlapPin = pinRects.some(r => r.id !== point.id && !(
           candRect.right < r.left ||
           candRect.left > r.right ||
@@ -1105,8 +1105,9 @@
         }
       }
 
-      // 空き領域がない場合のフォールバック（必ず描画されるように記憶）
+      // 空きエリアが見つからなかった場合も消さずに最適方向（最上部等）へ逃がす
       if (!foundFreeSpot) {
+        bestDir = DIRECTIONS_16[12] || DIRECTIONS_16[0]; // 真上方向を優先
         const candX = pinPixel.x + bestDir.x * (radius + labelWidth / 2);
         const candY = pinPixel.y + bestDir.y * (radius + labelHeight / 2);
         placedRects.push({
@@ -1124,7 +1125,7 @@
     });
   }
 
-  // マップ移動・ズーム完了時に重なり回避計算を実行
+  // マップ移動・ズーム時に重なり回避を再計算
   map.on('moveend zoomend', adjustLabelsOverlap);
 
   function getTabColor(tabText) {
@@ -3155,8 +3156,8 @@
     updateDirectGridControls(newGrid);
   }
 
-  /* ★ 右上広域地図（ズーム14）描画処理の完全同期バージョン ★ */
-  function createInsetMap(centerLatLng, currentGrid) {
+  /* ★ 右上広域地図（ズーム14）非同期レンダリング同期バージョン ★ */
+  async function createInsetMap(centerLatLng, currentGrid) {
     const insetDiv = document.createElement('div');
     insetDiv.id = 'pdf-inset-map';
     document.getElementById('map').appendChild(insetDiv);
@@ -3181,8 +3182,11 @@
       }).addTo(insetMap);
     });
 
+    // タイルレンダリング完了を待機
+    await new Promise(resolve => setTimeout(resolve, 150));
     insetMap.invalidateSize();
     insetMap.setView(centerLatLng, 14, { animate: false });
+    await new Promise(resolve => setTimeout(resolve, 100));
 
     return { insetDiv, insetMap };
   }
@@ -3228,9 +3232,9 @@
         map.setView(grid.center, grid.zoom, { animate: false });
         adjustLabelsOverlap();
         
-        const inset = createInsetMap(grid.center, grid);
+        const inset = await createInsetMap(grid.center, grid);
         
-        await new Promise(r => setTimeout(r, 700));
+        await new Promise(r => setTimeout(r, 600));
 
         const canvas = await html2canvas(mapElem, {
           useCORS: true,
@@ -3389,9 +3393,9 @@
         map.setView(grid.center, grid.zoom, { animate: false });
         adjustLabelsOverlap();
         
-        const inset = createInsetMap(grid.center, grid);
+        const inset = await createInsetMap(grid.center, grid);
         
-        await new Promise(r => setTimeout(r, 750));
+        await new Promise(r => setTimeout(r, 650));
 
         const canvas = await html2canvas(mapElem, {
           useCORS: true,
