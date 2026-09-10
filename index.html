@@ -145,6 +145,8 @@
       align-items: center;
       justify-content: center;
       transform: translate(-50%, -50%);
+      cursor: pointer;
+      pointer-events: auto;
     }
 
     /* 通常時（前面・単独：丸内表示） */
@@ -159,7 +161,7 @@
       transition: all 0.15s ease-out;
     }
 
-    /* 重なり時の背面ピン用（吹き出しスタイル） */
+    /* 重なり時の背面ピン用（吹き出しスタイル：クリック可能） */
     .circle-marker-label.is-escaped {
       position: absolute;
       background: rgba(0, 0, 0, 0.85);
@@ -171,6 +173,8 @@
       box-shadow: 0 2px 4px rgba(0,0,0,0.3);
       z-index: 2000;
       white-space: nowrap;
+      cursor: pointer;
+      pointer-events: auto; /* クリックイベントを有効化 */
     }
 
     /* ズーム15以下で非表示にする設定 */
@@ -355,7 +359,7 @@
     <div>
       <button id="btn-add-group-bar" class="btn-bar editable-only" onclick="addNewGroupModal()">➕ グループ追加</button>
       <button id="btn-share-selected" class="btn-bar editable-only" onclick="openShareConfigModal()">🔗 選択共有</button>
-      <button id="btn-print-pdf" class="btn-bar" onclick="openPdfConfigModal()">🖨️ PDF印刷</button>
+      <button id="btn-print-pdf" class="btn-bar editable-only" onclick="openPdfConfigModal()">🖨️ PDF印刷</button>
       <button id="btn-delete-selected" class="btn-bar editable-only" onclick="deleteSelectedPoints()">🗑️ 選択削除</button>
     </div>
   </div>
@@ -1004,23 +1008,23 @@
     });
   }
 
-  /* ★ 16方向自動回避＆丸ポイント・他吹き出し衝突回避アルゴリズム ★ */
+  /* ★ 16方向自動回避＆重なり救済アルゴリズム（226表示・230隠れ防止改修） ★ */
   function adjustLabelsOverlap() {
     const currentZoom = map.getZoom();
     const placedRects = [];
     const pinRects = [];
 
-    // 全ての丸ポイント（ピン）の位置範囲を正確に計算
+    // 丸ポイント（ピン）の判定範囲をコンパクトに計算
     allPoints.forEach(p => {
       const m = markers[p.id];
       if (!m || !map.hasLayer(m)) return;
       const pix = map.latLngToContainerPoint([p.lat, p.lng]);
       pinRects.push({
         id: p.id,
-        left: pix.x - 10,
-        right: pix.x + 10,
-        top: pix.y - 10,
-        bottom: pix.y + 10
+        left: pix.x - 6,
+        right: pix.x + 6,
+        top: pix.y - 6,
+        bottom: pix.y + 6
       });
     });
 
@@ -1043,14 +1047,14 @@
       }
 
       const pinPixel = map.latLngToContainerPoint([point.lat, point.lng]);
-      const radius = 22; // 丸ピンの中心からの距離
+      const radius = 22; // 離隔ピクセル距離
 
-      // 重なり判定（30px以内に他ピンがあれば背面候補）
+      // 重なり判定（28px以内に他ピンがあれば背面候補）
       const isBehindOther = allPoints.some(other => {
         if (other.id === point.id) return false;
         const otherPixel = map.latLngToContainerPoint([other.lat, other.lng]);
         const dist = Math.hypot(pinPixel.x - otherPixel.x, pinPixel.y - otherPixel.y);
-        return dist < 30 && Number(other.id) > Number(point.id);
+        return dist < 28 && Number(other.id) > Number(point.id);
       });
 
       // 単独・前面のピンは丸内表示
@@ -1081,7 +1085,7 @@
           bottom: candY + labelHeight / 2
         };
 
-        // 既に配置された吹き出しラベルとの重なり判定
+        // 他ラベルとの重なり判定
         const overlapLabel = placedRects.some(r => !(
           candRect.right < r.left ||
           candRect.left > r.right ||
@@ -1089,7 +1093,7 @@
           candRect.top > r.bottom
         ));
 
-        // 他のピンの丸部分（自分のピン以外）との重なり判定
+        // 他ピンの丸部分（自分のピン以外）との重なり判定
         const overlapPin = pinRects.some(r => r.id !== point.id && !(
           candRect.right < r.left ||
           candRect.left > r.right ||
@@ -1105,9 +1109,9 @@
         }
       }
 
-      // 空きエリアが見つからなかった場合も消さずに最適方向（最上部等）へ逃がす
+      // 救済処理：16方向全埋まり時も消さずに真上へ逃がして確実に描画（226非表示解消）
       if (!foundFreeSpot) {
-        bestDir = DIRECTIONS_16[12] || DIRECTIONS_16[0]; // 真上方向を優先
+        bestDir = DIRECTIONS_16[12] || DIRECTIONS_16[0];
         const candX = pinPixel.x + bestDir.x * (radius + labelWidth / 2);
         const candY = pinPixel.y + bestDir.y * (radius + labelHeight / 2);
         placedRects.push({
@@ -2120,6 +2124,7 @@
     }
   }
 
+  /* ★ 点検済/未実施切替時にピンの色も正しく連動変更する処理 ★ */
   async function togglePointCheckedStatus(pointId, explicitValue = null) {
     const point = allPoints.find(p => Number(p.id) === Number(pointId));
     if (!point) return;
@@ -3182,11 +3187,11 @@
       }).addTo(insetMap);
     });
 
-    // タイルレンダリング完了を待機
-    await new Promise(resolve => setTimeout(resolve, 150));
-    insetMap.invalidateSize();
+    // タイルレンダリング完了を十分待機
     insetMap.setView(centerLatLng, 14, { animate: false });
-    await new Promise(resolve => setTimeout(resolve, 100));
+    await new Promise(resolve => setTimeout(resolve, 350));
+    insetMap.invalidateSize();
+    await new Promise(resolve => setTimeout(resolve, 250));
 
     return { insetDiv, insetMap };
   }
@@ -3234,7 +3239,7 @@
         
         const inset = await createInsetMap(grid.center, grid);
         
-        await new Promise(r => setTimeout(r, 600));
+        await new Promise(r => setTimeout(r, 850));
 
         const canvas = await html2canvas(mapElem, {
           useCORS: true,
@@ -3395,7 +3400,7 @@
         
         const inset = await createInsetMap(grid.center, grid);
         
-        await new Promise(r => setTimeout(r, 650));
+        await new Promise(r => setTimeout(r, 850));
 
         const canvas = await html2canvas(mapElem, {
           useCORS: true,
