@@ -133,7 +133,7 @@
     .legend-item { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; }
     .legend-color { width: 12px; height: 12px; border-radius: 50%; display: inline-block; border: 1px solid rgba(0,0,0,0.2); }
 
-    /* ★ 丸ポイント＆重なり自動回避ラベル設定 ★ */
+    /* 丸ポイント＆吹き出しスタイル */
     .circle-marker-badge {
       position: relative;
       width: 24px;
@@ -147,7 +147,7 @@
       transform: translate(-50%, -50%);
     }
 
-    /* 通常時（丸内表示） */
+    /* 通常時（前面・単独：丸内表示） */
     .circle-marker-label {
       font-size: 11px;
       font-weight: bold;
@@ -159,7 +159,7 @@
       transition: all 0.15s ease-out;
     }
 
-    /* 重なり回避移動時（吹き出しスタイル） */
+    /* 重なり時の背面ピン用（吹き出しスタイル） */
     .circle-marker-label.is-escaped {
       position: absolute;
       background: rgba(0, 0, 0, 0.85);
@@ -173,7 +173,7 @@
       white-space: nowrap;
     }
 
-    /* ズーム11以下でラベル非表示（高速化） */
+    /* ズーム15以下で非表示にする設定 */
     .zoom-hide {
       display: none !important;
     }
@@ -1004,7 +1004,7 @@
     });
   }
 
-  /* ★ 16方向・自動重なり回避＆ズーム制御アルゴリズム ★ */
+  /* ★ 16方向自動回避＆前面（ピン内）・背面（吹き出し）判定＆ズーム15以下非表示アルゴリズム ★ */
   function adjustLabelsOverlap() {
     const currentZoom = map.getZoom();
     const placedRects = [];
@@ -1019,8 +1019,8 @@
       const labelElem = iconElem.querySelector('.circle-marker-label');
       if (!labelElem) return;
 
-      // ズーム11以下ではラベル非表示（動作高速化）
-      if (currentZoom <= 11) {
+      // ★ ズーム15以下はラベル非表示（動作の高速化）
+      if (currentZoom <= 15) {
         labelElem.classList.add('zoom-hide');
         return;
       } else {
@@ -1028,17 +1028,22 @@
       }
 
       const pinPixel = map.latLngToContainerPoint([point.lat, point.lng]);
-      const radius = 20; // 最小離隔ピクセル距離
+      const radius = 20; // 回避時の離隔距離(px)
 
-      // 近接する他ピンが存在するか判定
-      const hasNearbyPin = allPoints.some(other => {
+      // ★ 自身より「後（配列順/ID順で上に来る）」に描画される近接ピンが存在するかチェック
+      // ＝ 自分が【背面（下側）】になる場合のみ 吹き出し化の対象とする
+      const isBehindOther = allPoints.some(other => {
         if (other.id === point.id) return false;
         const otherPixel = map.latLngToContainerPoint([other.lat, other.lng]);
         const dist = Math.hypot(pinPixel.x - otherPixel.x, pinPixel.y - otherPixel.y);
-        return dist < 35; // 35px以内の近接
+        const isClose = dist < 35; // 35px以内の重なり判定
+
+        // 相手の方がIDが大きい（前面に描画される）場合は自分が背面
+        return isClose && Number(other.id) > Number(point.id);
       });
 
-      if (!hasNearbyPin) {
+      // 前面のピン、または重なっていない単独ピンは「丸内表示」に保つ
+      if (!isBehindOther) {
         labelElem.classList.remove('is-escaped');
         labelElem.style.left = '';
         labelElem.style.top = '';
@@ -1046,6 +1051,7 @@
         return;
       }
 
+      // 背面のピンのみ「吹き出し」として16方向から避ける位置を探す
       labelElem.classList.add('is-escaped');
       const labelWidth = labelElem.offsetWidth || 30;
       const labelHeight = labelElem.offsetHeight || 18;
@@ -1053,7 +1059,6 @@
       let bestDir = DIRECTIONS_16[0];
       let foundFreeSpot = false;
 
-      // 16方向から重ならない最良の位置を計算
       for (const dir of DIRECTIONS_16) {
         const candX = pinPixel.x + dir.x * (radius + labelWidth / 2);
         const candY = pinPixel.y + dir.y * (radius + labelHeight / 2);
@@ -1951,7 +1956,7 @@
         }, 50);
       }
 
-      // サイドバー描画後にラベルの自動位置計算を呼び出す
+      // サイドバー描画後に自動回避計算を実行
       setTimeout(adjustLabelsOverlap, 100);
     } catch (err) {
       console.error('サイドバー描画エラー:', err);
