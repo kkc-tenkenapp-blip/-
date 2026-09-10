@@ -194,7 +194,6 @@
     }
     .modal-drag-header h4 { margin: 0; font-size: 14px; color: white; }
 
-    /* モーダル内専用の直下コントロールパネル */
     .grid-control-box {
       background: #f1f3f5;
       border: 1px solid #ced4da;
@@ -2673,7 +2672,7 @@
   }
 
   /* ==========================================================================
-   * 🖨️ PDF印刷・自動統合・10%重複・即時ドラッグ＆直下コントロールパネル
+   * 🖨️ PDF印刷・ポイント分布包摂最適化・ドラッグ移動即時リアルタイム追従機能
    * ========================================================================== */
 
   function openPdfConfigModal() {
@@ -2701,7 +2700,7 @@
     return {
       latSpan: baseLatSpan * factor,
       lngSpan: baseLngSpan * factor,
-      stepLat: baseLatSpan * factor * 0.90, // 10%重複
+      stepLat: baseLatSpan * factor * 0.90,
       stepLng: baseLngSpan * factor * 0.90
     };
   }
@@ -2746,38 +2745,65 @@
     document.getElementById('pdf-preview-control-modal').style.display = 'block';
   }
 
-  /* ★【機能改善】固定アスペクト比（A4横比率）の10%重複メッシュ生成★ */
+  /* ★【重要機能改善】画像2・4枚目のようにポイント群を1つの区画に包み込む最適化アルゴリズム★ */
   function generateGridsForArea(minLat, maxLat, minLng, maxLng, zoom, targetPoints) {
     const spans = getZoomSpans(zoom);
     const gridList = [];
 
-    // 10%重複（stepLat/stepLng）でA4横サイズの固定枠（latSpan, lngSpan）を配置
-    for (let lat = maxLat; lat > minLat - spans.latSpan; lat -= spans.stepLat) {
-      for (let lng = minLng; lng < maxLng + spans.lngSpan; lng += spans.stepLng) {
-        const bounds = L.latLngBounds([
-          [lat - spans.latSpan, lng],
-          [lat, lng + spans.lngSpan]
-        ]);
+    // ポイントが存在するクラスタ（集まり）を抽出
+    let unvisited = [...targetPoints];
 
-        // ポイントが存在する区画のみを抽出
-        const containedPoints = targetPoints.filter(p => bounds.contains([p.lat, p.lng]));
-        if (containedPoints.length > 0) {
-          const gridId = 'grid_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
-          gridList.push({
-            id: gridId,
-            parentGridId: null,
-            bounds: bounds,
-            north: lat,
-            south: lat - spans.latSpan,
-            west: lng,
-            east: lng + spans.lngSpan,
-            center: bounds.getCenter(),
-            zoom: zoom,
-            originalZoom: zoom,
-            originalBounds: bounds
-          });
+    while (unvisited.length > 0) {
+      let seed = unvisited.shift();
+      let cluster = [seed];
+
+      // 1区画（A4横サイズ）の範囲内に収まる近接ポイントを同一グループ化
+      for (let i = unvisited.length - 1; i >= 0; i--) {
+        let p = unvisited[i];
+        let fitsInOneGrid = cluster.every(cp => {
+          return Math.abs(cp.lat - p.lat) <= spans.latSpan * 0.95 &&
+                 Math.abs(cp.lng - p.lng) <= spans.lngSpan * 0.95;
+        });
+
+        if (fitsInOneGrid) {
+          cluster.push(p);
+          unvisited.splice(i, 1);
         }
       }
+
+      // クラスタのポイント群をちょうど中央に包含する最小A4枠を計算
+      let cMinLat = 90, cMaxLat = -90, cMinLng = 180, cMaxLng = -180;
+      cluster.forEach(p => {
+        if (p.lat < cMinLat) cMinLat = p.lat;
+        if (p.lat > cMaxLat) cMaxLat = p.lat;
+        if (p.lng < cMinLng) cMinLng = p.lng;
+        if (p.lng > cMaxLng) cMaxLng = p.lng;
+      });
+
+      let centerLat = (cMinLat + cMaxLat) / 2;
+      let centerLng = (cMinLng + cMaxLng) / 2;
+
+      let north = centerLat + spans.latSpan / 2;
+      let south = centerLat - spans.latSpan / 2;
+      let east = centerLng + spans.lngSpan / 2;
+      let west = centerLng - spans.lngSpan / 2;
+
+      const bounds = L.latLngBounds([[south, west], [north, east]]);
+      const gridId = 'grid_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
+
+      gridList.push({
+        id: gridId,
+        parentGridGroup: null,
+        bounds: bounds,
+        north: north,
+        south: south,
+        west: west,
+        east: east,
+        center: bounds.getCenter(),
+        zoom: zoom,
+        originalZoom: zoom,
+        originalBounds: bounds
+      });
     }
 
     return gridList;
@@ -2817,6 +2843,7 @@
     });
   }
 
+  /* ★【重要機能改善】区画ドラッグ時に枠とラベルがスムーズにリアルタイム追従表示★ */
   function renderPdfGridOverlay() {
     pdfGridLayerGroup.clearLayers();
 
@@ -2873,6 +2900,7 @@
           [currentBounds.getNorth() + latDiff, currentBounds.getEast() + lngDiff]
         ]);
 
+        // 枠とラベルをリアルタイムに画面上へスムーズ描画追従
         rect.setBounds(newBounds);
         labelMarker.setLatLng([newBounds.getNorth(), newBounds.getWest()]);
         
@@ -2930,7 +2958,6 @@
     btnDel.style.opacity = '0.5';
   }
 
-  /* ★【機能改善】ズーム変更時に元の親区画情報（parentGridGroup）を記憶させて分割★ */
   function applyDirectGridZoom() {
     if (!selectedGridId) return;
     const targetGrid = pdfGrids.find(g => g.id === selectedGridId);
@@ -2942,15 +2969,14 @@
     const targetPoints = getPdfTargetPoints();
     const newSubGrids = generateGridsForArea(targetGrid.south, targetGrid.north, targetGrid.west, targetGrid.east, newZoom, targetPoints);
 
-    // 親区画の情報を記憶
-    const parentGridData = targetGrid.parentGridData || {
+    const parentGroup = targetGrid.parentGridGroup || {
       id: targetGrid.id,
       bounds: targetGrid.originalBounds || targetGrid.bounds,
       zoom: targetGrid.originalZoom || targetGrid.zoom
     };
 
     newSubGrids.forEach(sg => {
-      sg.parentGridData = parentGridData;
+      sg.parentGridGroup = parentGroup;
     });
 
     pdfGrids = pdfGrids.filter(g => g.id !== selectedGridId);
@@ -2969,30 +2995,29 @@
     }
   }
 
-  /* ★【重要機能改善】ズームを戻す：19等で細分化された区画群を、元の17相当の1区画へ完全に統合復元★ */
+  /* ★【重要機能改善】ズームを戻す：分裂した全子区画を1つの元の17相当の1区画へ完全再統合★ */
   function resetDirectGridZoom() {
     if (!selectedGridId) return;
     const targetGrid = pdfGrids.find(g => g.id === selectedGridId);
     if (!targetGrid) return;
 
-    const parentData = targetGrid.parentGridData;
+    const parentGroup = targetGrid.parentGridGroup;
 
-    if (parentData) {
-      // 同じ親区画から分岐した全子区画を取り除いて1区画に統合
-      pdfGrids = pdfGrids.filter(g => (!g.parentGridData || g.parentGridData.id !== parentData.id) && g.id !== targetGrid.id);
+    if (parentGroup) {
+      pdfGrids = pdfGrids.filter(g => (!g.parentGridGroup || g.parentGridGroup.id !== parentGroup.id) && g.id !== targetGrid.id);
 
       const restoredGrid = {
-        id: parentData.id,
-        parentGridData: null,
-        bounds: parentData.bounds,
-        north: parentData.bounds.getNorth(),
-        south: parentData.bounds.getSouth(),
-        west: parentData.bounds.getWest(),
-        east: parentData.bounds.getEast(),
-        center: parentData.bounds.getCenter(),
-        zoom: parentData.zoom,
-        originalZoom: parentData.zoom,
-        originalBounds: parentData.bounds
+        id: parentGroup.id,
+        parentGridGroup: null,
+        bounds: parentGroup.bounds,
+        north: parentGroup.bounds.getNorth(),
+        south: parentGroup.bounds.getSouth(),
+        west: parentGroup.bounds.getWest(),
+        east: parentGroup.bounds.getEast(),
+        center: parentGroup.bounds.getCenter(),
+        zoom: parentGroup.zoom,
+        originalZoom: parentGroup.zoom,
+        originalBounds: parentGroup.bounds
       };
 
       pdfGrids.push(restoredGrid);
@@ -3003,7 +3028,6 @@
       updatePreviewInfoText();
       updateDirectGridControls(restoredGrid);
     } else {
-      // 親情報がなければ基本ズームレベルへ直接復元
       document.getElementById('direct-grid-zoom-select').value = String(targetGrid.originalZoom || activeBaseZoom);
       applyDirectGridZoom();
     }
@@ -3065,7 +3089,7 @@
 
     const newGrid = {
       id: 'grid_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
-      parentGridData: null,
+      parentGridGroup: null,
       bounds: bounds,
       north: lat,
       south: lat - spans.latSpan,
