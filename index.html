@@ -171,7 +171,6 @@
       background: #f1f3f5; border: 1px solid #ced4da; padding: 8px 10px; border-radius: 6px; margin-bottom: 12px;
     }
 
-    /* ★一括プレビューモーダルのスタイル★ */
     #pdf-all-pages-modal {
       width: 780px; max-width: 95vw; height: 85vh; display: none; flex-direction: column; z-index: 2800;
     }
@@ -437,7 +436,6 @@
   </div>
 </div>
 
-<!-- 直下に区画操作パネルを統合したコントロールモーダル -->
 <div id="pdf-preview-control-modal" class="modal draggable-modal">
   <div class="modal-drag-header" id="pdf-control-drag-handle">
     <h4>📑 区画確認・個別設定</h4>
@@ -473,7 +471,6 @@
 
   <button id="btn-toggle-add-grid" onclick="toggleAddGridMode()" style="width:100%; padding:6px; background:#ffc107; color:#333; border:none; border-radius:4px; cursor:pointer; font-size:11px; font-weight:bold; margin-bottom:8px;">➕ 区画を追加（地図をクリック）: OFF</button>
   
-  <!-- ★新設：全ページ一括プレビュー表示ボタン★ -->
   <button onclick="generateAllPagesPreview()" style="width:100%; padding:7px; background:#17a2b8; color:white; border:none; border-radius:4px; cursor:pointer; font-size:11px; font-weight:bold; margin-bottom:10px;">🖼️ 全ページ一括プレビュー表示</button>
 
   <label style="font-size:11px; font-weight:bold; display:block; margin-bottom:2px;">印刷対象ページ選択</label>
@@ -489,7 +486,6 @@
   </div>
 </div>
 
-<!-- ★新設：印刷前 全ページ一括プレビュー モーダル★ -->
 <div id="pdf-all-pages-modal" class="modal">
   <div style="display:flex; justify-content:space-between; align-items:center;">
     <h4 style="margin:0;">🖼️ 印刷PDF 全ページ一括プレビュー</h4>
@@ -497,7 +493,6 @@
   </div>
   <p style="font-size:11px; color:#666; margin:6px 0 0 0;">実際にPDF印刷される各ページのレイアウト一覧です。</p>
   <div id="pdf-thumbnails-container">
-    <!-- 各ページのキャプチャサムネイルが動的生成されます -->
   </div>
   <button onclick="closeAllPagesPreview()" style="width:100%; background:#0d6efd; color:white; border:none; padding:8px; border-radius:4px; cursor:pointer; font-weight:bold;">プレビューを閉じて元に戻る</button>
 </div>
@@ -1029,6 +1024,50 @@
     document.getElementById('tab-config-modal').style.display = 'none';
   }
 
+  function openManualModal() {
+    document.getElementById('manual-modal').style.display = 'flex';
+  }
+  function closeManualModal() {
+    document.getElementById('manual-modal').style.display = 'none';
+  }
+
+  function downloadManualPdf() {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF('portrait', 'mm', 'a4');
+
+    doc.setFontSize(16);
+    doc.text("点検管理アプリ 操作マニュアル", 14, 18);
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    doc.text(`発行日: ${new Date().toLocaleDateString('ja-JP')}`, 14, 25);
+
+    let y = 35;
+    const sections = [
+      { title: "1. 画面の基本構成", items: ["・左側サイドバー: ポイント管理、インポート、グループツリー、一括操作ボタン", "・右側マップ: ポイントピン、自動回避引き出し線ラベル、凡例、PDF印刷枠", "・中央リサイザー: 左右の境界線をドラッグして表示幅を変更可能"] },
+      { title: "2. ポイントの登録方法", items: ["・Excel/CSV一括インポート: ドラッグ＆ドロップで一括読み込み（テンプレート有）", "・地図上からの個別登録: 「＋個別登録」を押して地図をクリックすると座標入力"] },
+      { title: "3. ポイントの編集・管理機能", items: ["・情報変更: 各スポットの「情報変更」から表示名・スポット名・緯度経度を一括編集", "・点検状態切替: 「点検済」でピンが点検済色へ変化、「未実施」で元の色へ復旧", "・写真・判定管理: 各ピンから写真追加、拡大表示でコメントや健全度判定（Ⅰ〜Ⅳ）設定"] },
+      { title: "4. 閲覧モードと選択共有 (URL発行)", items: ["・「選択共有」から閲覧パスワードと有効期限（7〜28日）付きの閲覧用URLを発行可能"] },
+      { title: "5. PDF連続印刷機能 (メッシュ分割)", items: ["・「PDF印刷」から基本ズーム（標準17）や順序を選択して連写出力", "・区画枠をクリック・ドラッグで直接位置調整でき、直下パネルでズーム変更や消去・追加が簡単に行えます"] }
+    ];
+
+    sections.forEach(sec => {
+      doc.setFontSize(12);
+      doc.setTextColor(0, 102, 204);
+      doc.text(sec.title, 14, y);
+      y += 6;
+      doc.setFontSize(9.5);
+      doc.setTextColor(50);
+      sec.items.forEach(item => {
+        const lines = doc.splitTextToSize(item, 180);
+        doc.text(lines, 18, y);
+        y += (lines.length * 5);
+      });
+      y += 4;
+    });
+
+    doc.save(`点検管理アプリ_操作マニュアル_${Date.now()}.pdf`);
+  }
+
   function renderTabRuleTable() {
     const tbody = document.getElementById('tab-rule-list');
     tbody.innerHTML = '';
@@ -1351,7 +1390,6 @@
 
       const originPx = map.latLngToLayerPoint(originLatLng);
       
-      // ピンの左右・上下すぐ横のコンパクトな探索領域（遠くへ飛ぶのを防止）
       const directions = [
         { x: 25, y: -15 }, { x: -95, y: -15 }, { x: 25, y: 15 }, { x: -95, y: 15 },
         { x: 25, y: -35 }, { x: -95, y: -35 }, { x: 25, y: 35 }, { x: -95, y: 35 }
@@ -3035,7 +3073,6 @@
     updateDirectGridControls(newGrid);
   }
 
-  /* ★【新設】印刷前の全ページ一括プレビュー機能（サムネイル一覧表示）★ */
   async function generateAllPagesPreview() {
     if (pdfGrids.length === 0) return;
 
@@ -3065,7 +3102,7 @@
         loadingProgress.textContent = `プレビュー読み込み中... (${i + 1} / ${pdfGrids.length} ページ目)`;
 
         map.setView(grid.center, grid.zoom, { animate: false });
-        await new Promise(r => setTimeout(r, 550));
+        await new Promise(r => setTimeout(r, 650));
         updateLeaderLines();
 
         const canvas = await html2canvas(document.getElementById('map'), {
@@ -3169,6 +3206,7 @@
     return selectedNames.map(name => `≪${name}≫`).join(', ');
   }
 
+  /* ★キャプチャ出力時、待機時間を確保して画像キャプチャのレンダリング位置ずれを完全解消★ */
   async function executePdfExport() {
     if (pdfGrids.length === 0) return;
 
@@ -3223,7 +3261,8 @@
 
         map.setView(grid.center, grid.zoom, { animate: false });
         
-        await new Promise(r => setTimeout(r, 650));
+        // 描画および座標ズレ防止のための待機時間
+        await new Promise(r => setTimeout(r, 700));
         updateLeaderLines();
 
         const canvas = await html2canvas(document.getElementById('map'), {
