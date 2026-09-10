@@ -133,20 +133,41 @@
     .legend-item { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; }
     .legend-color { width: 12px; height: 12px; border-radius: 50%; display: inline-block; border: 1px solid rgba(0,0,0,0.2); }
 
-    /* 一体型ピン＆ラベルスタイル */
-    .combined-marker-badge {
-      display: flex; flex-direction: column; align-items: center; justify-content: center;
-      transform: translate(-50%, -100%); pointer-events: auto; cursor: pointer;
+    /* ★ 丸ポイントの中にテキストを入れるCSS設定（文字はみ出し許可） ★ */
+    .circle-marker-badge {
+      position: relative;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      border: 2px solid #ffffff;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transform: translate(-50%, -50%);
     }
-    .combined-marker-label {
-      background: rgba(255, 255, 255, 0.95); border: 1.5px solid #007bff; border-radius: 4px;
-      padding: 1px 5px; font-size: 11px; font-weight: bold; color: #007bff; white-space: nowrap;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.25); margin-bottom: 2px;
+    .circle-marker-label {
+      font-size: 11px;
+      font-weight: bold;
+      color: #ffffff;
+      white-space: nowrap;       /* 改行せず横に伸ばす */
+      overflow: visible;         /* はみ出しを許可 */
+      text-shadow: 1px 1px 2px #000, -1px -1px 2px #000, 1px -1px 2px #000, -1px 1px 2px #000; /* 視認性向上の黒縁取り */
+      pointer-events: none;
     }
-    .combined-marker-pin {
-      width: 20px; height: 20px; border-radius: 50% 50% 50% 0;
-      transform: rotate(-45deg); border: 2px solid #ffffff;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.3); margin-top: -2px;
+
+    /* PDF右上のインセット広域マップスタイル */
+    #pdf-inset-map {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      width: 200px;
+      height: 150px;
+      z-index: 9999;
+      border: 2px solid #333;
+      border-radius: 4px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+      background: #fff;
     }
 
     .leaflet-popup { margin-bottom: 0px !important; }
@@ -937,14 +958,13 @@
     yellow: '#ffc107'
   };
 
-  /* ★【重要】ピンと「ピン表示名」テキストを1つのHTML要素に一体化したアイコン生成★ */
+  /* ★【重要】丸ポイントの中にラベル名（テキスト）を表示するアイコン生成機能（はみ出し可）★ */
   function createCombinedIcon(dispName, color = 'blue') {
     const hexColor = colorHexMap[color] || '#0d6efd';
 
     const iconHtml = `
-      <div class="combined-marker-badge">
-        <div class="combined-marker-label" style="border-color:${hexColor}; color:${hexColor};">${dispName}</div>
-        <div class="combined-marker-pin" style="background-color:${hexColor};"></div>
+      <div class="circle-marker-badge" style="background-color:${hexColor};">
+        <span class="circle-marker-label">${dispName}</span>
       </div>
     `;
 
@@ -1347,7 +1367,7 @@
       </div>
     `;
 
-    // 一体型（ピン＋ピン表示名ラベル）アイコンを使用してマーカーを生成
+    // 丸型ポイント＋テキスト内包型アイコンを使用
     const marker = L.marker([point.lat, point.lng], {
       icon: createCombinedIcon(dispName, point.color || 'blue')
     }).bindPopup(popupContent, { maxWidth: "none" });
@@ -2235,7 +2255,6 @@
     });
   }
 
-  /* ★【重要】クリック時にズームレベルを変更せず、パン（平移）のみでポップアップ表示★ */
   function focusToPoint(id) {
     const point = allPoints.find(p => Number(p.id) === Number(id));
     if (!point) return;
@@ -2541,7 +2560,7 @@
   }
 
   /* ==========================================================================
-   * 🖨️ PDF印刷・ポイント分布包摂最適化・ドラッグ移動即時リアルタイム追従機能
+   * 🖨️ PDF印刷・拡大地図（ズーム11）オーバーレイ描画＆キャプチャ対応
    * ========================================================================== */
 
   function openPdfConfigModal() {
@@ -2562,7 +2581,7 @@
   }
 
   function getZoomSpans(zoom) {
-    const baseLatSpan = 0.0028;  // Zoom 17相当
+    const baseLatSpan = 0.0028;   // Zoom 17相当
     const baseLngSpan = 0.0052;
     const factor = Math.pow(2, 17 - zoom);
     
@@ -2980,6 +2999,41 @@
     updateDirectGridControls(newGrid);
   }
 
+  /* ★ 右上用ズーム11拡大（広域）地図作成・削除ヘルパー ★ */
+  function createInsetMap(centerLatLng, targetBounds) {
+    const insetDiv = document.createElement('div');
+    insetDiv.id = 'pdf-inset-map';
+    document.getElementById('map').appendChild(insetDiv);
+
+    const insetMap = L.map('pdf-inset-map', {
+      zoomControl: false,
+      attributionControl: false
+    }).setView(centerLatLng, 11);
+
+    L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png', {
+      maxZoom: 18
+    }).addTo(insetMap);
+
+    // 現在の印刷範囲を赤枠で囲む
+    L.rectangle(targetBounds, {
+      color: '#dc3545',
+      weight: 2,
+      fillColor: '#dc3545',
+      fillOpacity: 0.25
+    }).addTo(insetMap);
+
+    return { insetDiv, insetMap };
+  }
+
+  function removeInsetMap(insetData) {
+    if (insetData) {
+      if (insetData.insetMap) insetData.insetMap.remove();
+      if (insetData.insetDiv && insetData.insetDiv.parentNode) {
+        insetData.insetDiv.parentNode.removeChild(insetData.insetDiv);
+      }
+    }
+  }
+
   async function generateAllPagesPreview() {
     if (pdfGrids.length === 0) return;
 
@@ -3008,6 +3062,10 @@
         loadingProgress.textContent = `プレビュー読み込み中... (${i + 1} / ${pdfGrids.length} ページ目)`;
 
         map.setView(grid.center, grid.zoom, { animate: false });
+        
+        // ★ 右上に広域地図（ズーム11）を動的配置
+        const inset = createInsetMap(grid.center, grid.bounds);
+        
         await new Promise(r => setTimeout(r, 650));
 
         const canvas = await html2canvas(document.getElementById('map'), {
@@ -3015,6 +3073,9 @@
           allowTaint: true,
           scale: 1.2
         });
+
+        // 撮影後に広域地図を撤去
+        removeInsetMap(inset);
 
         const imgData = canvas.toDataURL('image/jpeg', 0.75);
 
@@ -3070,7 +3131,6 @@
   }
 
   function cancelPdfPreview() {
-    isGridEditMode = false;
     isAddingGridMode = false;
     selectedGridId = null;
     pdfGridLayerGroup.clearLayers();
@@ -3163,6 +3223,9 @@
 
         map.setView(grid.center, grid.zoom, { animate: false });
         
+        // ★ 右上に広域地図（ズーム11）を動的配置
+        const inset = createInsetMap(grid.center, grid.bounds);
+        
         await new Promise(r => setTimeout(r, 700));
 
         const canvas = await html2canvas(document.getElementById('map'), {
@@ -3170,6 +3233,9 @@
           allowTaint: true,
           scale: 2
         });
+
+        // 撮影後に広域地図を撤去
+        removeInsetMap(inset);
 
         const imgData = canvas.toDataURL('image/jpeg', 0.85);
 
