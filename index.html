@@ -52,7 +52,6 @@
     #btn-add-group-bar { background: #0d6efd; }
     #btn-share-selected { background: #198754; }
     #btn-delete-selected { background: #dc3545; }
-    #btn-print-pdf { background: #6f42c1; }
 
     #import-area { padding: 6px 12px; background: #e9ecef; border-bottom: 1px solid #ddd; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
     
@@ -138,12 +137,6 @@
 
     #map { flex: 1; height: 100%; position: relative; }
 
-    #pdf-header-print-label {
-      display: none; position: absolute; top: 10px; left: 15px; z-index: 9999;
-      font-size: 16px; font-weight: bold; color: #222; background: rgba(255, 255, 255, 0.9);
-      padding: 4px 10px; border-radius: 4px; border: 1px solid #aaa; box-shadow: 0 2px 5px rgba(0,0,0,0.15);
-    }
-
     /* 凡例を地図右下に表示 */
     #legend-box {
       position: absolute; bottom: 20px; right: 10px; z-index: 1000;
@@ -203,20 +196,6 @@
       display: none !important;
     }
 
-    /* PDF右上のインセット広域マップスタイル */
-    #pdf-inset-map {
-      position: absolute;
-      top: 10px;
-      right: 10px;
-      width: 200px;
-      height: 150px;
-      z-index: 9999;
-      border: 2px solid #333;
-      border-radius: 4px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-      background: #fff;
-    }
-
     .leaflet-popup { margin-bottom: 0px !important; }
     .leaflet-popup-content-wrapper { padding: 10px; max-width: none !important; width: max-content !important; border-radius: 12px; }
     .leaflet-popup-content { margin: 8px; width: auto !important; }
@@ -251,34 +230,6 @@
     #manual-modal-body h5 { font-size: 13px; margin: 12px 0 4px 0; color: #007bff; border-left: 3px solid #007bff; padding-left: 6px; }
     #manual-modal-body ul { margin: 4px 0 10px 18px; padding: 0; }
 
-    .draggable-modal {
-      position: absolute; top: 60px; left: 520px; transform: none !important; margin: 0; z-index: 2500; cursor: default;
-    }
-    .modal-drag-header {
-      background: #6f42c1; color: white; padding: 8px 12px; margin: -20px -20px 12px -20px;
-      border-top-left-radius: 8px; border-top-right-radius: 8px; cursor: move; user-select: none;
-      display: flex; justify-content: space-between; align-items: center;
-    }
-    .modal-drag-header h4 { margin: 0; font-size: 14px; color: white; }
-
-    .grid-control-box {
-      background: #f1f3f5; border: 1px solid #ced4da; padding: 8px 10px; border-radius: 6px; margin-bottom: 12px;
-    }
-
-    #pdf-all-pages-modal {
-      width: 780px; max-width: 95vw; height: 85vh; display: none; flex-direction: column; z-index: 2800;
-    }
-    #pdf-thumbnails-container {
-      flex: 1; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-      gap: 15px; padding: 10px; background: #e9ecef; border-radius: 6px; margin: 10px 0;
-    }
-    .pdf-thumb-card {
-      background: white; border: 1px solid #ccc; border-radius: 6px; padding: 6px; text-align: center;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.1); display: flex; flex-direction: column; gap: 4px;
-    }
-    .pdf-thumb-img { width: 100%; height: 140px; object-fit: contain; border: 1px solid #eee; background: #fff; }
-    .pdf-thumb-title { font-size: 11px; font-weight: bold; color: #333; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-
     #tab-rule-table { width: 100%; font-size: 12px; margin-bottom: 10px; border-collapse: collapse; }
     #tab-rule-table th, #tab-rule-table td { border: 1px solid #ddd; padding: 6px; text-align: left; }
     #readonly-banner { display: none; background: #ffc107; color: #333; text-align: center; padding: 6px; font-size: 12px; font-weight: bold; }
@@ -293,23 +244,6 @@
     .btn-copy-action { background: #198754; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 12px; display: flex; align-items: center; justify-content: center; gap: 6px; }
     .btn-copy-action:hover { background: #146c43; }
 
-    .pdf-grid-label {
-      background: rgba(111, 66, 193, 0.9); color: white; font-weight: bold; font-size: 12px;
-      padding: 2px 6px; border-radius: 4px; border: 1px solid #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-      white-space: nowrap; cursor: pointer;
-    }
-
-    #pdf-loading-overlay {
-      display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-      background: rgba(0, 0, 0, 0.75); z-index: 10000; justify-content: center; align-items: center;
-      flex-direction: column; color: white; font-weight: bold;
-    }
-    .loading-spinner {
-      border: 5px solid #f3f3f3; border-top: 5px solid #6f42c1; border-radius: 50%;
-      width: 45px; height: 45px; animation: spin 1s linear infinite; margin-bottom: 15px;
-    }
-    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-
     @media screen and (max-width: 768px) {
       body { flex-direction: column-reverse; }
       #sidebar { width: 100% !important; max-width: 100%; height: 55vh; border-right: none; }
@@ -317,17 +251,10 @@
       #map { width: 100%; height: 45vh; }
       #import-area, #share-bar { display: none !important; }
       .btn-manual-header { display: none !important; }
-      .draggable-modal { left: 10px !important; top: 10px !important; }
     }
   </style>
 </head>
 <body>
-
-<div id="pdf-loading-overlay">
-  <div class="loading-spinner"></div>
-  <div id="pdf-loading-msg" style="font-size:16px;">⏳ バックグラウンドでPDFを作成中...</div>
-  <div id="pdf-loading-progress" style="font-size:13px; margin-top:8px; color:#ddd;">処理中 (0 / 0)</div>
-</div>
 
 <div id="login-overlay">
   <div class="login-card">
@@ -342,10 +269,10 @@
 
 <div id="share-auth-overlay" style="display:none;">
   <div class="login-card">
-    <h2>🔑 共有データの閲覧認証</h2>
-    <p id="share-auth-desc">発行された閲覧用パスワードを入力してください。</p>
+    <h2>🔑 共有データの認証</h2>
+    <p id="share-auth-desc">発行されたパスワードを入力してください。</p>
     <input type="password" id="share-access-pw" class="login-field" placeholder="パスワードを入力" />
-    <button class="login-btn" onclick="verifySharePassword()">閲覧を開始</button>
+    <button class="login-btn" onclick="verifySharePassword()">アクセスを開始</button>
     <div id="share-auth-error"></div>
   </div>
 </div>
@@ -380,8 +307,7 @@
     <div>
       <button id="btn-add-group-bar" class="btn-bar editable-only" onclick="addNewGroupModal()">➕ グループ追加</button>
       <button id="btn-share-selected" class="btn-bar editable-only" onclick="openShareConfigModal()">🔗 選択共有</button>
-      <button id="btn-print-pdf" class="btn-bar editable-only" onclick="openPdfConfigModal()">🖨️ PDF印刷</button>
-      <button id="btn-delete-selected" class="btn-bar editable-only" onclick="deleteSelectedPoints()">🗑️ 選択削除</button>
+      <button id="btn-delete-selected" class="btn-bar original-only" onclick="deleteSelectedPoints()">🗑️ 選択削除</button>
     </div>
   </div>
 
@@ -417,7 +343,6 @@
 <div id="resizer"></div>
 
 <div id="map">
-  <div id="pdf-header-print-label"></div>
   <div id="legend-box" onclick="openTabConfigModal(event)">
     <h5>凡例 (クリックで編集 ⚙️)</h5>
     <div id="legend-list">タブ設定なし</div>
@@ -433,13 +358,12 @@
 <div id="manual-modal" class="modal">
   <div style="display:flex; justify-content:space-between; align-items:center;">
     <h4 style="margin:0;">📖 アプリ操作マニュアル</h4>
-    <button onclick="downloadManualPdf()" style="padding:6px 12px; background:#17a2b8; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold; font-size:12px;">📥 PDFダウンロード</button>
   </div>
   <div id="manual-modal-body">
     <h5>1. 画面の基本構成</h5>
     <ul>
       <li><b>左側サイドバー</b>: ポイントの登録・検索・グループ一覧（木製ツリー構造）・一括操作ボタン</li>
-      <li><b>右側マップ表示エリア</b>: 点検ポイントのピン表示（自動回避機能付）、凡例（右下）、PDF区画オーバーレイ</li>
+      <li><b>右側マップ表示エリア</b>: 点検ポイントのピン表示（自動回避機能付）、凡例（右下）</li>
       <li><b>中央リサイザー</b>: 左右の境界線をドラッグすることでサイドバーの幅を自由に変更可能</li>
     </ul>
 
@@ -456,15 +380,10 @@
       <li><b>写真・判定管理</b>: 各ピンから写真追加、拡大表示でコメント入力や健全度判定（Ⅰ〜Ⅳ）の設定ができます。</li>
     </ul>
 
-    <h5>4. 閲覧モードと選択共有 (URL発行)</h5>
+    <h5>4. 選択共有 (URL発行)</h5>
     <ul>
-      <li>共有したいポイントをチェックし「🔗 選択共有」から閲覧用パスワードと有効期限（7〜28日）を設定して専用URLを発行できます。</li>
-    </ul>
-
-    <h5>5. PDF連続印刷機能</h5>
-    <ul>
-      <li>「🖨️ PDF印刷」から基本ズーム（標準:17）や順序を選択してプレビューします。</li>
-      <li>「🖼️ 全ページ一括プレビュー」で印刷前に出力イメージを全件まとめて事前確認できます。</li>
+      <li>共有したいポイントをチェックし「🔗 選択共有」からパスワードと有効期限を設定して専用URLを発行できます。</li>
+      <li>「閲覧モード（編集不可）」と「共有モード（消去以外の編集が可能）」の2つの権限を選んで発行できます。</li>
     </ul>
   </div>
   <button onclick="closeManualModal()" style="width:100%; background:#6c757d; color:white; border:none; padding:8px; border-radius:4px; cursor:pointer;">閉じる</button>
@@ -480,107 +399,24 @@
   </div>
   <input type="text" id="share-setting-pw" placeholder="パスワードを入力" />
 
+  <label style="font-size:11px; font-weight:bold; display:block; margin-top:10px; margin-bottom:4px;">共有権限</label>
+  <div style="display:flex; gap:10px; margin-bottom:10px; font-size:12px;">
+    <label><input type="radio" name="share-setting-mode" value="view" checked> 閲覧モード（編集不可）</label><br>
+    <label><input type="radio" name="share-setting-mode" value="edit"> 共有モード（編集可・消去不可）</label>
+  </div>
+
   <label style="font-size:11px; font-weight:bold; display:block; margin-bottom:4px;">有効期限</label>
   <select id="share-setting-days">
+    <option value="0">制限なし (無期限)</option>
     <option value="7" selected>7日間（標準）</option>
     <option value="14">14日間</option>
     <option value="28">28日間</option>
   </select>
 
   <div style="display: flex; justify-content: space-between; margin-top:15px;">
-    <button onclick="generateShareLink()" style="padding:8px 16px; background:#198754; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold; flex:1; margin-right:6px;">共有URL・パスワード発行</button>
+    <button onclick="generateShareLink()" style="padding:8px 16px; background:#198754; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold; flex:1; margin-right:6px;">URL・パスワード発行</button>
     <button onclick="closeShareConfigModal()" style="padding:8px 16px; background:#6c757d; color:white; border:none; border-radius:4px; cursor:pointer;">キャンセル</button>
   </div>
-</div>
-
-<div id="pdf-config-modal" class="modal">
-  <h4>🖨️ PDF印刷設定</h4>
-  <p style="font-size:11px; color:#666; margin-bottom:12px;">基本ズームレベルとスタート方向を選択して区画をプレビュー表示します。</p>
-
-  <label style="font-size:11px; font-weight:bold; display:block; margin-bottom:4px;">基本ズームレベル (基本: 17)</label>
-  <select id="pdf-base-zoom">
-    <option value="14">ズーム 14 (広域)</option>
-    <option value="15">ズーム 15</option>
-    <option value="16">ズーム 16</option>
-    <option value="17" selected>ズーム 17 (標準・詳細)</option>
-    <option value="18">ズーム 18</option>
-    <option value="19">ズーム 19</option>
-    <option value="20">ズーム 20 (超詳細)</option>
-  </select>
-
-  <label style="font-size:11px; font-weight:bold; display:block; margin-bottom:4px;">印刷順序 (スタート方向)</label>
-  <select id="pdf-start-direction">
-    <option value="NW" selected>↖️ 北西 (左上) スタート</option>
-    <option value="NE">↗️ 北東 (右上) スタート</option>
-    <option value="SW">↙️ 南西 (左下) スタート</option>
-    <option value="SE">↘️ 南東 (右下) スタート</option>
-  </select>
-
-  <div style="display: flex; justify-content: space-between; margin-top:15px;">
-    <button onclick="startPdfPreview()" style="padding:8px 16px; background:#6f42c1; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold; flex:1; margin-right:6px;">区画プレビュー表示</button>
-    <button onclick="closePdfConfigModal()" style="padding:8px 16px; background:#6c757d; color:white; border:none; border-radius:4px; cursor:pointer;">キャンセル</button>
-  </div>
-</div>
-
-<div id="pdf-preview-control-modal" class="modal draggable-modal">
-  <div class="modal-drag-header" id="pdf-control-drag-handle">
-    <h4>📑 区画確認・個別設定</h4>
-    <span style="font-size:10px; opacity:0.8;">⠿ ドラッグで移動</span>
-  </div>
-  
-  <p id="pdf-preview-info" style="font-size:11px; color:#333; margin-bottom:6px;">区分け数: 0 区画</p>
-
-  <label style="font-size:11px; font-weight:bold; display:block; margin-bottom:2px;">PDF左上の表示タイトル（印字文字列）</label>
-  <input type="text" id="pdf-custom-header-text" placeholder="例: ≪1工区≫" style="font-size:11px; padding:5px; margin-bottom:8px;" />
-
-  <div class="grid-control-box">
-    <p id="pdf-selected-grid-status" style="font-size:11px; font-weight:bold; color:#0d6efd; margin:0 0 6px 0;">選択中の区画: なし（枠をクリック）</p>
-    
-    <div style="display:flex; gap:6px; align-items:center; margin-bottom:6px;">
-      <label style="font-size:10px; margin:0; white-space:nowrap;">ズーム変更:</label>
-      <select id="direct-grid-zoom-select" disabled onchange="applyDirectGridZoom()" style="font-size:11px; padding:3px; margin:0; flex:1;">
-        <option value="14">ズーム 14</option>
-        <option value="15">ズーム 15</option>
-        <option value="16">ズーム 16</option>
-        <option value="17">ズーム 17</option>
-        <option value="18">ズーム 18</option>
-        <option value="19">ズーム 19</option>
-        <option value="20">ズーム 20</option>
-      </select>
-    </div>
-
-    <div style="display:flex; gap:6px;">
-      <button id="btn-reset-direct-zoom" onclick="resetDirectGridZoom()" disabled style="flex:1; padding:4px; background:#6c757d; color:white; border:none; border-radius:4px; font-size:10px; cursor:pointer; opacity:0.5;">↩️ ズームを戻す</button>
-      <button id="btn-delete-direct-grid" onclick="deleteSelectedGrid()" disabled style="flex:1; padding:4px; background:#dc3545; color:white; border:none; border-radius:4px; font-size:10px; cursor:pointer; font-weight:bold; opacity:0.5;">🗑️ 区画を消去</button>
-    </div>
-  </div>
-
-  <button id="btn-toggle-add-grid" onclick="toggleAddGridMode()" style="width:100%; padding:6px; background:#ffc107; color:#333; border:none; border-radius:4px; cursor:pointer; font-size:11px; font-weight:bold; margin-bottom:8px;">➕ 区画を追加（地図をクリック）: OFF</button>
-  
-  <button onclick="generateAllPagesPreview()" style="width:100%; padding:7px; background:#17a2b8; color:white; border:none; border-radius:4px; cursor:pointer; font-size:11px; font-weight:bold; margin-bottom:10px;">🖼️ 全ページ一括プレビュー表示</button>
-
-  <label style="font-size:11px; font-weight:bold; display:block; margin-bottom:2px;">印刷対象ページ選択</label>
-  <div style="display:flex; gap:10px; margin-bottom:8px; font-size:11px;">
-    <label><input type="radio" name="pdf-page-range-type" value="all" checked onchange="togglePageRangeInput()" /> すべて印刷</label>
-    <label><input type="radio" name="pdf-page-range-type" value="custom" onchange="togglePageRangeInput()" /> ページ指定</label>
-  </div>
-  <input type="text" id="pdf-page-range-input" placeholder="例: 1-3, 5" style="display:none; font-size:11px; padding:5px; margin-bottom:10px;" />
-
-  <div style="display: flex; flex-direction: column; gap: 6px;">
-    <button id="btn-start-export-pdf" onclick="executePdfExport()" style="padding:8px; background:#198754; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">🚀 印刷実行 (PDF出力)</button>
-    <button onclick="cancelPdfPreview()" style="padding:6px; background:#6c757d; color:white; border:none; border-radius:4px; cursor:pointer; font-size:12px;">閉じる</button>
-  </div>
-</div>
-
-<div id="pdf-all-pages-modal" class="modal">
-  <div style="display:flex; justify-content:space-between; align-items:center;">
-    <h4 style="margin:0;">🖼️ 印刷PDF 全ページ一括プレビュー</h4>
-    <button onclick="closeAllPagesPreview()" style="padding:4px 10px; background:#6c757d; color:white; border:none; border-radius:4px; cursor:pointer;">✕ 閉じる</button>
-  </div>
-  <p style="font-size:11px; color:#666; margin:6px 0 0 0;">実際にPDF印刷される各ページのレイアウト一覧です。</p>
-  <div id="pdf-thumbnails-container">
-  </div>
-  <button onclick="closeAllPagesPreview()" style="width:100%; background:#0d6efd; color:white; border:none; padding:8px; border-radius:4px; cursor:pointer; font-weight:bold;">プレビューを閉じて元に戻る</button>
 </div>
 
 <div id="share-result-modal" class="modal">
@@ -669,9 +505,6 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-<!-- PDF作成・画面キャプチャ用ライブラリ -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
 <script>
   const SUPABASE_URL = 'https://yrtismmwpbinvceugvqm.supabase.co'; 
@@ -683,7 +516,11 @@
   let allPoints = [];   
   let tabRules = []; 
   let customGroups = new Set();
+  
+  // 共有モード管理フラグ
   let isReadOnly = false;
+  let isSharedEditMode = false; // 新規: 共有(編集)モード用フラグ
+
   let targetPointIdForImage = null;
   let isManualRegisterMode = false;
 
@@ -695,13 +532,6 @@
   let generatedShareUrl = '';
   let generatedSharePw = '';
   let shareParamsFromUrl = null;
-
-  let pdfGridLayerGroup = L.layerGroup();
-
-  let pdfGrids = [];
-  let isAddingGridMode = false;
-  let activeBaseZoom = 17;
-  let selectedGridId = null;
 
   // 16方向のベクトル定義（0度から22.5度刻みで360度）
   const DIRECTIONS_16 = Array.from({ length: 16 }, (_, i) => {
@@ -771,37 +601,6 @@
     }
   });
 
-  function setupDraggableModal(modalId, handleId) {
-    const modal = document.getElementById(modalId);
-    const handle = document.getElementById(handleId);
-    let isDragging = false, startX, startY, initialLeft, initialTop;
-
-    handle.addEventListener('mousedown', (e) => {
-      isDragging = true;
-      startX = e.clientX;
-      startY = e.clientY;
-      initialLeft = modal.offsetLeft;
-      initialTop = modal.offsetTop;
-      document.addEventListener('mousemove', onMouseMove);
-      document.addEventListener('mouseup', onMouseUp);
-    });
-
-    function onMouseMove(e) {
-      if (!isDragging) return;
-      const dx = e.clientX - startX;
-      const dy = e.clientY - startY;
-      modal.style.left = `${initialLeft + dx}px`;
-      modal.style.top = `${initialTop + dy}px`;
-    }
-
-    function onMouseUp() {
-      isDragging = false;
-      document.removeEventListener('mousemove', onMouseMove);
-      document.removeEventListener('mouseup', onMouseUp);
-    }
-  }
-  setupDraggableModal('pdf-preview-control-modal', 'pdf-control-drag-handle');
-
   function generateStrongPassword(length = 8) {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
     let result = '';
@@ -826,10 +625,41 @@
     return { data: null, error: lastError };
   }
 
+  // ★ 複数ポイントの画像URLからStorageのファイルを削除する共通関数 ★
+  async function deleteStorageImagesForPoints(pointsToDelete) {
+    const filesToRemove = [];
+    pointsToDelete.forEach(p => {
+      if (p.image_url) {
+        try {
+          let list = JSON.parse(p.image_url);
+          if (!Array.isArray(list)) list = [p.image_url];
+          list.forEach(item => {
+             const url = typeof item === 'object' ? item.url : item;
+             if (url) {
+               const match = url.match(/\/point-images\/(.+)$/);
+               if (match && match[1]) filesToRemove.push(match[1]);
+             }
+          });
+        } catch(e) {
+          const match = p.image_url.match(/\/point-images\/(.+)$/);
+          if (match && match[1]) filesToRemove.push(match[1]);
+        }
+      }
+    });
+
+    if (filesToRemove.length > 0) {
+      try {
+        await supabaseClient.storage.from('point-images').remove(filesToRemove);
+      } catch(e) {
+        console.warn('Storage一括削除エラー:', e);
+      }
+    }
+  }
+
   async function uploadImageToStorage(fileOrBase64, filenamePrefix = 'img') {
     try {
       let fileBlob = null;
-      let ext = 'jpg';
+      let ext = 'webp'; 
 
       if (typeof fileOrBase64 === 'string' && fileOrBase64.startsWith('data:')) {
         const arr = fileOrBase64.split(',');
@@ -839,10 +669,10 @@
         const u8arr = new Uint8Array(n);
         while (n--) { u8arr[n] = bstr.charCodeAt(n); }
         fileBlob = new Blob([u8arr], { type: mime });
-        ext = mime.split('/')[1] || 'jpg';
+        ext = mime.split('/')[1] || 'webp';
       } else if (fileOrBase64 instanceof Blob || fileOrBase64 instanceof File) {
         fileBlob = fileOrBase64;
-        ext = fileOrBase64.name ? fileOrBase64.name.split('.').pop() : 'jpg';
+        ext = fileOrBase64.name ? fileOrBase64.name.split('.').pop() : 'webp';
       } else {
         return fileOrBase64;
       }
@@ -890,11 +720,13 @@
     const sharedIds = urlParams.get('ids') ? urlParams.get('ids').split(',') : (urlParams.get('id') ? [urlParams.get('id')] : null);
     const expTime = urlParams.get('exp');
     const token = urlParams.get('token');
+    const shareMode = urlParams.get('mode') || 'view';
 
     if (sharedIds) {
       document.getElementById('login-overlay').style.display = 'none';
       
-      if (expTime) {
+      // 有効期限チェック（0の場合は無期限としてスルー）
+      if (expTime && expTime !== '0') {
         const now = Date.now();
         if (now > parseInt(expTime, 10)) {
           alert('この共有URLは有効期限が切れているためアクセスできません。');
@@ -902,7 +734,7 @@
         }
       }
 
-      shareParamsFromUrl = { sharedIds, token, expTime };
+      shareParamsFromUrl = { sharedIds, token, expTime, shareMode };
       document.getElementById('share-auth-overlay').style.display = 'flex';
       return;
     }
@@ -910,6 +742,8 @@
     const { data: { session } } = await supabaseClient.auth.getSession();
     if (session) {
       document.getElementById('login-overlay').style.display = 'none';
+      isReadOnly = false;
+      isSharedEditMode = false;
       loadInitialPoints();
     } else {
       document.getElementById('login-overlay').style.display = 'flex';
@@ -937,9 +771,28 @@
     }
 
     document.getElementById('share-auth-overlay').style.display = 'none';
-    isReadOnly = true;
-    document.getElementById('readonly-banner').style.display = 'block';
-    document.querySelectorAll('.editable-only').forEach(el => el.style.display = 'none');
+    
+    // 共有権限に応じたUIの切り替え
+    const mode = shareParamsFromUrl.shareMode || 'view';
+    const banner = document.getElementById('readonly-banner');
+    
+    if (mode === 'edit') {
+      isReadOnly = false;
+      isSharedEditMode = true; // 編集可・消去不可モード
+      banner.style.display = 'block';
+      banner.textContent = '📝 共有モード (データ消去不可)';
+      banner.style.background = '#17a2b8';
+      banner.style.color = '#fff';
+      document.querySelectorAll('.original-only').forEach(el => el.style.display = 'none');
+    } else {
+      isReadOnly = true;
+      isSharedEditMode = false;
+      banner.style.display = 'block';
+      banner.textContent = '🔒 共有閲覧モード (編集不可)';
+      banner.style.background = '#ffc107';
+      banner.style.color = '#333';
+      document.querySelectorAll('.editable-only, .original-only').forEach(el => el.style.display = 'none');
+    }
     
     loadInitialPoints();
   }
@@ -966,6 +819,9 @@
       errDiv.style.display = 'block';
     } else {
       document.getElementById('login-overlay').style.display = 'none';
+      isReadOnly = false;
+      isSharedEditMode = false;
+      document.querySelectorAll('.editable-only, .original-only').forEach(el => el.style.display = '');
       loadInitialPoints();
     }
   }
@@ -978,7 +834,6 @@
   }
 
   const map = L.map('map', { minZoom: 5, maxZoom: 21 }).setView([40.220360, 141.781950], 13);
-  pdfGridLayerGroup.addTo(map);
 
   const gsiPale = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png', {
     maxZoom: 21, maxNativeZoom: 18,
@@ -1011,7 +866,6 @@
     yellow: '#ffc107'
   };
 
-  /* ★ 丸ポイントアイコンの生成 ★ */
   function createCombinedIcon(dispName, color = 'blue') {
     const hexColor = colorHexMap[color] || '#0d6efd';
 
@@ -1029,13 +883,11 @@
     });
   }
 
-  /* ★ 16方向自動回避＆重なり救済アルゴリズム ★ */
   function adjustLabelsOverlap() {
     const currentZoom = map.getZoom();
     const placedRects = [];
     const pinRects = [];
 
-    // 丸ポイント（ピン）の位置範囲を計算（半径6px）
     allPoints.forEach(p => {
       const m = markers[p.id];
       if (!m || !map.hasLayer(m)) return;
@@ -1059,7 +911,6 @@
       const labelElem = iconElem.querySelector('.circle-marker-label');
       if (!labelElem) return;
 
-      // ズーム15以下は非表示
       if (currentZoom <= 15) {
         labelElem.classList.add('zoom-hide');
         return;
@@ -1068,9 +919,8 @@
       }
 
       const pinPixel = map.latLngToContainerPoint([point.lat, point.lng]);
-      const radius = 22; // 離隔ピクセル距離
+      const radius = 22; 
 
-      // 重なり判定（28px以内に他ピンがあれば背面候補）
       const isBehindOther = allPoints.some(other => {
         if (other.id === point.id) return false;
         const otherPixel = map.latLngToContainerPoint([other.lat, other.lng]);
@@ -1078,7 +928,6 @@
         return dist < 28 && Number(other.id) > Number(point.id);
       });
 
-      // 単独・前面のピンは丸内表示
       if (!isBehindOther) {
         labelElem.classList.remove('is-escaped');
         labelElem.style.left = '';
@@ -1087,7 +936,6 @@
         return;
       }
 
-      // 背面ピンは吹き出し化して16方向から安全な場所を探す
       labelElem.classList.add('is-escaped');
       const labelWidth = labelElem.offsetWidth || 30;
       const labelHeight = labelElem.offsetHeight || 18;
@@ -1106,7 +954,6 @@
           bottom: candY + labelHeight / 2
         };
 
-        // 他ラベルとの重なり判定
         const overlapLabel = placedRects.some(r => !(
           candRect.right < r.left ||
           candRect.left > r.right ||
@@ -1114,7 +961,6 @@
           candRect.top > r.bottom
         ));
 
-        // 他ピンの丸部分（自分のピン以外）との重なり判定
         const overlapPin = pinRects.some(r => r.id !== point.id && !(
           candRect.right < r.left ||
           candRect.left > r.right ||
@@ -1130,7 +976,6 @@
         }
       }
 
-      // 救済処理：16方向全埋まり時も消さずに真上へ逃がして確実に描画
       if (!foundFreeSpot) {
         bestDir = DIRECTIONS_16[12] || DIRECTIONS_16[0];
         const candX = pinPixel.x + bestDir.x * (radius + labelWidth / 2);
@@ -1150,7 +995,6 @@
     });
   }
 
-  // マップ移動・ズーム時に重なり回避を再計算
   map.on('moveend zoomend', adjustLabelsOverlap);
 
   function getTabColor(tabText) {
@@ -1172,7 +1016,7 @@
           canvas.width = w; canvas.height = h;
           const ctx = canvas.getContext('2d');
           ctx.drawImage(img, 0, 0, w, h);
-          resolve(canvas.toDataURL('image/jpeg', quality));
+          resolve(canvas.toDataURL('image/webp', quality));
         };
         img.src = e.target.result;
       };
@@ -1248,48 +1092,12 @@
     document.getElementById('manual-modal').style.display = 'none';
   }
 
-  function downloadManualPdf() {
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF('portrait', 'mm', 'a4');
-
-    doc.setFontSize(16);
-    doc.text("点検管理アプリ 操作マニュアル", 14, 18);
-    doc.setFontSize(10);
-    doc.setTextColor(100);
-    doc.text(`発行日: ${new Date().toLocaleDateString('ja-JP')}`, 14, 25);
-
-    let y = 35;
-    const sections = [
-      { title: "1. 画面の基本構成", items: ["・左側サイドバー: ポイント管理、インポート、グループツリー、一括操作ボタン", "・右側マップ: ポイントピン、16方向自動回避ラベル、凡例（右下）、PDF印刷枠", "・中央リサイザー: 左右の境界線をドラッグして表示幅を変更可能"] },
-      { title: "2. ポイントの登録方法", items: ["・Excel/CSV一括インポート: ドラッグ＆ドロップで一括読み込み（テンプレート有）", "・地図上からの個別登録: 「＋個別登録」を押して地図をクリックすると座標入力"] },
-      { title: "3. ポイントの編集・管理機能", items: ["・情報変更: 各スポットの「情報変更」から表示名・スポット名・緯度経度を一括編集", "・点検状態切替: 「点検済」でピンが点検済色（グレー）へ変化、「未実施」で元の色へ復旧", "・写真・判定管理: 各ピンから写真追加、拡大表示でコメントや健全度判定（Ⅰ〜Ⅳ）設定"] },
-      { title: "4. 閲覧モードと選択共有 (URL発行)", items: ["・「選択共有」から閲覧パスワードと有効期限（7〜28日）付きの閲覧用URLを発行可能"] },
-      { title: "5. PDF連続印刷機能 (メッシュ分割)", items: ["・「PDF印刷」から基本ズーム（標準17）や順序を選択して連写出力", "・区画枠をクリック・ドラッグで直接位置調整でき、直下パネルでズーム変更や消去・追加が簡単に行えます"] }
-    ];
-
-    sections.forEach(sec => {
-      doc.setFontSize(12);
-      doc.setTextColor(0, 102, 204);
-      doc.text(sec.title, 14, y);
-      y += 6;
-      doc.setFontSize(9.5);
-      doc.setTextColor(50);
-      sec.items.forEach(item => {
-        const lines = doc.splitTextToSize(item, 180);
-        doc.text(lines, 18, y);
-        y += (lines.length * 5);
-      });
-      y += 4;
-    });
-
-    doc.save(`点検管理アプリ_操作マニュアル_${Date.now()}.pdf`);
-  }
-
   function renderTabRuleTable() {
     const tbody = document.getElementById('tab-rule-list');
     tbody.innerHTML = '';
     tabRules.forEach(r => {
-      const deleteBtn = `<button onclick="deleteTabRule(${r.id})" style="color:red; cursor:pointer; border:none; background:none;">✕</button>`;
+      // 共有モード等での削除制限
+      const deleteBtn = (!isReadOnly && !isSharedEditMode) ? `<button onclick="deleteTabRule(${r.id})" style="color:red; cursor:pointer; border:none; background:none;">✕</button>` : '';
       const tr = document.createElement('tr');
       tr.innerHTML = `
         <td>${r.tab_name}</td>
@@ -1318,6 +1126,7 @@
   }
 
   async function deleteTabRule(id) {
+    if (isReadOnly || isSharedEditMode) return;
     const { error } = await supabaseClient.from('tab_settings').delete().eq('id', id);
     if (!error) {
       tabRules = tabRules.filter(r => r.id !== id);
@@ -1386,7 +1195,8 @@
       const judge = typeof item === 'object' ? (item.judge || '') : '';
       const safeComment = comment.replace(/'/g, "\\'").replace(/"/g, '&quot;');
 
-      const deleteBtnHtml = isReadOnly ? '' : `
+      // 共有モード時は消去不可
+      const deleteBtnHtml = (isReadOnly || isSharedEditMode) ? '' : `
         <button class="img-delete-btn" onclick="deleteSingleImage(event, ${pointId}, ${idx})" title="この画像を削除">✕</button>
       `;
 
@@ -1474,9 +1284,10 @@
     setTimeout(() => { isSelfOperating = false; }, 1000);
   }
 
+  // ★ 個別画像削除時にStorage実ファイルも削除 ★
   async function deleteSingleImage(e, pointId, imgIndex) {
     if (e) e.stopPropagation();
-    if (isReadOnly) return;
+    if (isReadOnly || isSharedEditMode) return;
     
     isSelfOperating = true;
     activePopupPointId = Number(pointId);
@@ -1502,6 +1313,9 @@
       imgList = [{ url: point.image_url, comment: '', judge: '' }];
     }
 
+    const deletedImg = imgList[imgIndex];
+    const deletedUrl = typeof deletedImg === 'object' ? deletedImg.url : deletedImg;
+
     imgList.splice(imgIndex, 1);
     const updatedJson = imgList.length > 0 ? JSON.stringify(imgList) : null;
     point.image_url = updatedJson;
@@ -1519,6 +1333,14 @@
       alert('画像の削除に失敗しました: ' + error.message);
       await loadImagesForPopup(pointId);
     } else {
+      try {
+        const match = deletedUrl.match(/\/point-images\/(.+)$/);
+        if (match && match[1]) {
+          await supabaseClient.storage.from('point-images').remove([match[1]]);
+        }
+      } catch (err) {
+        console.warn('Storage実ファイルの削除に失敗:', err);
+      }
       renderSidebarTree();
     }
 
@@ -1544,7 +1366,6 @@
       </div>
     `;
 
-    // 点検済みの場合はグレー(grey)色を強制適用
     const currentColor = isCheckedDone ? 'grey' : (point.color || 'blue');
 
     const marker = L.marker([point.lat, point.lng], {
@@ -1603,7 +1424,9 @@
     }
   }
 
+  // ★ グループ削除時に該当ポイントのStorage画像も削除 ★
   async function deleteGroupUI(groupPath) {
+    if (isReadOnly || isSharedEditMode) return;
     const targetPoints = allPoints.filter(p => {
       const g = p.group_name || '未分類';
       return g === groupPath || g.startsWith(groupPath + ' /');
@@ -1622,6 +1445,8 @@
         alert('グループ内データの削除に失敗しました: ' + error.message);
         return;
       }
+
+      await deleteStorageImagesForPoints(targetPoints);
 
       targetIds.forEach(id => {
         if (markers[id]) { map.removeLayer(markers[id]); delete markers[id]; }
@@ -1883,7 +1708,7 @@
           </span>
           ${!isReadOnly ? `
             <button class="btn-group-action btn-group-edit" onclick="editGroupUI('${pName}')" title="グループ名を変更">✏️</button>
-            <button class="btn-group-action btn-group-del" onclick="deleteGroupUI('${pName}')" title="削除">✕</button>
+            ${!isSharedEditMode ? `<button class="btn-group-action btn-group-del" onclick="deleteGroupUI('${pName}')" title="削除">✕</button>` : ''}
           ` : ''}
         `;
         parentDiv.appendChild(parentHeader);
@@ -1933,7 +1758,7 @@
             </span>
             ${!isReadOnly ? `
               <button class="btn-group-action btn-group-edit" onclick="editGroupUI('${childPath}')">✏️</button>
-              <button class="btn-group-action btn-group-del" onclick="deleteGroupUI('${childPath}')">✕</button>
+              ${!isSharedEditMode ? `<button class="btn-group-action btn-group-del" onclick="deleteGroupUI('${childPath}')">✕</button>` : ''}
             ` : ''}
           `;
           childDiv.appendChild(childHeader);
@@ -1977,7 +1802,7 @@
               </span>
               ${!isReadOnly ? `
                 <button class="btn-group-action btn-group-edit" onclick="editGroupUI('${gcPath}')">✏️</button>
-                <button class="btn-group-action btn-group-del" onclick="deleteGroupUI('${gcPath}')">✕</button>
+                ${!isSharedEditMode ? `<button class="btn-group-action btn-group-del" onclick="deleteGroupUI('${gcPath}')">✕</button>` : ''}
               ` : ''}
             `;
             gcDiv.appendChild(gcHeader);
@@ -2030,7 +1855,6 @@
     return '';
   }
 
-  /* ★ リストアイテムのレンダリング（着色タブの色保持＆白抜き未実施ボタン） ★ */
   function renderPointList(points, groupPath) {
     const ul = document.createElement('ul');
     ul.className = 'point-list';
@@ -2048,7 +1872,6 @@
       });
       li.addEventListener('dragend', () => li.classList.remove('dragging'));
 
-      // ★ リスト側の着色タブは元のタブ設定色（getTabColor）を常に維持
       const originalTabColor = getTabColor(p.tab_name);
 
       let tabBadgeHtml = '';
@@ -2152,13 +1975,11 @@
     }
   }
 
-  /* ★ 点検済（マップ上のみグレー固定）/ 未実施（マップ上の元タブ色復元）更新処理 ★ */
   async function togglePointCheckedStatus(pointId, explicitValue = null) {
     const point = allPoints.find(p => Number(p.id) === Number(pointId));
     if (!point) return;
 
     const newChecked = explicitValue !== null ? explicitValue : !point.is_checked;
-    // マップ上のピンの色：点検済みの場合はグレー色(grey)を適用、未実施に戻す場合は元のタブ色へ復元
     const newColor = newChecked ? 'grey' : getTabColor(point.tab_name);
 
     const { error } = await supabaseClient.from('points').update({ 
@@ -2212,18 +2033,23 @@
     });
   }
 
+  // ★ 選択削除時に該当ポイントのStorage画像も削除 ★
   async function deleteSelectedPoints() {
-    if (isReadOnly) return;
+    if (isReadOnly || isSharedEditMode) return;
     const selectedCheckboxes = Array.from(document.querySelectorAll('.chk-point:checked'));
     const selectedIds = selectedCheckboxes.map(chk => Number(chk.value)).filter(id => !isNaN(id));
     
     if (selectedIds.length === 0) { alert('削除したいポイントを選択してください'); return; }
 
     if (confirm(`選択した ${selectedIds.length} 件のポイントを完全削除しますか？`)) {
+      const targets = allPoints.filter(p => selectedIds.includes(Number(p.id)));
+
       const { error } = await supabaseClient.from('points').delete().in('id', selectedIds);
       if (error) { 
         alert('削除失敗: ' + error.message); 
       } else {
+        await deleteStorageImagesForPoints(targets);
+
         selectedIds.forEach(id => {
           if (markers[id]) { map.removeLayer(markers[id]); delete markers[id]; }
           checkedPointIds.delete(id);
@@ -2285,6 +2111,7 @@
     document.getElementById('single-image-input').click();
   }
 
+  // ★ 画像アップロード時に圧縮済みのデータを渡す修正 ★
   document.getElementById('single-image-input').addEventListener('change', async (e) => {
     const files = Array.from(e.target.files);
     if (files.length === 0 || !targetPointIdForImage) return;
@@ -2299,7 +2126,7 @@
       const uploadedImageObjects = [];
       for (const file of files) {
         const compressedBase64 = await compressImageFile(file, 600, 0.65);
-        const publicUrl = await uploadImageToStorage(file, 'manual');
+        const publicUrl = await uploadImageToStorage(compressedBase64, 'manual');
         if (publicUrl) {
           uploadedImageObjects.push({ url: publicUrl, comment: '', judge: '' });
         }
@@ -2402,17 +2229,24 @@
     });
 
     const pw = document.getElementById('share-setting-pw').value.trim();
+    const mode = document.querySelector('input[name="share-setting-mode"]:checked').value;
+    
     if (!pw) {
       alert('閲覧用パスワードを入力してください');
       return;
     }
 
     const days = parseInt(document.getElementById('share-setting-days').value, 10);
-    const expireTimestamp = Date.now() + (days * 24 * 60 * 60 * 1000);
+    let expireTimestamp = 0; // 0の場合は無期限
+    
+    if (days > 0) {
+      expireTimestamp = Date.now() + (days * 24 * 60 * 60 * 1000);
+    }
+    
     const token = btoa(encodeURIComponent(pw));
 
     generatedSharePw = pw;
-    generatedShareUrl = `${window.location.origin}${window.location.pathname}?ids=${selectedIds.join(',')}&exp=${expireTimestamp}&token=${token}`;
+    generatedShareUrl = `${window.location.origin}${window.location.pathname}?ids=${selectedIds.join(',')}&exp=${expireTimestamp}&token=${token}&mode=${mode}`;
 
     closeShareConfigModal();
     document.getElementById('share-result-modal').style.display = 'block';
@@ -2467,15 +2301,9 @@
       const urlParams = new URLSearchParams(window.location.search);
       const sharedIds = urlParams.get('ids') ? urlParams.get('ids').split(',') : (urlParams.get('id') ? [urlParams.get('id')] : null);
 
-      if (sharedIds) {
-        isReadOnly = true;
-        document.getElementById('readonly-banner').style.display = 'block';
-        document.querySelectorAll('.editable-only').forEach(el => el.style.display = 'none');
-      }
-
       const { data: points, error } = await fetchWithRetry(() => supabaseClient
         .from('points')
-        .select('id, title, display_title, lat, lng, group_name, tab_name, color, is_checked')
+        .select('id, title, display_title, lat, lng, group_name, tab_name, color, is_checked, image_url')
         .order('id', { ascending: true })
       );
 
@@ -2493,7 +2321,6 @@
 
       allPoints.forEach(p => {
         if (p.is_checked === undefined) p.is_checked = false;
-        // マップ上のピンの色：点検済みの場合はグレー色に強制同期
         if (p.is_checked) p.color = 'grey';
       });
 
@@ -2659,10 +2486,6 @@
 
   map.on('click', (e) => {
     if (isReadOnly) return;
-    if (isAddingGridMode) {
-      addNewGridAtLatLng(e.latlng);
-      return;
-    }
     if (isManualRegisterMode) {
       selectedLatLng = e.latlng;
       document.getElementById('spot-lat').value = e.latlng.lat.toFixed(6);
@@ -2700,6 +2523,7 @@
     selectedLatLng = null;
   }
 
+  // ★ 画像アップロード時に圧縮済みのデータを渡す修正 ★
   async function savePoint() {
     if (isReadOnly) return;
     const dispTitle = document.getElementById('spot-display-title').value.trim();
@@ -2723,7 +2547,7 @@
         const compressedList = [];
         for (const f of files) {
           const b64 = await compressImageFile(f, 600, 0.65);
-          const publicUrl = await uploadImageToStorage(f, 'manual');
+          const publicUrl = await uploadImageToStorage(b64, 'manual');
           if (publicUrl) {
             compressedList.push({ url: publicUrl, comment: '', judge: '' });
           }
@@ -2747,742 +2571,6 @@
       console.error(err);
     } finally {
       saveBtn.disabled = false;
-    }
-  }
-
-  /* ==========================================================================
-   * 🖨️ PDF印刷・拡大地図（ズーム14）オーバーレイ描画＆キャプチャ対応
-   * ========================================================================== */
-
-  function openPdfConfigModal() {
-    const selectedPoints = getPdfTargetPoints();
-    if (selectedPoints.length === 0) {
-      alert('PDF化する対象ポイントがありません。チェックボックスをオンにしてポイントを表示させてください。');
-      return;
-    }
-    document.getElementById('pdf-config-modal').style.display = 'block';
-  }
-
-  function closePdfConfigModal() {
-    document.getElementById('pdf-config-modal').style.display = 'none';
-  }
-
-  function getPdfTargetPoints() {
-    return allPoints.filter(p => checkedPointIds.has(Number(p.id)));
-  }
-
-  /* ★ A4横比率（277:190）に合わせた区画スパン設定 ★ */
-  function getZoomSpans(zoom) {
-    const baseLatSpan = 0.0038;  // 縦方向
-    const baseLngSpan = 0.0055;  // 横方向
-    const factor = Math.pow(2, 17 - zoom);
-    
-    return {
-      latSpan: baseLatSpan * factor,
-      lngSpan: baseLngSpan * factor,
-      stepLat: baseLatSpan * factor * 0.90,
-      stepLng: baseLngSpan * factor * 0.90
-    };
-  }
-
-  function startPdfPreview() {
-    closePdfConfigModal();
-    activeBaseZoom = parseInt(document.getElementById('pdf-base-zoom').value, 10);
-    const startDirection = document.getElementById('pdf-start-direction').value;
-    const targetPoints = getPdfTargetPoints();
-
-    if (targetPoints.length === 0) return;
-
-    let minLat = 90, maxLat = -90, minLng = 180, maxLng = -180;
-    targetPoints.forEach(p => {
-      if (p.lat < minLat) minLat = p.lat;
-      if (p.lat > maxLat) maxLat = p.lat;
-      if (p.lng < minLng) minLng = p.lng;
-      if (p.lng > maxLng) maxLng = p.lng;
-    });
-
-    const spans = getZoomSpans(activeBaseZoom);
-    const latPadding = spans.latSpan * 0.15;
-    const lngPadding = spans.lngSpan * 0.15;
-    minLat -= latPadding; maxLat += latPadding;
-    minLng -= lngPadding; maxLng += lngPadding;
-
-    let rawGrids = generateGridsForArea(minLat, maxLat, minLng, maxLng, activeBaseZoom, targetPoints);
-
-    pdfGrids = sortGridsByDirection(rawGrids, startDirection);
-    reindexPdfGrids();
-
-    const autoHeaderText = getGroupHeaderTextForBounds(L.latLngBounds([[minLat, minLng], [maxLat, maxLng]]));
-    document.getElementById('pdf-custom-header-text').value = autoHeaderText || '≪点検マップ≫';
-
-    selectedGridId = null;
-    clearDirectGridControls();
-
-    map.fitBounds(L.latLngBounds([[minLat, minLng], [maxLat, maxLng]]), { padding: [30, 30] });
-    renderPdfGridOverlay();
-
-    updatePreviewInfoText();
-    document.getElementById('pdf-preview-control-modal').style.display = 'block';
-  }
-
-  /* ★ 集約判定を最適化した区画生成アルゴリズム ★ */
-  function generateGridsForArea(minLat, maxLat, minLng, maxLng, zoom, targetPoints) {
-    const spans = getZoomSpans(zoom);
-    const gridList = [];
-
-    let unvisited = [...targetPoints];
-
-    while (unvisited.length > 0) {
-      let seed = unvisited.shift();
-      let cluster = [seed];
-
-      for (let i = unvisited.length - 1; i >= 0; i--) {
-        let p = unvisited[i];
-        let fitsInOneGrid = cluster.every(cp => {
-          return Math.abs(cp.lat - p.lat) <= spans.latSpan * 0.98 &&
-                 Math.abs(cp.lng - p.lng) <= spans.lngSpan * 0.98;
-        });
-
-        if (fitsInOneGrid) {
-          cluster.push(p);
-          unvisited.splice(i, 1);
-        }
-      }
-
-      let cMinLat = 90, cMaxLat = -90, cMinLng = 180, cMaxLng = -180;
-      cluster.forEach(p => {
-        if (p.lat < cMinLat) cMinLat = p.lat;
-        if (p.lat > cMaxLat) cMaxLat = p.lat;
-        if (p.lng < cMinLng) cMinLng = p.lng;
-        if (p.lng > cMaxLng) cMaxLng = p.lng;
-      });
-
-      let centerLat = (cMinLat + cMaxLat) / 2;
-      let centerLng = (cMinLng + cMaxLng) / 2;
-
-      let north = centerLat + spans.latSpan / 2;
-      let south = centerLat - spans.latSpan / 2;
-      let east = centerLng + spans.lngSpan / 2;
-      let west = centerLng - spans.lngSpan / 2;
-
-      const bounds = L.latLngBounds([[south, west], [north, east]]);
-      const gridId = 'grid_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
-
-      gridList.push({
-        id: gridId,
-        parentGridGroup: null,
-        bounds: bounds,
-        north: north,
-        south: south,
-        west: west,
-        east: east,
-        center: bounds.getCenter(),
-        zoom: zoom,
-        originalZoom: zoom,
-        originalBounds: bounds
-      });
-    }
-
-    return gridList;
-  }
-
-  function reorderAndReindexGrids() {
-    const startDirection = document.getElementById('pdf-start-direction').value;
-    pdfGrids = sortGridsByDirection(pdfGrids, startDirection);
-    reindexPdfGrids();
-  }
-
-  function reindexPdfGrids() {
-    pdfGrids.forEach((g, idx) => { g.pageNumber = idx + 1; });
-  }
-
-  function updatePreviewInfoText() {
-    const targetPoints = getPdfTargetPoints();
-    document.getElementById('pdf-preview-info').textContent = `対象ポイント: ${targetPoints.length} 件 / 区分け数: ${pdfGrids.length} 区画`;
-  }
-
-  function sortGridsByDirection(grids, direction) {
-    return grids.sort((a, b) => {
-      if (direction === 'NW') {
-        if (Math.abs(a.north - b.north) > 0.0005) return b.north - a.north;
-        return a.west - b.west;
-      } else if (direction === 'NE') {
-        if (Math.abs(a.north - b.north) > 0.0005) return b.north - a.north;
-        return b.west - a.west;
-      } else if (direction === 'SW') {
-        if (Math.abs(a.north - b.north) > 0.0005) return a.north - b.north;
-        return a.west - b.west;
-      } else if (direction === 'SE') {
-        if (Math.abs(a.north - b.north) > 0.0005) return a.north - b.north;
-        return b.west - a.west;
-      }
-      return 0;
-    });
-  }
-
-  function renderPdfGridOverlay() {
-    pdfGridLayerGroup.clearLayers();
-
-    pdfGrids.forEach((grid) => {
-      const isSelected = (grid.id === selectedGridId);
-
-      const rect = L.rectangle(grid.bounds, {
-        color: isSelected ? '#fd7e14' : '#6f42c1',
-        weight: isSelected ? 3.5 : 2,
-        fillColor: isSelected ? '#fd7e14' : '#6f42c1',
-        fillOpacity: isSelected ? 0.25 : 0.08,
-        interactive: true
-      });
-
-      const labelIcon = L.divIcon({
-        className: 'pdf-grid-label-container',
-        html: `<div class="pdf-grid-label" style="background:${isSelected ? '#fd7e14' : 'rgba(111, 66, 193, 0.9)'}">P.${grid.pageNumber} (Z:${grid.zoom})</div>`,
-        iconAnchor: [-6, -6]
-      });
-      const labelMarker = L.marker([grid.north, grid.west], { icon: labelIcon, interactive: true });
-
-      const onGridSelect = (e) => {
-        if (e) e.originalEvent.stopPropagation();
-        selectedGridId = grid.id;
-        renderPdfGridOverlay();
-        updateDirectGridControls(grid);
-      };
-
-      rect.on('click', onGridSelect);
-      labelMarker.on('click', onGridSelect);
-
-      let isDragging = false;
-      let startLatLng = null;
-
-      rect.on('mousedown', (e) => {
-        selectedGridId = grid.id;
-        renderPdfGridOverlay();
-        updateDirectGridControls(grid);
-
-        isDragging = true;
-        startLatLng = e.latlng;
-        map.dragging.disable();
-      });
-
-      map.on('mousemove', (e) => {
-        if (!isDragging || !startLatLng || grid.id !== selectedGridId) return;
-        const latDiff = e.latlng.lat - startLatLng.lat;
-        const lngDiff = e.latlng.lng - startLatLng.lng;
-        startLatLng = e.latlng;
-
-        const currentBounds = rect.getBounds();
-        const newBounds = L.latLngBounds([
-          [currentBounds.getSouth() + latDiff, currentBounds.getWest() + lngDiff],
-          [currentBounds.getNorth() + latDiff, currentBounds.getEast() + lngDiff]
-        ]);
-
-        rect.setBounds(newBounds);
-        labelMarker.setLatLng([newBounds.getNorth(), newBounds.getWest()]);
-        
-        grid.bounds = newBounds;
-        grid.north = newBounds.getNorth();
-        grid.south = newBounds.getSouth();
-        grid.west = newBounds.getWest();
-        grid.east = newBounds.getEast();
-        grid.center = newBounds.getCenter();
-      });
-
-      map.on('mouseup', () => {
-        if (isDragging) {
-          isDragging = false;
-          startLatLng = null;
-          map.dragging.enable();
-          reorderAndReindexGrids();
-          renderPdfGridOverlay();
-        }
-      });
-
-      pdfGridLayerGroup.addLayer(rect);
-      pdfGridLayerGroup.addLayer(labelMarker);
-    });
-  }
-
-  function updateDirectGridControls(grid) {
-    document.getElementById('pdf-selected-grid-status').textContent = `選択中: P.${grid.pageNumber} 区画 (Zoom ${grid.zoom})`;
-    
-    const selectZoom = document.getElementById('direct-grid-zoom-select');
-    selectZoom.disabled = false;
-    selectZoom.value = String(grid.zoom);
-
-    const btnReset = document.getElementById('btn-reset-direct-zoom');
-    btnReset.disabled = false;
-    btnReset.style.opacity = '1.0';
-
-    const btnDel = document.getElementById('btn-delete-direct-grid');
-    btnDel.disabled = false;
-    btnDel.style.opacity = '1.0';
-  }
-
-  function clearDirectGridControls() {
-    document.getElementById('pdf-selected-grid-status').textContent = '選択中の区画: なし（枠をクリック）';
-    
-    const selectZoom = document.getElementById('direct-grid-zoom-select');
-    selectZoom.disabled = true;
-
-    const btnReset = document.getElementById('btn-reset-direct-zoom');
-    btnReset.disabled = true;
-    btnReset.style.opacity = '0.5';
-
-    const btnDel = document.getElementById('btn-delete-direct-grid');
-    btnDel.disabled = true;
-    btnDel.style.opacity = '0.5';
-  }
-
-  function applyDirectGridZoom() {
-    if (!selectedGridId) return;
-    const targetGridIndex = pdfGrids.findIndex(g => g.id === selectedGridId);
-    if (targetGridIndex === -1) return;
-
-    const targetGrid = pdfGrids[targetGridIndex];
-    const newZoom = parseInt(document.getElementById('direct-grid-zoom-select').value, 10);
-    if (newZoom === targetGrid.zoom) return;
-
-    const pointsInGrid = getPdfTargetPoints().filter(p => targetGrid.bounds.contains([p.lat, p.lng]));
-    
-    const newSubGrids = generateGridsForArea(
-      targetGrid.south, 
-      targetGrid.north, 
-      targetGrid.west, 
-      targetGrid.east, 
-      newZoom, 
-      pointsInGrid.length > 0 ? pointsInGrid : [{ lat: targetGrid.center.lat, lng: targetGrid.center.lng }]
-    );
-
-    const parentGroup = targetGrid.parentGridGroup || {
-      id: targetGrid.id,
-      bounds: targetGrid.originalBounds || targetGrid.bounds,
-      zoom: targetGrid.originalZoom || targetGrid.zoom
-    };
-
-    newSubGrids.forEach(sg => {
-      sg.parentGridGroup = parentGroup;
-    });
-
-    pdfGrids.splice(targetGridIndex, 1, ...newSubGrids);
-
-    reorderAndReindexGrids();
-    renderPdfGridOverlay();
-    updatePreviewInfoText();
-
-    if (newSubGrids.length > 0) {
-      selectedGridId = newSubGrids[0].id;
-      updateDirectGridControls(newSubGrids[0]);
-    } else {
-      selectedGridId = null;
-      clearDirectGridControls();
-    }
-  }
-
-  function resetDirectGridZoom() {
-    if (!selectedGridId) return;
-    const targetGrid = pdfGrids.find(g => g.id === selectedGridId);
-    if (!targetGrid) return;
-
-    const parentGroup = targetGrid.parentGridGroup;
-
-    if (parentGroup) {
-      pdfGrids = pdfGrids.filter(g => (!g.parentGridGroup || g.parentGridGroup.id !== parentGroup.id) && g.id !== targetGrid.id);
-
-      const restoredGrid = {
-        id: parentGroup.id,
-        parentGridGroup: null,
-        bounds: parentGroup.bounds,
-        north: parentGroup.bounds.getNorth(),
-        south: parentGroup.bounds.getSouth(),
-        west: parentGroup.bounds.getWest(),
-        east: parentGroup.bounds.getEast(),
-        center: parentGroup.bounds.getCenter(),
-        zoom: parentGroup.zoom,
-        originalZoom: parentGroup.zoom,
-        originalBounds: parentGroup.bounds
-      };
-
-      pdfGrids.push(restoredGrid);
-      selectedGridId = restoredGrid.id;
-
-      reorderAndReindexGrids();
-      renderPdfGridOverlay();
-      updatePreviewInfoText();
-      updateDirectGridControls(restoredGrid);
-    } else {
-      document.getElementById('direct-grid-zoom-select').value = String(targetGrid.originalZoom || activeBaseZoom);
-      applyDirectGridZoom();
-    }
-  }
-
-  function deleteSelectedGrid() {
-    if (!selectedGridId) return;
-    const grid = pdfGrids.find(g => g.id === selectedGridId);
-    if (!grid) return;
-
-    if (confirm(`区画 P.${grid.pageNumber} を削除しますか？`)) {
-      pdfGrids = pdfGrids.filter(g => g.id !== selectedGridId);
-      selectedGridId = null;
-      
-      reorderAndReindexGrids();
-      renderPdfGridOverlay();
-      updatePreviewInfoText();
-      clearDirectGridControls();
-    }
-  }
-
-  document.addEventListener('keydown', (e) => {
-    const modalStyle = document.getElementById('pdf-preview-control-modal').style.display;
-    if (modalStyle === 'block' && selectedGridId && (e.key === 'Delete' || e.key === 'Backspace')) {
-      const activeEl = document.activeElement;
-      if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'SELECT' || activeEl.tagName === 'TEXTAREA')) {
-        return;
-      }
-      e.preventDefault();
-      deleteSelectedGrid();
-    }
-  });
-
-  function toggleAddGridMode() {
-    isAddingGridMode = !isAddingGridMode;
-    const btn = document.getElementById('btn-toggle-add-grid');
-    if (isAddingGridMode) {
-      btn.textContent = '➕ 地図上をクリックして区画追加中... (クリックで解除)';
-      btn.style.background = '#17a2b8';
-      btn.style.color = 'white';
-    } else {
-      btn.textContent = '➕ 区画を追加（地図をクリック）: OFF';
-      btn.style.background = '#ffc107';
-      btn.style.color = '#333';
-    }
-  }
-
-  function addNewGridAtLatLng(latLng) {
-    const currentZoom = parseInt(document.getElementById('direct-grid-zoom-select').value, 10) || activeBaseZoom;
-    const spans = getZoomSpans(currentZoom);
-
-    const lat = latLng.lat + spans.latSpan / 2;
-    const lng = latLng.lng - spans.lngSpan / 2;
-
-    const bounds = L.latLngBounds([
-      [lat - spans.latSpan, lng],
-      [lat, lng + spans.lngSpan]
-    ]);
-
-    const newGrid = {
-      id: 'grid_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
-      parentGridGroup: null,
-      bounds: bounds,
-      north: lat,
-      south: lat - spans.latSpan,
-      west: lng,
-      east: lng + spans.lngSpan,
-      center: bounds.getCenter(),
-      zoom: currentZoom,
-      originalZoom: currentZoom,
-      originalBounds: bounds
-    };
-
-    pdfGrids.push(newGrid);
-    selectedGridId = newGrid.id;
-
-    reorderAndReindexGrids();
-    renderPdfGridOverlay();
-    updatePreviewInfoText();
-    updateDirectGridControls(newGrid);
-  }
-
-  /* ★ 右上広域地図（ズーム14）非同期レンダリング同期バージョン ★ */
-  async function createInsetMap(centerLatLng, currentGrid) {
-    const insetDiv = document.createElement('div');
-    insetDiv.id = 'pdf-inset-map';
-    document.getElementById('map').appendChild(insetDiv);
-
-    const insetMap = L.map('pdf-inset-map', {
-      zoomControl: false,
-      attributionControl: false
-    });
-
-    L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png', {
-      maxZoom: 18
-    }).addTo(insetMap);
-
-    pdfGrids.forEach(grid => {
-      const isCurrent = (grid.id === currentGrid.id);
-      L.rectangle(grid.bounds, {
-        color: isCurrent ? '#dc3545' : '#6c757d',
-        weight: isCurrent ? 3 : 1,
-        fillColor: isCurrent ? '#dc3545' : '#6c757d',
-        fillOpacity: isCurrent ? 0.35 : 0.08,
-        dashArray: isCurrent ? null : '3, 3'
-      }).addTo(insetMap);
-    });
-
-    insetMap.setView(centerLatLng, 14, { animate: false });
-    await new Promise(resolve => setTimeout(resolve, 350));
-    insetMap.invalidateSize();
-    await new Promise(resolve => setTimeout(resolve, 250));
-
-    return { insetDiv, insetMap };
-  }
-
-  function removeInsetMap(insetData) {
-    if (insetData) {
-      if (insetData.insetMap) insetData.insetMap.remove();
-      if (insetData.insetDiv && insetData.insetDiv.parentNode) {
-        insetData.insetDiv.parentNode.removeChild(insetData.insetDiv);
-      }
-    }
-  }
-
-  /* ★ 一括プレビュー（A4横アスペクト比完全保持版） ★ */
-  async function generateAllPagesPreview() {
-    if (pdfGrids.length === 0) return;
-
-    const mapElem = document.getElementById('map');
-    const originalCenter = map.getCenter();
-    const originalZoom = map.getZoom();
-
-    const loadingOverlay = document.getElementById('pdf-loading-overlay');
-    const loadingProgress = document.getElementById('pdf-loading-progress');
-    const thumbsContainer = document.getElementById('pdf-thumbnails-container');
-    
-    loadingOverlay.style.display = 'flex';
-    thumbsContainer.innerHTML = '';
-
-    pdfGridLayerGroup.clearLayers();
-
-    const customHeaderText = document.getElementById('pdf-custom-header-text').value.trim();
-    const headerPrintLabel = document.getElementById('pdf-header-print-label');
-    if (customHeaderText) {
-      headerPrintLabel.textContent = customHeaderText;
-      headerPrintLabel.style.display = 'block';
-    }
-
-    try {
-      for (let i = 0; i < pdfGrids.length; i++) {
-        const grid = pdfGrids[i];
-        loadingProgress.textContent = `プレビュー読み込み中... (${i + 1} / ${pdfGrids.length} ページ目)`;
-
-        map.setView(grid.center, grid.zoom, { animate: false });
-        adjustLabelsOverlap();
-        
-        const inset = await createInsetMap(grid.center, grid);
-        
-        await new Promise(r => setTimeout(r, 850));
-
-        const canvas = await html2canvas(mapElem, {
-          useCORS: true,
-          allowTaint: true,
-          scale: 1.5
-        });
-
-        removeInsetMap(inset);
-
-        const imgData = canvas.toDataURL('image/jpeg', 0.8);
-
-        const card = document.createElement('div');
-        card.className = 'pdf-thumb-card';
-        card.innerHTML = `
-          <div class="pdf-thumb-title">Page ${grid.pageNumber} (Zoom ${grid.zoom})</div>
-          <img src="${imgData}" class="pdf-thumb-img" alt="P.${grid.pageNumber}" />
-        `;
-        thumbsContainer.appendChild(card);
-      }
-
-      document.getElementById('pdf-all-pages-modal').style.display = 'flex';
-    } catch (err) {
-      console.error('一括プレビュー例外:', err);
-      alert('一括プレビューの生成中にエラーが発生しました: ' + err.message);
-    } finally {
-      headerPrintLabel.style.display = 'none';
-      loadingOverlay.style.display = 'none';
-      map.setView(originalCenter, originalZoom, { animate: false });
-      renderPdfGridOverlay();
-    }
-  }
-
-  function closeAllPagesPreview() {
-    document.getElementById('pdf-all-pages-modal').style.display = 'none';
-  }
-
-  function togglePageRangeInput() {
-    const isCustom = document.querySelector('input[name="pdf-page-range-type"]:checked').value === 'custom';
-    document.getElementById('pdf-page-range-input').style.display = isCustom ? 'block' : 'none';
-  }
-
-  function parsePageRange(rangeStr, totalPages) {
-    if (!rangeStr || !rangeStr.trim()) return [];
-    const pages = new Set();
-    const parts = rangeStr.split(',');
-
-    parts.forEach(part => {
-      const p = part.trim();
-      if (p.includes('-')) {
-        const [start, end] = p.split('-').map(n => parseInt(n.trim(), 10));
-        if (!isNaN(start) && !isNaN(end)) {
-          for (let i = Math.max(1, start); i <= Math.min(totalPages, end); i++) pages.add(i);
-        }
-      } else {
-        const num = parseInt(p, 10);
-        if (!isNaN(num) && num >= 1 && num <= totalPages) pages.add(num);
-      }
-    });
-
-    return Array.from(pages).sort((a, b) => a - b);
-  }
-
-  function cancelPdfPreview() {
-    isAddingGridMode = false;
-    selectedGridId = null;
-    pdfGridLayerGroup.clearLayers();
-    document.getElementById('pdf-preview-control-modal').style.display = 'none';
-  }
-
-  function getGroupHeaderTextForBounds(bounds) {
-    const targetPoints = getPdfTargetPoints().filter(p => bounds.contains([p.lat, p.lng]));
-    if (targetPoints.length === 0) return '';
-
-    const grandChildren = new Set();
-    const children = new Set();
-    const parents = new Set();
-
-    targetPoints.forEach(p => {
-      const rawG = p.group_name || '未分類';
-      const parts = rawG.split('/').map(s => s.trim()).filter(Boolean);
-      if (parts.length >= 3) {
-        grandChildren.add(parts[2]);
-      } else if (parts.length === 2) {
-        children.add(parts[1]);
-      } else if (parts.length === 1) {
-        parents.add(parts[0]);
-      }
-    });
-
-    let selectedNames = [];
-    if (grandChildren.size > 0) {
-      selectedNames = Array.from(grandChildren);
-    } else if (children.size > 0) {
-      selectedNames = Array.from(children);
-    } else if (parents.size > 0) {
-      selectedNames = Array.from(parents);
-    }
-
-    if (selectedNames.length === 0) return '';
-    return selectedNames.map(name => `≪${name}≫`).join(', ');
-  }
-
-  /* ★ PDF出力実行（縦横比歪み防止・A4横完全固定版） ★ */
-  async function executePdfExport() {
-    if (pdfGrids.length === 0) return;
-
-    const rangeType = document.querySelector('input[name="pdf-page-range-type"]:checked').value;
-    let exportGrids = [];
-
-    if (rangeType === 'custom') {
-      const rangeStr = document.getElementById('pdf-page-range-input').value;
-      const targetPages = parsePageRange(rangeStr, pdfGrids.length);
-      if (targetPages.length === 0) {
-        alert('有効なページ番号（例: 1-3, 5）を入力してください');
-        return;
-      }
-      exportGrids = pdfGrids.filter(g => targetPages.includes(g.pageNumber));
-    } else {
-      exportGrids = [...pdfGrids];
-    }
-
-    if (!confirm(`全 ${exportGrids.length} ページのPDFを出力しますか？`)) return;
-
-    const customHeaderText = document.getElementById('pdf-custom-header-text').value.trim();
-
-    const mapElem = document.getElementById('map');
-    const originalCenter = map.getCenter();
-    const originalZoom = map.getZoom();
-
-    const loadingOverlay = document.getElementById('pdf-loading-overlay');
-    const loadingProgress = document.getElementById('pdf-loading-progress');
-    loadingOverlay.style.display = 'flex';
-
-    pdfGridLayerGroup.clearLayers();
-
-    const headerPrintLabel = document.getElementById('pdf-header-print-label');
-    if (customHeaderText) {
-      headerPrintLabel.textContent = customHeaderText;
-      headerPrintLabel.style.display = 'block';
-    } else {
-      headerPrintLabel.style.display = 'none';
-    }
-
-    const { jsPDF } = window.jspdf;
-    const pdf = new jsPDF('landscape', 'mm', 'a4');
-
-    const margin = 10;
-    const printWidth = 277;  // A4横印刷エリア幅
-    const printHeight = 190; // A4横印刷エリア高さ
-
-    try {
-      for (let i = 0; i < exportGrids.length; i++) {
-        const grid = exportGrids[i];
-        loadingProgress.textContent = `PDF生成中... (${i + 1} / ${exportGrids.length} ページ目 - P.${grid.pageNumber})`;
-
-        map.setView(grid.center, grid.zoom, { animate: false });
-        adjustLabelsOverlap();
-        
-        const inset = await createInsetMap(grid.center, grid);
-        
-        await new Promise(r => setTimeout(r, 850));
-
-        const canvas = await html2canvas(mapElem, {
-          useCORS: true,
-          allowTaint: true,
-          scale: 2
-        });
-
-        removeInsetMap(inset);
-
-        const imgData = canvas.toDataURL('image/jpeg', 0.85);
-
-        if (i > 0) pdf.addPage();
-        
-        // 画像のアスペクト比を計算し、歪まないようにA4枠へフィッティングして描画
-        const imgRatio = canvas.width / canvas.height;
-        const pdfRatio = printWidth / printHeight;
-        let drawW = printWidth;
-        let drawH = printHeight;
-        let drawX = margin;
-        let drawY = margin;
-
-        if (imgRatio > pdfRatio) {
-          drawH = printWidth / imgRatio;
-          drawY = margin + (printHeight - drawH) / 2;
-        } else {
-          drawW = printHeight * imgRatio;
-          drawX = margin + (printWidth - drawW) / 2;
-        }
-
-        pdf.addImage(imgData, 'JPEG', drawX, drawY, drawW, drawH);
-
-        // 外枠線の描画
-        pdf.setDrawColor(180, 180, 180);
-        pdf.setLineWidth(0.3);
-        pdf.rect(margin, margin, printWidth, printHeight);
-
-        // フッター文字列の描画
-        pdf.setFontSize(9);
-        pdf.setTextColor(100);
-        pdf.text(`Page ${grid.pageNumber} / ${pdfGrids.length} (Zoom ${grid.zoom})`, margin, 205);
-      }
-
-      pdf.save(`点検マップ_出力_${Date.now()}.pdf`);
-      alert('PDFの出力が完了しました！');
-    } catch (err) {
-      console.error('PDF出力例外:', err);
-      alert('PDFの生成中にエラーが発生しました: ' + err.message);
-    } finally {
-      headerPrintLabel.style.display = 'none';
-      loadingOverlay.style.display = 'none';
-      map.setView(originalCenter, originalZoom, { animate: false });
-      cancelPdfPreview();
     }
   }
 
