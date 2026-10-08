@@ -8,11 +8,12 @@
   <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <style>
-    body { margin: 0; padding: 0; font-family: sans-serif; display: flex; height: 100vh; overflow: hidden; }
+    /* ★ height: 100dvh; を追加し、スマホのブラウザメニューによる見切れを防止 ★ */
+    body { margin: 0; padding: 0; font-family: sans-serif; display: flex; height: 100vh; height: 100dvh; overflow: hidden; }
     
     /* Supabase Auth ログインモーダル */
     #login-overlay, #share-auth-overlay {
-      position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+      position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; height: 100dvh;
       background: rgba(0, 0, 0, 0.85); z-index: 10000;
       display: flex; justify-content: center; align-items: center;
     }
@@ -135,6 +136,7 @@
 
     #map { flex: 1; height: 100%; position: relative; }
 
+    /* 凡例の基本位置（PC用） */
     #legend-box {
       position: absolute; bottom: 20px; right: 10px; z-index: 1000;
       background: rgba(255, 255, 255, 0.9); padding: 8px 12px; border-radius: 6px;
@@ -144,20 +146,20 @@
     .legend-item { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; }
     .legend-color { width: 12px; height: 12px; border-radius: 50%; display: inline-block; border: 1px solid rgba(0,0,0,0.2); }
 
-    /* モバイル専用の現在地表示ボタン (左下・上に配置) */
+    /* ★ モバイル専用の現在地表示ボタン（上に配置）★ bottom: 95pxに変更 */
     #mobile-location-btn {
       display: none;
-      position: absolute; bottom: 65px; left: 10px; z-index: 1000;
+      position: absolute; bottom: 95px; left: 10px; z-index: 1000;
       background: #007bff; color: white; border: none; padding: 8px 12px;
       border-radius: 20px; font-size: 11px; font-weight: bold;
       box-shadow: 0 2px 6px rgba(0,0,0,0.3); cursor: pointer;
       transition: background 0.3s;
     }
 
-    /* ★ モバイル専用のリスト表示・非表示トグルボタン (左下・現在地ボタンの下に配置) ★ */
+    /* ★ モバイル専用のリストトグルボタン（下に配置）★ bottom: 50pxに変更 */
     #mobile-list-toggle-btn {
       display: none;
-      position: absolute; bottom: 25px; left: 10px; z-index: 1000;
+      position: absolute; bottom: 50px; left: 10px; z-index: 1000;
       background: #28a745; color: white; border: none; padding: 8px 12px;
       border-radius: 20px; font-size: 11px; font-weight: bold;
       box-shadow: 0 2px 6px rgba(0,0,0,0.3); cursor: pointer;
@@ -228,7 +230,7 @@
     .judge-row { display: flex; align-items: center; justify-content: space-between; font-size: 11px; color: #495057; }
     .judge-select { font-size: 11px; padding: 2px 4px; border: 1px solid #ccc; border-radius: 3px; background: #fff; }
 
-    #lightbox-modal { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.85); z-index: 3000; justify-content: center; align-items: center; flex-direction: column; }
+    #lightbox-modal { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; height: 100dvh; background: rgba(0,0,0,0.85); z-index: 3000; justify-content: center; align-items: center; flex-direction: column; }
     #lightbox-img { max-width: 90vw; max-height: 80vh; border-radius: 8px; }
     #lightbox-caption { color: white; margin-top: 12px; font-size: 14px; text-align: center; max-width: 80vw; }
     #lightbox-close { position: absolute; top: 20px; right: 25px; color: white; font-size: 30px; cursor: pointer; font-weight: bold; }
@@ -247,7 +249,7 @@
     #tab-rule-table th, #tab-rule-table td { border: 1px solid #ddd; padding: 6px; text-align: left; }
     #readonly-banner { display: none; background: #ffc107; color: #333; text-align: center; padding: 6px; font-size: 12px; font-weight: bold; }
 
-    #custom-confirm-modal { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.5); z-index: 9999; justify-content: center; align-items: center; }
+    #custom-confirm-modal { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; height: 100dvh; background: rgba(0,0,0,0.5); z-index: 9999; justify-content: center; align-items: center; }
     .custom-confirm-card { background: white; padding: 20px; border-radius: 8px; width: 300px; text-align: center; box-shadow: 0 5px 15px rgba(0,0,0,0.3); font-size: 13px; }
     .custom-confirm-btns { display: flex; justify-content: space-around; margin-top: 15px; }
     .btn-confirm-yes { background: #dc3545; color: white; border: none; padding: 6px 16px; border-radius: 4px; cursor: pointer; }
@@ -257,6 +259,7 @@
     .btn-copy-action { background: #198754; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 12px; display: flex; align-items: center; justify-content: center; gap: 6px; }
     .btn-copy-action:hover { background: #146c43; }
 
+    /* ★ スマホ画面向けのレイアウトとボタン位置の調整 ★ */
     @media screen and (max-width: 768px) {
       body { flex-direction: column-reverse; }
       #sidebar { width: 100% !important; max-width: 100%; height: 55vh; border-right: none; }
@@ -265,6 +268,11 @@
       #import-area, #share-bar { display: none !important; }
       .btn-manual-header { display: none !important; }
       #mobile-location-btn, #mobile-list-toggle-btn { display: block; }
+      
+      /* スマホ表示の時は、凡例メニューも上に持ち上げて隠れないようにする */
+      #legend-box {
+        bottom: 50px;
+      }
     }
   </style>
 </head>
