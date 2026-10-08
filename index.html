@@ -362,15 +362,15 @@
 
     <h5>2. ポイントの登録方法</h5>
     <ul>
-      <li><b>Excel / CSV 一括インポート</b>: 「📂 Excelをドロップ」領域にファイルをドラッグ＆ドロップします。「📥 テンプレート」からフォーマットを取得できます。</li>
-      <li><b>地図からの個別登録</b>: 「➕ 個別登録」を押した後、地図上の目的の場所をクリックすると座標が自動入力されます。</li>
+      <li><b>Excel / CSV 一括インポート</b>: 「📂 Excelをドロップ」領域にファイルをドラッグ＆ドロップします。「10進数（40.2203）」と「度分秒（40°13'13.3"）」の両方の表記に対応しています。</li>
+      <li><b>地図からの個別登録</b>: 「➕ 個別登録」を押した後、地図上の目的の場所をクリックすると座標が自動入力されます。度分秒形式の直接入力も可能です。</li>
     </ul>
 
     <h5>3. ポイントの編集・管理機能</h5>
     <ul>
       <li><b>情報変更</b>: 各スポットの「情報変更」ボタンからピン表示名・スポット名・緯度経度を一括編集可能です。</li>
-      <li><b>点検状態（点検済/未実施）</b>: 「点検済」を押すとピンの色が点検済色（グレー）へ変化、「未実施」を押すと元の色へ復旧します。</li>
-      <li><b>写真・判定管理</b>: 各ピンから写真追加、拡大表示でコメント入力や健全度判定（Ⅰ〜Ⅳ）の設定ができます。すべての画像は自動的に50KB以下に圧縮されます。</li>
+      <li><b>点検状態（点検済/未実施）</b>: 「点検済」を押すとピンの色が点検済色（グレー）へ変化、「未実施」を押すと元の色へ復旧します。地図上の吹き出しポップアップからも切り替えできます。</li>
+      <li><b>写真・判定管理</b>: 各ピンから写真追加、拡大表示でコメント入力や健全度判定（Ⅰ〜Ⅳ）の設定ができます。すべての画像は自動的に20KB以下に圧縮されます。</li>
     </ul>
 
     <h5>4. 選択共有 (URL発行)</h5>
@@ -458,10 +458,10 @@
   <input type="text" id="spot-display-title" placeholder="例: 1号標識" />
   <label>スポット名（必須）</label>
   <input type="text" id="spot-title" placeholder="例: D360425L3" />
-  <label>緯度</label>
-  <input type="number" step="any" id="spot-lat" placeholder="例: 40.220360" />
-  <label>経度</label>
-  <input type="number" step="any" id="spot-lng" placeholder="例: 141.781950" />
+  <label>緯度（10進数 または 度分秒 40°13'13.3"N）</label>
+  <input type="text" id="spot-lat" placeholder="例: 40.220360 または 40度13分13.3秒" />
+  <label>経度（10進数 または 度分秒 141°46'55.0"E）</label>
+  <input type="text" id="spot-lng" placeholder="例: 141.781950 または 141度46分55.0秒" />
   <label>グループ名</label>
   <input type="text" id="spot-group" placeholder="例: 三陸 / 1工区 / A区画" />
   <label>タブの内容</label>
@@ -483,9 +483,9 @@
   <label>スポット名（必須）</label>
   <input type="text" id="edit-spot-title" placeholder="例: D360425L3" />
   <label>緯度（Latitude）</label>
-  <input type="number" step="any" id="edit-spot-lat" placeholder="例: 40.220360" />
+  <input type="text" id="edit-spot-lat" placeholder="例: 40.220360 または 40°13'13.3&quot;" />
   <label>経度（Longitude）</label>
-  <input type="number" step="any" id="edit-spot-lng" placeholder="例: 141.781950" />
+  <input type="text" id="edit-spot-lng" placeholder="例: 141.781950 または 141°46'55.0&quot;" />
   <div style="display: flex; justify-content: space-between; margin-top:15px;">
     <button onclick="saveEditPointInfo()" style="padding:8px 16px; background:#0d6efd; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold; flex:1; margin-right:6px;">更新保存</button>
     <button onclick="closeEditPointModal()" style="padding:8px 16px; background:#6c757d; color:white; border:none; border-radius:4px; cursor:pointer;">キャンセル</button>
@@ -599,6 +599,42 @@
       result += chars.charAt(Math.floor(Math.random() * chars.length));
     }
     return result;
+  }
+
+  // ★ 度分秒（DMS）形式を10進数（十進度）へ自動変換する関数 ★
+  function parseDMSToDecimal(dmsVal) {
+    if (dmsVal === null || dmsVal === undefined) return NaN;
+    if (typeof dmsVal === 'number') return dmsVal;
+
+    const str = String(dmsVal).trim();
+    if (!str) return NaN;
+
+    // すでに10進数の数値文字列の場合 (例: "40.22036")
+    if (/^-?\d+(\.\d+)?$/.test(str)) {
+      return parseFloat(str);
+    }
+
+    // 度分秒の記号・文字・スペース区切りなどを解析
+    const regex = /(-?)\s*(\d+)[°度\s]+(\d+)[\'分\s]+(\d+(?:\.\d+)?)[\"秒\s]*([NnSsEeWw]?)/;
+    const match = str.match(regex);
+
+    if (match) {
+      const sign = match[1] === '-' ? -1 : 1;
+      const deg = parseFloat(match[2]);
+      const min = parseFloat(match[3]);
+      const sec = parseFloat(match[4]);
+      const dir = match[5].toUpperCase();
+
+      let decimal = deg + (min / 60) + (sec / 3600);
+      decimal *= sign;
+
+      if (dir === 'S' || dir === 'W') {
+        decimal = -decimal;
+      }
+      return decimal;
+    }
+
+    return NaN;
   }
 
   async function fetchWithRetry(queryFn, maxRetries = 3, delayMs = 1500) {
@@ -992,14 +1028,14 @@
     return matchedRule ? matchedRule.color : 'blue';
   }
 
-  // ★ 確実指定：画像を指定したバイト数（デフォルト50KB）以下に繰り返しループで再圧縮する関数
-  function compressImageFile(fileOrBase64, maxSizeBytes = 50 * 1024) {
+  // ★ 20KB（20 * 1024 bytes）以下になるよう自動再圧縮する関数 ★
+  function compressImageFile(fileOrBase64, maxSizeBytes = 20 * 1024) {
     return new Promise((resolve, reject) => {
       const img = new Image();
 
       img.onload = () => {
-        let maxWidth = 800; // 初期最大幅
-        let quality = 0.7;  // 初期画質
+        let maxWidth = 600; // 初期最大幅
+        let quality = 0.6;  // 初期画質
 
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
@@ -1027,16 +1063,16 @@
           const base64Str = dataUrl.substr(head.length);
           const sizeInBytes = Math.round((base64Str.length * 3) / 4);
 
-          // 50KB以下になるか限界値に達した場合はそのデータを返却
-          if (sizeInBytes <= maxSizeBytes || (quality <= 0.15 && maxWidth <= 300)) {
+          // 20KB以下になるか限界値に達した場合はそのデータを返却
+          if (sizeInBytes <= maxSizeBytes || (quality <= 0.1 && maxWidth <= 200)) {
             resolve(dataUrl);
           } else {
             // 超えている場合は画質とサイズを一段階下げて再試行
-            if (quality > 0.2) {
-              quality -= 0.15;
+            if (quality > 0.15) {
+              quality -= 0.12;
             } else {
-              maxWidth = Math.round(maxWidth * 0.75);
-              quality = 0.5;
+              maxWidth = Math.round(maxWidth * 0.7);
+              quality = 0.4;
             }
             attemptCompress();
           }
@@ -1377,6 +1413,7 @@
     setTimeout(() => { isSelfOperating = false; }, 1000);
   }
 
+  // ★ 地図のポップアップ（吹き出し）への点検済/未実施切替ボタン追加 ★
   function addMarkerToMap(point) {
     const pId = Number(point.id);
     if (markers[pId]) return;
@@ -1384,13 +1421,21 @@
     const isCheckedDone = !!point.is_checked;
     const dispName = point.display_title || point.title;
 
+    const statusToggleBtnHtml = isReadOnly ? `
+      <span style="font-size:10px; background:${isCheckedDone ? '#6c757d' : '#ffffff'}; color:${isCheckedDone ? '#ffffff' : '#333333'}; border:1px solid ${isCheckedDone ? '#6c757d' : '#999999'}; padding:2px 6px; border-radius:10px; display:inline-block;">${isCheckedDone ? '点検済' : '未実施'}</span>
+    ` : `
+      <button class="btn-item-action ${isCheckedDone ? 'btn-checked-pending' : 'btn-checked-done'}" onclick="togglePointCheckedStatus(${point.id})" style="font-size:10px; padding:2px 8px; border-radius:10px;">
+        ${isCheckedDone ? '未実施に戻す' : '✅ 点検済にする'}
+      </button>
+    `;
+
     const popupContent = `
       <div style="width: auto; white-space: nowrap;">
         <small style="color:#666;">${point.group_name || 'グループなし'}</small>
         <h3 class="popup-title">${point.title} <small style="font-weight:normal; font-size:12px; color:#555;">(${dispName})</small></h3>
-        <div style="display:flex; gap:4px; align-items:center;">
+        <div style="display:flex; gap:6px; align-items:center; margin-bottom:4px;">
           ${point.tab_name ? `<span style="font-size:10px; background:${colorHexMap[point.color]||'#0d6efd'}; color:white; padding:2px 6px; border-radius:10px; display:inline-block;">${point.tab_name}</span>` : ''}
-          <span style="font-size:10px; background:${isCheckedDone ? '#6c757d' : '#ffffff'}; color:${isCheckedDone ? '#ffffff' : '#333333'}; border:1px solid ${isCheckedDone ? '#6c757d' : '#999999'}; padding:2px 6px; border-radius:10px; display:inline-block;">${isCheckedDone ? '点検済' : '未実施'}</span>
+          ${statusToggleBtnHtml}
         </div>
         <div id="popup-img-area-${point.id}"></div>
       </div>
@@ -1564,11 +1609,14 @@
 
     const newDisplayTitle = document.getElementById('edit-spot-display-title').value.trim();
     const newTitle = document.getElementById('edit-spot-title').value.trim();
-    const newLat = parseFloat(document.getElementById('edit-spot-lat').value);
-    const newLng = parseFloat(document.getElementById('edit-spot-lng').value);
+    const newLatRaw = document.getElementById('edit-spot-lat').value;
+    const newLngRaw = document.getElementById('edit-spot-lng').value;
+
+    const newLat = parseDMSToDecimal(newLatRaw);
+    const newLng = parseDMSToDecimal(newLngRaw);
 
     if (!newTitle) { alert('スポット名を入力してください'); return; }
-    if (isNaN(newLat) || isNaN(newLng)) { alert('有効な緯度と経度を入力してください'); return; }
+    if (isNaN(newLat) || isNaN(newLng)) { alert('有効な緯度と経度（10進数または度分秒）を入力してください'); return; }
 
     const updateData = {
       display_title: newDisplayTitle || null,
@@ -1884,11 +1932,19 @@
     return '';
   }
 
+  // ★ 子・孫フォルダ内データ一覧をスポット名（title）の文字列順（昇順）にソート ★
   function renderPointList(points, groupPath) {
     const ul = document.createElement('ul');
     ul.className = 'point-list';
 
-    points.forEach(p => {
+    // スポット名（title）で自然順（昇順）ソート
+    const sortedPoints = [...points].sort((a, b) => {
+      const titleA = a.title || '';
+      const titleB = b.title || '';
+      return titleA.localeCompare(titleB, 'ja', { numeric: true, sensitivity: 'base' });
+    });
+
+    sortedPoints.forEach(p => {
       const pId = Number(p.id);
       const li = document.createElement('li');
       li.className = 'point-item';
@@ -2091,13 +2147,13 @@
 
   function downloadExcelTemplate() {
     const templateData = [
-      { 'ピン表示名': '1号標識', 'スポット名': 'D360425L3', '緯度': 40.220360, '経度': 141.781950, '親グループ': '三陸', '子グループ': '1工区', '孫グループ': 'A区画', 'タブ': '標識', '基本画像': '※画像高さは2cm程度にする' },
+      { 'ピン表示名': '1号標識', 'スポット名': 'D360425L3', '緯度': '40°13\'13.3"N', '経度': '141°46\'55.0"E', '親グループ': '三陸', '子グループ': '1工区', '孫グループ': 'A区画', 'タブ': '標識', '基本画像': '※画像高さは2cm程度にする' },
       { 'ピン表示名': '', 'スポット名': 'D360471L1', '緯度': 40.220653, '経度': 141.781794, '親グループ': '三陸', '子グループ': '2工区', '孫グループ': '', 'タブ': '点検済', '基本画像': '' }
     ];
     const ws = XLSX.utils.json_to_sheet(templateData);
     
     ws['!cols'] = [
-      { wch: 15 }, { wch: 18 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 15 }
+      { wch: 15 }, { wch: 18 }, { wch: 16 }, { wch: 16 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 15 }
     ];
 
     ws['!rows'] = [ { hpt: 24 }, { hpt: 63 }, { hpt: 63 } ];
@@ -2139,7 +2195,7 @@
     document.getElementById('single-image-input').click();
   }
 
-  // ★ 画像ボタン経由で追加する画像の取り込み・自動圧縮処理
+  // ★ 画像ボタン経由で追加する画像の取り込み（20KB以下に圧縮）
   document.getElementById('single-image-input').addEventListener('change', async (e) => {
     const files = Array.from(e.target.files);
     if (files.length === 0 || !targetPointIdForImage) return;
@@ -2153,8 +2209,8 @@
     try {
       const uploadedImageObjects = [];
       for (const file of files) {
-        // 50KB以下に自動圧縮
-        const compressedBase64 = await compressImageFile(file, 50 * 1024);
+        // 20KB以下に自動再圧縮
+        const compressedBase64 = await compressImageFile(file, 20 * 1024);
         const publicUrl = await uploadImageToStorage(compressedBase64, 'manual');
         if (publicUrl) {
           uploadedImageObjects.push({ url: publicUrl, comment: '', judge: '' });
@@ -2377,7 +2433,7 @@
     }
   }
 
-  // ★ Excelファイル取り込み処理（取り込んだ画像も50KB以下へ圧縮）
+  // ★ Excelファイル取り込み処理（度分秒対応＆20KB圧縮） ★
   async function handleFileSelect(e) {
     if (isReadOnly) return;
     const file = e.target.files[0];
@@ -2442,8 +2498,13 @@
         const row = json[i];
         const display_title = String(row['ピン表示名'] || row['表示名'] || '').trim();
         const title = row['スポット名'] || row['title'] || row['名称'] || row['名前'];
-        const lat = parseFloat(row['緯度'] || row['lat'] || row['latitude']);
-        const lng = parseFloat(row['経度'] || row['lng'] || row['longitude']);
+        
+        const rawLat = row['緯度'] || row['lat'] || row['latitude'];
+        const rawLng = row['経度'] || row['lng'] || row['longitude'];
+
+        // 度分秒・十進度の自動変換
+        const lat = parseDMSToDecimal(rawLat);
+        const lng = parseDMSToDecimal(rawLng);
         
         const parentG = String(row['親グループ'] || row['グループ'] || row['group'] || '').trim();
         const childG = String(row['子グループ'] || '').trim();
@@ -2462,8 +2523,8 @@
 
         let imageUrl = null;
         if (rawImg && !String(rawImg).startsWith('※')) {
-          // 50KB以下に自動圧縮
-          const compressedBase64 = await compressImageFile(rawImg, 50 * 1024);
+          // 20KB以下に圧縮
+          const compressedBase64 = await compressImageFile(rawImg, 20 * 1024);
           const publicUrl = await uploadImageToStorage(compressedBase64, 'import');
           if (publicUrl) {
             imageUrl = JSON.stringify([{ url: publicUrl, comment: '', judge: '' }]);
@@ -2555,13 +2616,17 @@
     selectedLatLng = null;
   }
 
-  // ★ 個別登録モーダルでの画像取り込み・自動圧縮処理
+  // ★ 手動登録保存処理（度分秒対応＆20KB圧縮） ★
   async function savePoint() {
     if (isReadOnly) return;
     const dispTitle = document.getElementById('spot-display-title').value.trim();
     const title = document.getElementById('spot-title').value.trim();
-    const latVal = parseFloat(document.getElementById('spot-lat').value);
-    const lngVal = parseFloat(document.getElementById('spot-lng').value);
+    
+    const latValRaw = document.getElementById('spot-lat').value;
+    const lngValRaw = document.getElementById('spot-lng').value;
+    const latVal = parseDMSToDecimal(latValRaw);
+    const lngVal = parseDMSToDecimal(lngValRaw);
+
     const group = document.getElementById('spot-group').value.trim() || '未分類';
     const tabText = document.getElementById('spot-tab').value.trim() || '';
     const color = getTabColor(tabText);
@@ -2569,7 +2634,7 @@
     const saveBtn = document.getElementById('save-btn');
 
     if (!title) { alert('スポット名を入力してください'); return; }
-    if (isNaN(latVal) || isNaN(lngVal)) { alert('有効な緯度と経度を入力（または個別登録モードで地図上をクリック）してください'); return; }
+    if (isNaN(latVal) || isNaN(lngVal)) { alert('有効な緯度と経度（10進数または度分秒）を入力してください'); return; }
 
     saveBtn.disabled = true;
     let imageUrl = null;
@@ -2578,8 +2643,8 @@
       if (files.length > 0) {
         const compressedList = [];
         for (const f of files) {
-          // 50KB以下に自動圧縮
-          const b64 = await compressImageFile(f, 50 * 1024);
+          // 20KB以下に自動再圧縮
+          const b64 = await compressImageFile(f, 20 * 1024);
           const publicUrl = await uploadImageToStorage(b64, 'manual');
           if (publicUrl) {
             compressedList.push({ url: publicUrl, comment: '', judge: '' });
