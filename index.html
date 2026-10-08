@@ -8,7 +8,6 @@
   <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <style>
-    /* ★ height: 100dvh; を追加し、スマホのブラウザメニューによる見切れを防止 ★ */
     body { margin: 0; padding: 0; font-family: sans-serif; display: flex; height: 100vh; height: 100dvh; overflow: hidden; }
     
     /* Supabase Auth ログインモーダル */
@@ -74,13 +73,13 @@
     #tree-container { flex: 1; overflow-y: auto; padding: 10px; }
     
     .parent-group-item { margin-bottom: 8px; border: 1px solid #cbd5e1; border-radius: 6px; background: #ffffff; }
-    .parent-group-header { font-weight: bold; background: #e2e8f0; padding: 8px 10px; display: flex; align-items: center; gap: 6px; font-size: 13px; border-bottom: 1px solid #cbd5e1; cursor: grab; }
+    .parent-group-header { font-weight: bold; background: #e2e8f0; padding: 8px 10px; display: flex; align-items: center; gap: 6px; font-size: 13px; border-bottom: 1px solid #cbd5e1; cursor: grab; transition: background 0.2s; }
     
     .child-group-item { margin: 4px 6px; border: 1px solid #e2e8f0; border-radius: 4px; background: #f8fafc; }
-    .child-group-header { font-weight: bold; background: #f1f5f9; padding: 6px 8px; display: flex; align-items: center; gap: 6px; font-size: 12px; cursor: grab; }
+    .child-group-header { font-weight: bold; background: #f1f5f9; padding: 6px 8px; display: flex; align-items: center; gap: 6px; font-size: 12px; cursor: grab; transition: background 0.2s; }
     
     .grandchild-group-item { margin: 4px 6px; border: 1px dashed #cbd5e1; border-radius: 4px; background: #ffffff; }
-    .grandchild-group-header { font-weight: bold; background: #ffffff; padding: 4px 6px; display: flex; align-items: center; gap: 6px; font-size: 11px; cursor: grab; }
+    .grandchild-group-header { font-weight: bold; background: #ffffff; padding: 4px 6px; display: flex; align-items: center; gap: 6px; font-size: 11px; cursor: grab; transition: background 0.2s; }
 
     .group-title-text { flex: 1; cursor: pointer; user-select: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     
@@ -89,7 +88,7 @@
     .btn-group-edit { color: #0d6efd; }
     .btn-group-del { color: #dc3545; }
 
-    .drag-over-active { background: #e0f2fe !important; border-color: #0284c7 !important; }
+    .drag-over-active { background: #bae6fd !important; border: 1px dashed #0284c7 !important; }
 
     .point-list { list-style: none; padding: 0; margin: 0; border-top: 1px solid #eee; }
     .point-list.collapsed, .child-container.collapsed, .grandchild-container.collapsed { display: none; }
@@ -136,7 +135,6 @@
 
     #map { flex: 1; height: 100%; position: relative; }
 
-    /* 凡例の基本位置（PC用） */
     #legend-box {
       position: absolute; bottom: 20px; right: 10px; z-index: 1000;
       background: rgba(255, 255, 255, 0.9); padding: 8px 12px; border-radius: 6px;
@@ -146,7 +144,6 @@
     .legend-item { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; }
     .legend-color { width: 12px; height: 12px; border-radius: 50%; display: inline-block; border: 1px solid rgba(0,0,0,0.2); }
 
-    /* ★ モバイル専用の現在地表示ボタン（上に配置）★ bottom: 95pxに変更 */
     #mobile-location-btn {
       display: none;
       position: absolute; bottom: 95px; left: 10px; z-index: 1000;
@@ -156,7 +153,6 @@
       transition: background 0.3s;
     }
 
-    /* ★ モバイル専用のリストトグルボタン（下に配置）★ bottom: 50pxに変更 */
     #mobile-list-toggle-btn {
       display: none;
       position: absolute; bottom: 50px; left: 10px; z-index: 1000;
@@ -259,7 +255,6 @@
     .btn-copy-action { background: #198754; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 12px; display: flex; align-items: center; justify-content: center; gap: 6px; }
     .btn-copy-action:hover { background: #146c43; }
 
-    /* ★ スマホ画面向けのレイアウトとボタン位置の調整 ★ */
     @media screen and (max-width: 768px) {
       body { flex-direction: column-reverse; }
       #sidebar { width: 100% !important; max-width: 100%; height: 55vh; border-right: none; }
@@ -268,11 +263,7 @@
       #import-area, #share-bar { display: none !important; }
       .btn-manual-header { display: none !important; }
       #mobile-location-btn, #mobile-list-toggle-btn { display: block; }
-      
-      /* スマホ表示の時は、凡例メニューも上に持ち上げて隠れないようにする */
-      #legend-box {
-        bottom: 50px;
-      }
+      #legend-box { bottom: 50px; }
     }
   </style>
 </head>
@@ -365,6 +356,7 @@
 <div id="resizer"></div>
 
 <div id="map">
+  <!-- ★ ボタンの配置（モバイル表示時）★ -->
   <button id="mobile-location-btn" onclick="toggleCurrentLocation()">📍 現在地 (追跡オフ)</button>
   <button id="mobile-list-toggle-btn" onclick="toggleMobileList()">⬇️ リストを隠す</button>
   <div id="legend-box" onclick="openTabConfigModal(event)">
@@ -400,6 +392,7 @@
     <h5>3. ポイントの編集・管理機能</h5>
     <ul>
       <li><b>情報変更</b>: 各スポットの「情報変更」ボタンからピン表示名・スポット名・緯度経度を一括編集可能です。</li>
+      <li><b>フォルダの並び替え</b>: フォルダ名のグレーの帯（ヘッダー部分）をドラッグし、別のフォルダの上にドロップすることで順番を自由に変更でき、全員に反映されます。</li>
       <li><b>点検状態（点検済/未実施）</b>: 「点検済」を押すとピンの色が点検済色（グレー）へ変化、「未実施」を押すと元の色へ復旧します。地図上の吹き出しポップアップからも切り替えできます。</li>
       <li><b>写真・判定管理</b>: 各ピンから写真追加、拡大表示でコメント入力や健全度判定（Ⅰ〜Ⅳ）の設定ができます。すべての画像は自動的に20KB以下に圧縮されます。</li>
     </ul>
@@ -564,6 +557,9 @@
   let lastSidebarHeight = '55vh';
   let lastMapHeight = '45vh';
 
+  // ★ フォルダの順番をキャッシュするオブジェクト ★
+  let groupOrders = {};
+
   const DIRECTIONS_16 = Array.from({ length: 16 }, (_, i) => {
     const angle = (i * 22.5) * (Math.PI / 180);
     return { x: Math.cos(angle), y: Math.sin(angle) };
@@ -709,6 +705,16 @@
       await new Promise(r => setTimeout(r, delayMs));
     }
     return { data: null, error: lastError };
+  }
+
+  // ★ データベースからグループの順番を取得する ★
+  async function loadGroupOrders() {
+    const { data, error } = await supabaseClient.from('group_orders').select('*');
+    if (!error && data) {
+      data.forEach(d => {
+        groupOrders[d.group_path] = d.sort_order;
+      });
+    }
   }
 
   async function deleteStorageImagesForPoints(pointsToDelete) {
@@ -1803,6 +1809,70 @@
     fitMapToVisiblePoints();
   }
 
+  // ★ フォルダの順番を入れ替えてDBに保存する関数 ★
+  async function reorderGroups(draggedPath, targetPath) {
+    if (isReadOnly || isSharedEditMode || draggedPath === targetPath) return;
+
+    const dragParts = draggedPath.split(' / ');
+    const targetParts = targetPath.split(' / ');
+
+    // 階層が違う場合は移動させない（移動は別のドロップ処理で行う）
+    if (dragParts.length !== targetParts.length) return;
+    const dragParent = dragParts.slice(0, -1).join(' / ');
+    const targetParent = targetParts.slice(0, -1).join(' / ');
+    if (dragParent !== targetParent) return;
+
+    // 同じ階層（兄弟）のグループパスを全て収集
+    const siblings = new Set();
+    customGroups.forEach(g => {
+      const parts = g.split(' / ');
+      if (parts.length >= dragParts.length) {
+        const p = parts.slice(0, dragParts.length).join(' / ');
+        if (dragParent === '' || p.startsWith(dragParent + ' / ')) siblings.add(p);
+      }
+    });
+    allPoints.forEach(p => {
+      const rawG = p.group_name || '未分類';
+      const parts = rawG.split(' / ');
+      if (parts.length >= dragParts.length) {
+        const p = parts.slice(0, dragParts.length).join(' / ');
+        if (dragParent === '' || p.startsWith(dragParent + ' / ')) siblings.add(p);
+      }
+    });
+
+    // 今の順番でソート
+    let keys = Array.from(siblings);
+    keys.sort((a, b) => {
+      const orderA = groupOrders[a] ?? 99999;
+      const orderB = groupOrders[b] ?? 99999;
+      if (orderA !== orderB) return orderA - orderB;
+      return a.localeCompare(b, 'ja', { numeric: true });
+    });
+
+    // ドラッグしたものをドロップした場所の前（または後）に移動
+    const dragIdx = keys.indexOf(draggedPath);
+    const targetIdx = keys.indexOf(targetPath);
+    if (dragIdx > -1 && targetIdx > -1) {
+      keys.splice(dragIdx, 1);
+      keys.splice(targetIdx, 0, draggedPath);
+    }
+
+    const updates = [];
+    keys.forEach((k, idx) => {
+      groupOrders[k] = idx; 
+      updates.push({ group_path: k, sort_order: idx });
+    });
+
+    // 画面を更新してすぐに反映させる
+    renderSidebarTree();
+
+    // Supabaseに一括保存
+    const { error } = await supabaseClient.from('group_orders').upsert(updates, { onConflict: 'group_path' });
+    if (error) {
+      console.warn("グループ順番の保存に失敗:", error);
+    }
+  }
+
   async function moveGroupPathToNewParent(sourceGroupPath, targetParentName) {
     if (sourceGroupPath === targetParentName || sourceGroupPath.startsWith(targetParentName + ' /')) return;
 
@@ -1888,7 +1958,15 @@
         return;
       }
 
-      Object.keys(groupTree).forEach(pName => {
+      // ★ 保存された順番（groupOrders）に基づいてソート ★
+      const parentKeys = Object.keys(groupTree).sort((a, b) => {
+        const orderA = groupOrders[a] ?? 99999;
+        const orderB = groupOrders[b] ?? 99999;
+        if (orderA !== orderB) return orderA - orderB;
+        return a.localeCompare(b, 'ja', { numeric: true });
+      });
+
+      parentKeys.forEach(pName => {
         const parentData = groupTree[pName];
         
         let parentTotalCount = parentData._items.length;
@@ -1903,23 +1981,44 @@
         const parentDiv = document.createElement('div');
         parentDiv.className = 'parent-group-item';
 
-        if (!isReadOnly) {
-          parentDiv.addEventListener('dragover', e => { e.preventDefault(); parentDiv.classList.add('drag-over-active'); });
-          parentDiv.addEventListener('dragleave', () => parentDiv.classList.remove('drag-over-active'));
-          parentDiv.addEventListener('drop', async e => {
-            e.preventDefault(); e.stopPropagation();
-            parentDiv.classList.remove('drag-over-active');
-            const pointId = e.dataTransfer.getData('text/point-id');
-            const groupPath = e.dataTransfer.getData('text/group-path');
-            if (pointId) await updatePointGroup(pointId, pName);
-            else if (groupPath) await moveGroupPathToNewParent(groupPath, pName);
-          });
-        }
-
         const parentHeader = document.createElement('div');
         parentHeader.className = 'parent-group-header';
-        if (!isReadOnly) parentHeader.draggable = true;
-        parentHeader.addEventListener('dragstart', e => { e.dataTransfer.setData('text/group-path', pName); });
+        
+        // ★ ヘッダー領域でのドラッグ＆ドロップ判定 ★
+        if (!isReadOnly) {
+          parentHeader.draggable = true;
+          parentHeader.addEventListener('dragstart', e => { 
+            e.dataTransfer.setData('text/group-path', pName); 
+          });
+          parentHeader.addEventListener('dragover', e => { 
+            e.preventDefault(); 
+            parentHeader.classList.add('drag-over-active'); 
+          });
+          parentHeader.addEventListener('dragleave', () => {
+            parentHeader.classList.remove('drag-over-active');
+          });
+          parentHeader.addEventListener('drop', async e => {
+            e.preventDefault(); e.stopPropagation();
+            parentHeader.classList.remove('drag-over-active');
+            
+            const pointId = e.dataTransfer.getData('text/point-id');
+            const draggedGroupPath = e.dataTransfer.getData('text/group-path');
+            
+            if (pointId) {
+              await updatePointGroup(pointId, pName);
+            } else if (draggedGroupPath) {
+              const dragParts = draggedGroupPath.split(' / ');
+              const targetParts = pName.split(' / ');
+              if (dragParts.length === targetParts.length) {
+                // 同じ階層なら並べ替え
+                await reorderGroups(draggedGroupPath, pName);
+              } else {
+                // 違う階層なら移動
+                await moveGroupPathToNewParent(draggedGroupPath, pName);
+              }
+            }
+          });
+        }
 
         const pSafeId = encodeURIComponent(pName).replace(/%/g, '_');
         const isParentOpen = openGroupIds.has(`p-${pSafeId}`);
@@ -1944,7 +2043,16 @@
           childContainer.appendChild(renderPointList(parentData._items, pName));
         }
 
-        Object.keys(parentData._children).forEach(cName => {
+        const childKeys = Object.keys(parentData._children).sort((a, b) => {
+          const pathA = `${pName} / ${a}`;
+          const pathB = `${pName} / ${b}`;
+          const orderA = groupOrders[pathA] ?? 99999;
+          const orderB = groupOrders[pathB] ?? 99999;
+          if (orderA !== orderB) return orderA - orderB;
+          return a.localeCompare(b, 'ja', { numeric: true });
+        });
+
+        childKeys.forEach(cName => {
           const childData = parentData._children[cName];
           
           let childTotalCount = childData._items.length;
@@ -1958,21 +2066,42 @@
           const cSafeId = encodeURIComponent(childPath).replace(/%/g, '_');
           const isChildOpen = openGroupIds.has(`c-${cSafeId}`);
 
-          if (!isReadOnly) {
-            childDiv.addEventListener('dragover', e => { e.preventDefault(); childDiv.classList.add('drag-over-active'); });
-            childDiv.addEventListener('dragleave', () => childDiv.classList.remove('drag-over-active'));
-            childDiv.addEventListener('drop', async e => {
-              e.preventDefault(); e.stopPropagation();
-              childDiv.classList.remove('drag-over-active');
-              const pointId = e.dataTransfer.getData('text/point-id');
-              if (pointId) await updatePointGroup(pointId, childPath);
-            });
-          }
-
           const childHeader = document.createElement('div');
           childHeader.className = 'child-group-header';
-          if (!isReadOnly) childHeader.draggable = true;
-          childHeader.addEventListener('dragstart', e => { e.stopPropagation(); e.dataTransfer.setData('text/group-path', childPath); });
+          
+          if (!isReadOnly) {
+            childHeader.draggable = true;
+            childHeader.addEventListener('dragstart', e => { 
+              e.stopPropagation(); 
+              e.dataTransfer.setData('text/group-path', childPath); 
+            });
+            childHeader.addEventListener('dragover', e => { 
+              e.preventDefault(); 
+              childHeader.classList.add('drag-over-active'); 
+            });
+            childHeader.addEventListener('dragleave', () => {
+              childHeader.classList.remove('drag-over-active');
+            });
+            childHeader.addEventListener('drop', async e => {
+              e.preventDefault(); e.stopPropagation();
+              childHeader.classList.remove('drag-over-active');
+              
+              const pointId = e.dataTransfer.getData('text/point-id');
+              const draggedGroupPath = e.dataTransfer.getData('text/group-path');
+              
+              if (pointId) {
+                await updatePointGroup(pointId, childPath);
+              } else if (draggedGroupPath) {
+                const dragParts = draggedGroupPath.split(' / ');
+                const targetParts = childPath.split(' / ');
+                if (dragParts.length === targetParts.length) {
+                  await reorderGroups(draggedGroupPath, childPath);
+                } else {
+                  await moveGroupPathToNewParent(draggedGroupPath, childPath);
+                }
+              }
+            });
+          }
 
           childHeader.innerHTML = `
             <input type="checkbox" onchange="toggleGroupVisibilityByPath('${childPath}', this.checked)" title="子グループ内を一括表示/非表示" />
@@ -1994,7 +2123,16 @@
             grandchildContainer.appendChild(renderPointList(childData._items, childPath));
           }
 
-          Object.keys(childData._grandchildren).forEach(gcName => {
+          const gcKeys = Object.keys(childData._grandchildren).sort((a, b) => {
+            const pathA = `${pName} / ${cName} / ${a}`;
+            const pathB = `${pName} / ${cName} / ${b}`;
+            const orderA = groupOrders[pathA] ?? 99999;
+            const orderB = groupOrders[pathB] ?? 99999;
+            if (orderA !== orderB) return orderA - orderB;
+            return a.localeCompare(b, 'ja', { numeric: true });
+          });
+
+          gcKeys.forEach(gcName => {
             const gcPoints = childData._grandchildren[gcName];
             const gcDiv = document.createElement('div');
             gcDiv.className = 'grandchild-group-item';
@@ -2002,21 +2140,42 @@
             const gcSafeId = encodeURIComponent(gcPath).replace(/%/g, '_');
             const isGcOpen = openGroupIds.has(`gc-${gcSafeId}`);
 
-            if (!isReadOnly) {
-              gcDiv.addEventListener('dragover', e => { e.preventDefault(); gcDiv.classList.add('drag-over-active'); });
-              gcDiv.addEventListener('dragleave', () => gcDiv.classList.remove('drag-over-active'));
-              gcDiv.addEventListener('drop', async e => {
-                e.preventDefault(); e.stopPropagation();
-                gcDiv.classList.remove('drag-over-active');
-                const pointId = e.dataTransfer.getData('text/point-id');
-                if (pointId) await updatePointGroup(pointId, gcPath);
-              });
-            }
-
             const gcHeader = document.createElement('div');
             gcHeader.className = 'grandchild-group-header';
-            if (!isReadOnly) gcHeader.draggable = true;
-            gcHeader.addEventListener('dragstart', e => { e.stopPropagation(); e.dataTransfer.setData('text/group-path', gcPath); });
+            
+            if (!isReadOnly) {
+              gcHeader.draggable = true;
+              gcHeader.addEventListener('dragstart', e => { 
+                e.stopPropagation(); 
+                e.dataTransfer.setData('text/group-path', gcPath); 
+              });
+              gcHeader.addEventListener('dragover', e => { 
+                e.preventDefault(); 
+                gcHeader.classList.add('drag-over-active'); 
+              });
+              gcHeader.addEventListener('dragleave', () => {
+                gcHeader.classList.remove('drag-over-active');
+              });
+              gcHeader.addEventListener('drop', async e => {
+                e.preventDefault(); e.stopPropagation();
+                gcHeader.classList.remove('drag-over-active');
+                
+                const pointId = e.dataTransfer.getData('text/point-id');
+                const draggedGroupPath = e.dataTransfer.getData('text/group-path');
+                
+                if (pointId) {
+                  await updatePointGroup(pointId, gcPath);
+                } else if (draggedGroupPath) {
+                  const dragParts = draggedGroupPath.split(' / ');
+                  const targetParts = gcPath.split(' / ');
+                  if (dragParts.length === targetParts.length) {
+                    await reorderGroups(draggedGroupPath, gcPath);
+                  } else {
+                    await moveGroupPathToNewParent(draggedGroupPath, gcPath);
+                  }
+                }
+              });
+            }
 
             gcHeader.innerHTML = `
               <input type="checkbox" onchange="toggleGroupVisibilityByPath('${gcPath}', this.checked)" title="孫グループ内を一括表示/非表示" />
@@ -2529,6 +2688,7 @@
   async function loadInitialPoints() {
     try {
       await loadTabRules();
+      await loadGroupOrders(); // ★ グループの順番をDBから読み込む
 
       const urlParams = new URLSearchParams(window.location.search);
       const sharedIds = urlParams.get('ids') ? urlParams.get('ids').split(',') : (urlParams.get('id') ? [urlParams.get('id')] : null);
