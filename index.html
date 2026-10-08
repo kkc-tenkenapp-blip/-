@@ -144,6 +144,15 @@
     .legend-item { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; }
     .legend-color { width: 12px; height: 12px; border-radius: 50%; display: inline-block; border: 1px solid rgba(0,0,0,0.2); }
 
+    /* モバイル専用の現在地表示ボタン */
+    #mobile-location-btn {
+      display: none;
+      position: absolute; bottom: 85px; right: 10px; z-index: 1000;
+      background: #007bff; color: white; border: none; padding: 8px 12px;
+      border-radius: 20px; font-size: 12px; font-weight: bold;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3); cursor: pointer;
+    }
+
     .circle-marker-badge {
       position: relative;
       width: 24px;
@@ -244,6 +253,7 @@
       #map { width: 100%; height: 45vh; }
       #import-area, #share-bar { display: none !important; }
       .btn-manual-header { display: none !important; }
+      #mobile-location-btn { display: block; } /* スマホ表示時のみボタンを表示 */
     }
   </style>
 </head>
@@ -336,6 +346,7 @@
 <div id="resizer"></div>
 
 <div id="map">
+  <button id="mobile-location-btn" onclick="getCurrentLocation()">📍 現在地</button>
   <div id="legend-box" onclick="openTabConfigModal(event)">
     <h5>凡例 (クリックで編集 ⚙️)</h5>
     <div id="legend-list">タブ設定なし</div>
@@ -509,6 +520,7 @@
   let allPoints = [];   
   let tabRules = []; 
   let customGroups = new Set();
+  let userLocationMarker = null; 
   
   let isReadOnly = false;
   let isSharedEditMode = false;
@@ -601,7 +613,6 @@
     return result;
   }
 
-  // ★ 度分秒（DMS）形式を10進数（十進度）へ自動変換する関数 ★
   function parseDMSToDecimal(dmsVal) {
     if (dmsVal === null || dmsVal === undefined) return NaN;
     if (typeof dmsVal === 'number') return dmsVal;
@@ -609,12 +620,10 @@
     const str = String(dmsVal).trim();
     if (!str) return NaN;
 
-    // すでに10進数の数値文字列の場合 (例: "40.22036")
     if (/^-?\d+(\.\d+)?$/.test(str)) {
       return parseFloat(str);
     }
 
-    // 度分秒の記号・文字・スペース区切りなどを解析
     const regex = /(-?)\s*(\d+)[°度\s]+(\d+)[\'分\s]+(\d+(?:\.\d+)?)[\"秒\s]*([NnSsEeWw]?)/;
     const match = str.match(regex);
 
@@ -890,6 +899,35 @@
     yellow: '#ffc107'
   };
 
+  function getCurrentLocation() {
+    if (!navigator.geolocation) {
+      alert("お使いの端末・ブラウザは位置情報（GPS）に対応していません。");
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition((position) => {
+      const lat = position.coords.latitude;
+      const lng = position.coords.longitude;
+
+      if (userLocationMarker) {
+        map.removeLayer(userLocationMarker);
+      }
+
+      userLocationMarker = L.circleMarker([lat, lng], {
+        radius: 8,
+        fillColor: "#007bff",
+        color: "#ffffff",
+        weight: 3,
+        opacity: 1,
+        fillOpacity: 0.9
+      }).addTo(map).bindPopup("📍 あなたの現在地").openPopup();
+
+      map.setView([lat, lng], 16);
+    }, (error) => {
+      alert("位置情報の取得に失敗しました。スマホの設定で位置情報の利用を許可してください。");
+    }, { enableHighAccuracy: true });
+  }
+
   function createCombinedIcon(dispName, color = 'blue') {
     const hexColor = colorHexMap[color] || '#0d6efd';
 
@@ -1028,14 +1066,13 @@
     return matchedRule ? matchedRule.color : 'blue';
   }
 
-  // ★ 20KB（20 * 1024 bytes）以下になるよう自動再圧縮する関数 ★
   function compressImageFile(fileOrBase64, maxSizeBytes = 20 * 1024) {
     return new Promise((resolve, reject) => {
       const img = new Image();
 
       img.onload = () => {
-        let maxWidth = 600; // 初期最大幅
-        let quality = 0.6;  // 初期画質
+        let maxWidth = 600;
+        let quality = 0.6;
 
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
@@ -1044,7 +1081,6 @@
           let w = img.width;
           let h = img.height;
 
-          // リサイズ計算
           if (w > maxWidth) {
             h = Math.round((h * maxWidth) / w);
             w = maxWidth;
@@ -1055,19 +1091,15 @@
           ctx.clearRect(0, 0, w, h);
           ctx.drawImage(img, 0, 0, w, h);
 
-          // WebPフォーマットに変換
           const dataUrl = canvas.toDataURL('image/webp', quality);
           
-          // Base64データから実際のファイル容量（バイト数）を算出
           const head = 'data:image/webp;base64,';
           const base64Str = dataUrl.substr(head.length);
           const sizeInBytes = Math.round((base64Str.length * 3) / 4);
 
-          // 20KB以下になるか限界値に達した場合はそのデータを返却
           if (sizeInBytes <= maxSizeBytes || (quality <= 0.1 && maxWidth <= 200)) {
             resolve(dataUrl);
           } else {
-            // 超えている場合は画質とサイズを一段階下げて再試行
             if (quality > 0.15) {
               quality -= 0.12;
             } else {
@@ -1413,29 +1445,56 @@
     setTimeout(() => { isSelfOperating = false; }, 1000);
   }
 
-  // ★ 地図のポップアップ（吹き出し）への点検済/未実施切替ボタン追加 ★
+  // ★ マップポップアップ（吹き出し）内の表示をサイドバー一覧と同じ構成に変更 ★
   function addMarkerToMap(point) {
     const pId = Number(point.id);
     if (markers[pId]) return;
 
     const isCheckedDone = !!point.is_checked;
     const dispName = point.display_title || point.title;
+    const originalTabColor = getTabColor(point.tab_name);
 
-    const statusToggleBtnHtml = isReadOnly ? `
-      <span style="font-size:10px; background:${isCheckedDone ? '#6c757d' : '#ffffff'}; color:${isCheckedDone ? '#ffffff' : '#333333'}; border:1px solid ${isCheckedDone ? '#6c757d' : '#999999'}; padding:2px 6px; border-radius:10px; display:inline-block;">${isCheckedDone ? '点検済' : '未実施'}</span>
-    ` : `
-      <button class="btn-item-action ${isCheckedDone ? 'btn-checked-pending' : 'btn-checked-done'}" onclick="togglePointCheckedStatus(${point.id})" style="font-size:10px; padding:2px 8px; border-radius:10px;">
-        ${isCheckedDone ? '未実施に戻す' : '✅ 点検済にする'}
-      </button>
-    `;
+    let tabBadgeHtml = '';
+    if (isReadOnly) {
+      tabBadgeHtml = point.tab_name ? `<span class="tab-badge-select" style="background:${colorHexMap[originalTabColor]||'#0d6efd'}; pointer-events:none; padding: 2px 6px;">${point.tab_name}</span>` : '';
+    } else {
+      const optionsHtml = tabRules.map(r => `<option value="${r.tab_name}" ${point.tab_name === r.tab_name ? 'selected' : ''}>${r.tab_name}</option>`).join('');
+      tabBadgeHtml = `
+        <select class="tab-badge-select" style="background:${colorHexMap[originalTabColor]||'#0d6efd'};" onchange="changePointTabDirect(${point.id}, this.value)">
+          ${optionsHtml}
+        </select>
+      `;
+    }
+
+    let statusBadgeHtml = '';
+    if (isReadOnly) {
+      statusBadgeHtml = `<span class="status-badge-select ${isCheckedDone ? 'is-done' : 'is-pending'}" style="pointer-events:none; padding: 2px 6px;">${isCheckedDone ? '点検済' : '未実施'}</span>`;
+    } else {
+      statusBadgeHtml = `
+        <select class="status-badge-select ${isCheckedDone ? 'is-done' : 'is-pending'}" onchange="togglePointCheckedStatus(${point.id}, this.value === 'true')">
+          <option value="false" ${!isCheckedDone ? 'selected' : ''}>未実施</option>
+          <option value="true" ${isCheckedDone ? 'selected' : ''}>点検済</option>
+        </select>
+      `;
+    }
+
+    let actionBtnHtml = '';
+    if (!isReadOnly) {
+      actionBtnHtml = `
+        <button class="btn-item-action ${isCheckedDone ? 'btn-checked-pending' : 'btn-checked-done'}" onclick="togglePointCheckedStatus(${point.id})" style="margin-left: 4px;">
+          ${isCheckedDone ? '未実施' : '点検済'}
+        </button>
+      `;
+    }
 
     const popupContent = `
       <div style="width: auto; white-space: nowrap;">
         <small style="color:#666;">${point.group_name || 'グループなし'}</small>
         <h3 class="popup-title">${point.title} <small style="font-weight:normal; font-size:12px; color:#555;">(${dispName})</small></h3>
         <div style="display:flex; gap:6px; align-items:center; margin-bottom:4px;">
-          ${point.tab_name ? `<span style="font-size:10px; background:${colorHexMap[point.color]||'#0d6efd'}; color:white; padding:2px 6px; border-radius:10px; display:inline-block;">${point.tab_name}</span>` : ''}
-          ${statusToggleBtnHtml}
+          ${tabBadgeHtml}
+          ${statusBadgeHtml}
+          ${actionBtnHtml}
         </div>
         <div id="popup-img-area-${point.id}"></div>
       </div>
@@ -1932,12 +1991,10 @@
     return '';
   }
 
-  // ★ 子・孫フォルダ内データ一覧をスポット名（title）の文字列順（昇順）にソート ★
   function renderPointList(points, groupPath) {
     const ul = document.createElement('ul');
     ul.className = 'point-list';
 
-    // スポット名（title）で自然順（昇順）ソート
     const sortedPoints = [...points].sort((a, b) => {
       const titleA = a.title || '';
       const titleB = b.title || '';
@@ -2195,7 +2252,6 @@
     document.getElementById('single-image-input').click();
   }
 
-  // ★ 画像ボタン経由で追加する画像の取り込み（20KB以下に圧縮）
   document.getElementById('single-image-input').addEventListener('change', async (e) => {
     const files = Array.from(e.target.files);
     if (files.length === 0 || !targetPointIdForImage) return;
@@ -2209,7 +2265,6 @@
     try {
       const uploadedImageObjects = [];
       for (const file of files) {
-        // 20KB以下に自動再圧縮
         const compressedBase64 = await compressImageFile(file, 20 * 1024);
         const publicUrl = await uploadImageToStorage(compressedBase64, 'manual');
         if (publicUrl) {
@@ -2433,7 +2488,6 @@
     }
   }
 
-  // ★ Excelファイル取り込み処理（度分秒対応＆20KB圧縮） ★
   async function handleFileSelect(e) {
     if (isReadOnly) return;
     const file = e.target.files[0];
@@ -2502,7 +2556,6 @@
         const rawLat = row['緯度'] || row['lat'] || row['latitude'];
         const rawLng = row['経度'] || row['lng'] || row['longitude'];
 
-        // 度分秒・十進度の自動変換
         const lat = parseDMSToDecimal(rawLat);
         const lng = parseDMSToDecimal(rawLng);
         
@@ -2523,7 +2576,6 @@
 
         let imageUrl = null;
         if (rawImg && !String(rawImg).startsWith('※')) {
-          // 20KB以下に圧縮
           const compressedBase64 = await compressImageFile(rawImg, 20 * 1024);
           const publicUrl = await uploadImageToStorage(compressedBase64, 'import');
           if (publicUrl) {
@@ -2616,7 +2668,6 @@
     selectedLatLng = null;
   }
 
-  // ★ 手動登録保存処理（度分秒対応＆20KB圧縮） ★
   async function savePoint() {
     if (isReadOnly) return;
     const dispTitle = document.getElementById('spot-display-title').value.trim();
@@ -2643,7 +2694,6 @@
       if (files.length > 0) {
         const compressedList = [];
         for (const f of files) {
-          // 20KB以下に自動再圧縮
           const b64 = await compressImageFile(f, 20 * 1024);
           const publicUrl = await uploadImageToStorage(b64, 'manual');
           if (publicUrl) {
