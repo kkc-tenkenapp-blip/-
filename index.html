@@ -1,154 +1,2621 @@
-// ★ 画像を確実に50KB以下に繰り返し再圧縮する関数
-function compressImageFile(fileOrBase64, maxSizeBytes = 50 * 1024) {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="robots" content="noindex, nofollow">
+  <title>点検管理アプリ</title>
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    body { margin: 0; padding: 0; font-family: sans-serif; display: flex; height: 100vh; overflow: hidden; }
+    
+    /* Supabase Auth ログインモーダル */
+    #login-overlay, #share-auth-overlay {
+      position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+      background: rgba(0, 0, 0, 0.85); z-index: 10000;
+      display: flex; justify-content: center; align-items: center;
+    }
+    .login-card {
+      background: #ffffff; padding: 30px 25px; border-radius: 12px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.3); width: 340px; max-width: 90vw; text-align: center;
+    }
+    .login-card h2 { margin: 0 0 8px 0; font-size: 18px; color: #333; }
+    .login-card p { font-size: 12px; color: #666; margin-bottom: 20px; }
+    .login-field { width: 100%; padding: 10px; margin-bottom: 12px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: 13px; }
+    .login-btn { width: 100%; padding: 10px; background: #007bff; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 14px; }
+    .login-btn:hover { background: #0056b3; }
+    #login-error, #share-auth-error { color: #dc3545; font-size: 12px; margin-top: 10px; display: none; word-break: break-all; }
 
-    img.onload = () => {
-      let maxWidth = 800; // 初期最大幅
-      let quality = 0.7;  // 初期画質
+    /* 左側リスト欄 */
+    #sidebar {
+      width: 480px; min-width: 240px; max-width: 85vw; background: #f8f9fa; border-right: 1px solid #ccc;
+      display: flex; flex-direction: column; z-index: 1000; box-shadow: 2px 0 5px rgba(0,0,0,0.1); flex-shrink: 0;
+    }
+    
+    #resizer {
+      width: 6px; background: #ddd; cursor: col-resize; z-index: 1001; transition: background 0.2s;
+    }
+    #resizer:hover, #resizer.resizing { background: #007bff; }
 
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
+    #sidebar-header { padding: 12px; background: #007bff; color: white; display: flex; flex-direction: column; gap: 6px; }
+    .header-top { display: flex; justify-content: space-between; align-items: center; }
+    .header-top h3 { margin: 0; font-size: 16px; }
+    .header-btns { display: flex; gap: 6px; align-items: center; }
 
-      function attemptCompress() {
-        let w = img.width;
-        let h = img.height;
+    .btn-manual-header { background: #17a2b8; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; }
+    .btn-manual-header:hover { background: #138496; }
+    .btn-logout { background: #dc3545; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; }
+    
+    #share-bar { padding: 8px 12px; background: #e7f1ff; border-bottom: 1px solid #b6d4fe; display: flex; justify-content: space-between; align-items: center; gap: 4px; flex-wrap: wrap; }
+    .btn-bar { border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; color: white; }
+    #btn-add-group-bar { background: #0d6efd; }
+    #btn-share-selected { background: #198754; }
+    #btn-delete-selected { background: #dc3545; }
 
-        // 幅の縮小処理
-        if (w > maxWidth) {
-          h = Math.round((h * maxWidth) / w);
-          w = maxWidth;
-        }
+    #import-area { padding: 6px 12px; background: #e9ecef; border-bottom: 1px solid #ddd; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+    
+    #drop-zone { 
+      flex: 1; border: 1.5px dashed #007bff; background: #fff; padding: 3px 6px; text-align: center; border-radius: 4px; font-size: 10px; cursor: pointer; min-width: 120px; display: flex; flex-direction: column; justify-content: center; gap: 2px;
+    }
+    #import-progress-container { width: 100%; background: #e9ecef; height: 4px; border-radius: 2px; overflow: hidden; display: none; }
+    #import-progress-fill { height: 100%; background: #0d6efd; width: 0%; transition: width 0.2s ease; }
 
-        canvas.width = w;
-        canvas.height = h;
-        ctx.clearRect(0, 0, w, h);
-        ctx.drawImage(img, 0, 0, w, h);
+    .btn-import-sub { background: #6c757d; color: white; border: none; padding: 5px 8px; border-radius: 4px; cursor: pointer; font-size: 11px; white-space: nowrap; }
+    .btn-import-manual { background: #17a2b8; color: white; border: none; padding: 5px 8px; border-radius: 4px; cursor: pointer; font-size: 11px; white-space: nowrap; font-weight: bold; }
 
-        // WebP形式でデータURL化
-        const dataUrl = canvas.toDataURL('image/webp', quality);
-        
-        // Base64のデータサイズ（バイト換算）を計算
-        const head = 'data:image/webp;base64,';
-        const base64Str = dataUrl.substr(head.length);
-        const sizeInBytes = Math.round((base64Str.length * 3) / 4);
+    #filter-bar { padding: 8px 12px; background: #f1f3f5; border-bottom: 1px solid #ddd; display: flex; flex-direction: column; gap: 6px; }
+    .filter-row { display: flex; gap: 6px; align-items: center; }
+    .filter-input { flex: 1.2; padding: 6px 8px; font-size: 12px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; min-width: 0; }
+    .filter-select { flex: 1; padding: 6px 6px; font-size: 12px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; background: white; min-width: 0; }
+    #search-count-badge { font-size: 11px; color: #666; font-weight: bold; white-space: nowrap; }
 
-        // 50KB以下になるか、最小条件に達したら終了
-        if (sizeInBytes <= maxSizeBytes || (quality <= 0.15 && maxWidth <= 300)) {
-          resolve(dataUrl);
-        } else {
-          // 50KBを超えている場合は画質と解像度を下げて再試行
-          if (quality > 0.2) {
-            quality -= 0.15;
-          } else {
-            maxWidth = Math.round(maxWidth * 0.75);
-            quality = 0.5;
-          }
-          attemptCompress();
-        }
-      }
+    #tree-container { flex: 1; overflow-y: auto; padding: 10px; }
+    
+    .parent-group-item { margin-bottom: 8px; border: 1px solid #cbd5e1; border-radius: 6px; background: #ffffff; }
+    .parent-group-header { font-weight: bold; background: #e2e8f0; padding: 8px 10px; display: flex; align-items: center; gap: 6px; font-size: 13px; border-bottom: 1px solid #cbd5e1; cursor: grab; }
+    
+    .child-group-item { margin: 4px 6px; border: 1px solid #e2e8f0; border-radius: 4px; background: #f8fafc; }
+    .child-group-header { font-weight: bold; background: #f1f5f9; padding: 6px 8px; display: flex; align-items: center; gap: 6px; font-size: 12px; cursor: grab; }
+    
+    .grandchild-group-item { margin: 4px 6px; border: 1px dashed #cbd5e1; border-radius: 4px; background: #ffffff; }
+    .grandchild-group-header { font-weight: bold; background: #ffffff; padding: 4px 6px; display: flex; align-items: center; gap: 6px; font-size: 11px; cursor: grab; }
 
-      attemptCompress();
-    };
+    .group-title-text { flex: 1; cursor: pointer; user-select: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    
+    .btn-group-action { background: transparent; border: none; cursor: pointer; font-size: 12px; padding: 0 3px; }
+    .btn-group-action:hover { font-weight: bold; }
+    .btn-group-edit { color: #0d6efd; }
+    .btn-group-del { color: #dc3545; }
 
-    img.onerror = (err) => reject(err);
+    .drag-over-active { background: #e0f2fe !important; border-color: #0284c7 !important; }
 
-    // 入力が File/Blob か Base64 文字列かで処理を分岐
-    if (typeof fileOrBase64 === 'string') {
-      img.src = fileOrBase64;
-    } else if (fileOrBase64 instanceof Blob || fileOrBase64 instanceof File) {
-      const reader = new FileReader();
-      reader.onload = (e) => { img.src = e.target.result; };
-      reader.readAsDataURL(fileOrBase64);
+    .point-list { list-style: none; padding: 0; margin: 0; border-top: 1px solid #eee; }
+    .point-list.collapsed, .child-container.collapsed, .grandchild-container.collapsed { display: none; }
+    
+    .point-item { padding: 6px 8px; display: flex; align-items: center; justify-content: space-between; font-size: 12px; border-bottom: 1px solid #f8f9fa; cursor: grab; gap: 4px; flex-wrap: nowrap; }
+    .point-item.dragging { opacity: 0.5; background: #e2e6ea; }
+    .point-item:hover { background: #f8f9fa; }
+    .point-name { flex: 1; margin-left: 4px; cursor: pointer; color: #212529; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; display: flex; align-items: center; gap: 4px; }
+    .point-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+    
+    .judge-red-text { color: #dc3545; font-weight: bold; font-size: 12px; margin-right: 2px; flex-shrink: 0; }
+
+    .tab-badge-select, .status-badge-select {
+      font-size: 10px; padding: 2px 6px; border-radius: 10px; font-weight: bold; white-space: nowrap; flex-shrink: 0; outline: none; cursor: pointer; appearance: none; text-align: center;
+    }
+    .tab-badge-select { color: white; border: none; }
+    
+    .status-badge-select.is-pending { 
+      background: #ffffff !important; 
+      color: #555555 !important; 
+      border: 1.5px solid #999999 !important; 
+    }
+    .status-badge-select.is-done { 
+      background: #6c757d !important; 
+      color: #ffffff !important; 
+      border: 1.5px solid #6c757d !important; 
+    }
+    .tab-badge-select option, .status-badge-select option { background: white; color: #333; }
+    
+    .btn-group-actions { display: flex; gap: 4px; align-items: center; margin-left: auto; flex-shrink: 0; }
+    .btn-item-action { border: 1px solid #6c757d; background: #fff; color: #333; padding: 3px 6px; border-radius: 4px; cursor: pointer; font-size: 11px; white-space: nowrap; }
+    .btn-item-action:hover { background: #e2e6ea; }
+    
+    .btn-checked-done { 
+      background: #6c757d; 
+      color: white; 
+      border: 1px solid #5a6268; 
+    }
+    .btn-checked-pending { 
+      background: #ffffff; 
+      color: #444444; 
+      border: 1px solid #999999; 
+    }
+
+    #map { flex: 1; height: 100%; position: relative; }
+
+    #legend-box {
+      position: absolute; bottom: 20px; right: 10px; z-index: 1000;
+      background: rgba(255, 255, 255, 0.9); padding: 8px 12px; border-radius: 6px;
+      border: 1px solid #ccc; box-shadow: 0 2px 6px rgba(0,0,0,0.2); font-size: 11px; cursor: pointer;
+    }
+    #legend-box h5 { margin: 0 0 6px 0; font-size: 12px; font-weight: bold; color: #333; }
+    .legend-item { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; }
+    .legend-color { width: 12px; height: 12px; border-radius: 50%; display: inline-block; border: 1px solid rgba(0,0,0,0.2); }
+
+    .circle-marker-badge {
+      position: relative;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      border: 2px solid #ffffff;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transform: translate(-50%, -50%);
+      cursor: pointer;
+      pointer-events: auto;
+    }
+
+    .circle-marker-label {
+      font-size: 11px;
+      font-weight: bold;
+      color: #ffffff;
+      white-space: nowrap;
+      overflow: visible;
+      text-shadow: 1px 1px 2px #000, -1px -1px 2px #000, 1px -1px 2px #000, -1px 1px 2px #000;
+      pointer-events: none;
+      transition: all 0.15s ease-out;
+    }
+
+    .circle-marker-label.is-escaped {
+      position: absolute;
+      background: rgba(0, 0, 0, 0.85);
+      color: #ffffff;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 11px;
+      text-shadow: none;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+      z-index: 2000;
+      white-space: nowrap;
+      cursor: pointer;
+      pointer-events: auto;
+    }
+
+    .zoom-hide {
+      display: none !important;
+    }
+
+    .leaflet-popup { margin-bottom: 0px !important; }
+    .leaflet-popup-content-wrapper { padding: 10px; max-width: none !important; width: max-content !important; border-radius: 12px; }
+    .leaflet-popup-content { margin: 8px; width: auto !important; }
+    .popup-title { margin: 2px 0 5px 0; white-space: nowrap; font-size: 15px; }
+    
+    .popup-img-container { display: flex; gap: 12px; overflow-x: auto; margin-top: 8px; max-width: 320px; padding-bottom: 6px; }
+    .img-card { position: relative; display: flex; flex-direction: column; flex-shrink: 0; width: 220px; background: #f8f9fa; border: 1px solid #ddd; border-radius: 6px; padding: 6px; box-sizing: border-box; }
+    .popup-img { width: 100%; height: 140px; border-radius: 4px; object-fit: cover; cursor: zoom-in; }
+    
+    .img-delete-btn {
+      position: absolute; top: 8px; right: 8px; background: rgba(220, 53, 69, 0.85); color: white; border: none;
+      border-radius: 50%; width: 22px; height: 22px; cursor: pointer; font-size: 11px; display: flex; justify-content: center; align-items: center; z-index: 10;
+    }
+
+    .img-comment-box { margin-top: 6px; display: flex; flex-direction: column; gap: 4px; font-size: 11px; }
+    .comment-direct-input { width: 100%; font-size: 11px; padding: 5px 6px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; background: #ffffff; }
+    .judge-row { display: flex; align-items: center; justify-content: space-between; font-size: 11px; color: #495057; }
+    .judge-select { font-size: 11px; padding: 2px 4px; border: 1px solid #ccc; border-radius: 3px; background: #fff; }
+
+    #lightbox-modal { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.85); z-index: 3000; justify-content: center; align-items: center; flex-direction: column; }
+    #lightbox-img { max-width: 90vw; max-height: 80vh; border-radius: 8px; }
+    #lightbox-caption { color: white; margin-top: 12px; font-size: 14px; text-align: center; max-width: 80vw; }
+    #lightbox-close { position: absolute; top: 20px; right: 25px; color: white; font-size: 30px; cursor: pointer; font-weight: bold; }
+
+    .modal { display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 2000; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); width: 380px; max-width: 90vw; box-sizing: border-box; }
+    .modal h4 { margin: 0 0 12px 0; }
+    .modal label { font-size: 11px; font-weight: bold; display: block; margin-top: 6px; margin-bottom: 2px; color: #333; }
+    .modal input, .modal select { width: 100%; margin-bottom: 8px; box-sizing: border-box; padding: 8px; font-size: 12px; border: 1px solid #ccc; border-radius: 4px; }
+    
+    #manual-modal { width: 620px; max-width: 92vw; max-height: 85vh; display: none; flex-direction: column; }
+    #manual-modal-body { overflow-y: auto; max-height: 60vh; font-size: 12px; line-height: 1.6; color: #333; padding-right: 5px; border-top: 1px solid #eee; border-bottom: 1px solid #eee; margin: 10px 0; }
+    #manual-modal-body h5 { font-size: 13px; margin: 12px 0 4px 0; color: #007bff; border-left: 3px solid #007bff; padding-left: 6px; }
+    #manual-modal-body ul { margin: 4px 0 10px 18px; padding: 0; }
+
+    #tab-rule-table { width: 100%; font-size: 12px; margin-bottom: 10px; border-collapse: collapse; }
+    #tab-rule-table th, #tab-rule-table td { border: 1px solid #ddd; padding: 6px; text-align: left; }
+    #readonly-banner { display: none; background: #ffc107; color: #333; text-align: center; padding: 6px; font-size: 12px; font-weight: bold; }
+
+    #custom-confirm-modal { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.5); z-index: 9999; justify-content: center; align-items: center; }
+    .custom-confirm-card { background: white; padding: 20px; border-radius: 8px; width: 300px; text-align: center; box-shadow: 0 5px 15px rgba(0,0,0,0.3); font-size: 13px; }
+    .custom-confirm-btns { display: flex; justify-content: space-around; margin-top: 15px; }
+    .btn-confirm-yes { background: #dc3545; color: white; border: none; padding: 6px 16px; border-radius: 4px; cursor: pointer; }
+    .btn-confirm-no { background: #6c757d; color: white; border: none; padding: 6px 16px; border-radius: 4px; cursor: pointer; }
+
+    .copy-btn-group { display: flex; flex-direction: column; gap: 8px; margin-top: 15px; }
+    .btn-copy-action { background: #198754; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 12px; display: flex; align-items: center; justify-content: center; gap: 6px; }
+    .btn-copy-action:hover { background: #146c43; }
+
+    @media screen and (max-width: 768px) {
+      body { flex-direction: column-reverse; }
+      #sidebar { width: 100% !important; max-width: 100%; height: 55vh; border-right: none; }
+      #resizer { width: 100% !important; height: 10px !important; background: #ccc !important; cursor: row-resize !important; position: relative; touch-action: none; }
+      #map { width: 100%; height: 45vh; }
+      #import-area, #share-bar { display: none !important; }
+      .btn-manual-header { display: none !important; }
+    }
+  </style>
+</head>
+<body>
+
+<div id="login-overlay">
+  <div class="login-card">
+    <h2>🔒 ログイン</h2>
+    <p>共有のメールアドレスとパスワードを入力してください。</p>
+    <input type="email" id="login-email" class="login-field" placeholder="メールアドレス" />
+    <input type="password" id="login-pw" class="login-field" placeholder="パスワード" />
+    <button class="login-btn" onclick="loginWithSupabase()">ログイン</button>
+    <div id="login-error"></div>
+  </div>
+</div>
+
+<div id="share-auth-overlay" style="display:none;">
+  <div class="login-card">
+    <h2>🔑 共有データの認証</h2>
+    <p id="share-auth-desc">発行されたパスワードを入力してください。</p>
+    <input type="password" id="share-access-pw" class="login-field" placeholder="パスワードを入力" />
+    <button class="login-btn" onclick="verifySharePassword()">アクセスを開始</button>
+    <div id="share-auth-error"></div>
+  </div>
+</div>
+
+<div id="custom-confirm-modal">
+  <div class="custom-confirm-card">
+    <p style="margin:0 0 10px 0; font-weight:bold;">この画像を削除しますか？</p>
+    <div class="custom-confirm-btns">
+      <button class="btn-confirm-yes" id="btn-confirm-yes">削除</button>
+      <button class="btn-confirm-no" id="btn-confirm-no">キャンセル</button>
+    </div>
+  </div>
+</div>
+
+<div id="sidebar">
+  <div id="sidebar-header">
+    <div class="header-top">
+      <h3>点検管理アプリ</h3>
+      <div class="header-btns">
+        <button class="btn-manual-header editable-only" onclick="openManualModal()">📖 マニュアル</button>
+        <button class="btn-logout editable-only" onclick="logoutSupabase()">ログアウト</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="readonly-banner">🔒 共有閲覧モード (編集不可)</div>
+  
+  <div id="share-bar">
+    <label style="font-size:11px; cursor:pointer;">
+      <input type="checkbox" id="chk-all" onchange="toggleSelectAll(this.checked)" /> 全選択
+    </label>
+    <div>
+      <button id="btn-add-group-bar" class="btn-bar editable-only" onclick="addNewGroupModal()">➕ グループ追加</button>
+      <button id="btn-share-selected" class="btn-bar editable-only" onclick="openShareConfigModal()">🔗 選択共有</button>
+      <button id="btn-delete-selected" class="btn-bar original-only" onclick="deleteSelectedPoints()">🗑️ 選択削除</button>
+    </div>
+  </div>
+
+  <div id="import-area" class="editable-only">
+    <div id="drop-zone" onclick="document.getElementById('excel-input').click()">
+      <span id="drop-zone-text">📂 Excelをドロップ</span>
+      <div id="import-progress-container">
+        <div id="import-progress-fill"></div>
+      </div>
+      <input type="file" id="excel-input" accept=".xlsx, .xls, .csv" style="display:none" onchange="handleFileSelect(event)" />
+    </div>
+    <button class="btn-import-manual" onclick="openManualRegisterModal()">➕ 個別登録</button>
+    <button class="btn-import-sub" onclick="downloadExcelTemplate()">📥 テンプレート</button>
+  </div>
+
+  <div id="filter-bar">
+    <div class="filter-row">
+      <input type="text" id="search-keyword" class="filter-input" placeholder="🔍 スポット名/ピン表示名で検索..." oninput="onFilterChange()" />
+      <select id="filter-tab-select" class="filter-select" onchange="onFilterChange()">
+        <option value="">🏷️ 全てのタブを表示</option>
+      </select>
+    </div>
+    <div style="text-align: right;">
+      <span id="search-count-badge">0 / 0 件</span>
+    </div>
+  </div>
+
+  <div id="tree-container">
+    <div id="point-tree">読み込み中...</div>
+  </div>
+</div>
+
+<div id="resizer"></div>
+
+<div id="map">
+  <div id="legend-box" onclick="openTabConfigModal(event)">
+    <h5>凡例 (クリックで編集 ⚙️)</h5>
+    <div id="legend-list">タブ設定なし</div>
+  </div>
+</div>
+
+<div id="lightbox-modal" onclick="closeLightbox()">
+  <span id="lightbox-close">&times;</span>
+  <img id="lightbox-img" src="" alt="拡大表示" />
+  <div id="lightbox-caption"></div>
+</div>
+
+<div id="manual-modal" class="modal">
+  <div style="display:flex; justify-content:space-between; align-items:center;">
+    <h4 style="margin:0;">📖 アプリ操作マニュアル</h4>
+  </div>
+  <div id="manual-modal-body">
+    <h5>1. 画面の基本構成</h5>
+    <ul>
+      <li><b>左側サイドバー</b>: ポイントの登録・検索・グループ一覧（木製ツリー構造）・一括操作ボタン</li>
+      <li><b>右側マップ表示エリア</b>: 点検ポイントのピン表示（自動回避機能付）、凡例（右下）</li>
+      <li><b>中央リサイザー</b>: 左右の境界線をドラッグすることでサイドバーの幅を自由に変更可能</li>
+    </ul>
+
+    <h5>2. ポイントの登録方法</h5>
+    <ul>
+      <li><b>Excel / CSV 一括インポート</b>: 「📂 Excelをドロップ」領域にファイルをドラッグ＆ドロップします。「📥 テンプレート」からフォーマットを取得できます。</li>
+      <li><b>地図からの個別登録</b>: 「➕ 個別登録」を押した後、地図上の目的の場所をクリックすると座標が自動入力されます。</li>
+    </ul>
+
+    <h5>3. ポイントの編集・管理機能</h5>
+    <ul>
+      <li><b>情報変更</b>: 各スポットの「情報変更」ボタンからピン表示名・スポット名・緯度経度を一括編集可能です。</li>
+      <li><b>点検状態（点検済/未実施）</b>: 「点検済」を押すとピンの色が点検済色（グレー）へ変化、「未実施」を押すと元の色へ復旧します。</li>
+      <li><b>写真・判定管理</b>: 各ピンから写真追加、拡大表示でコメント入力や健全度判定（Ⅰ〜Ⅳ）の設定ができます。すべての画像は自動的に50KB以下に圧縮されます。</li>
+    </ul>
+
+    <h5>4. 選択共有 (URL発行)</h5>
+    <ul>
+      <li>共有したいポイントをチェックし「🔗 選択共有」からパスワードと有効期限を設定して専用URLを発行できます。</li>
+      <li>「閲覧モード（編集不可）」と「共有モード（消去以外の編集が可能）」の2つの権限を選んで発行できます。</li>
+    </ul>
+  </div>
+  <button onclick="closeManualModal()" style="width:100%; background:#6c757d; color:white; border:none; padding:8px; border-radius:4px; cursor:pointer;">閉じる</button>
+</div>
+
+<div id="share-config-modal" class="modal">
+  <h4>🔗 選択共有の設定</h4>
+  <p style="font-size:11px; color:#666; margin-bottom:12px;">強力なパスワードが自動生成されました（変更も可能です）。</p>
+  
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+    <label style="font-size:11px; font-weight:bold;">閲覧パスワード（自動設定済）</label>
+    <button type="button" onclick="regenerateSharePwInModal()" style="border:none; background:none; color:#0d6efd; font-size:11px; cursor:pointer; font-weight:bold;">🔄 再生成</button>
+  </div>
+  <input type="text" id="share-setting-pw" placeholder="パスワードを入力" />
+
+  <label style="font-size:11px; font-weight:bold; display:block; margin-top:10px; margin-bottom:4px;">共有権限</label>
+  <div style="display:flex; gap:10px; margin-bottom:10px; font-size:12px;">
+    <label><input type="radio" name="share-setting-mode" value="view" checked> 閲覧モード（編集不可）</label><br>
+    <label><input type="radio" name="share-setting-mode" value="edit"> 共有モード（編集可・消去不可）</label>
+  </div>
+
+  <label style="font-size:11px; font-weight:bold; display:block; margin-bottom:4px;">有効期限</label>
+  <select id="share-setting-days">
+    <option value="0">制限なし (無期限)</option>
+    <option value="7" selected>7日間（標準）</option>
+    <option value="14">14日間</option>
+    <option value="28">28日間</option>
+  </select>
+
+  <div style="display: flex; justify-content: space-between; margin-top:15px;">
+    <button onclick="generateShareLink()" style="padding:8px 16px; background:#198754; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold; flex:1; margin-right:6px;">URL・パスワード発行</button>
+    <button onclick="closeShareConfigModal()" style="padding:8px 16px; background:#6c757d; color:white; border:none; border-radius:4px; cursor:pointer;">キャンセル</button>
+  </div>
+</div>
+
+<div id="share-result-modal" class="modal">
+  <h4>✅ 発行完了</h4>
+  <p style="font-size:11px; color:#666; margin-bottom:10px;">以下のボタンでURLとパスワードをそれぞれコピーして共有してください。</p>
+  
+  <div class="copy-btn-group">
+    <button class="btn-copy-action" onclick="copyShareUrl()"><span id="icon-copy-url">📋</span> 共有URLをコピー</button>
+    <button class="btn-copy-action" style="background:#0d6efd;" onclick="copySharePw()"><span id="icon-copy-pw">🔑</span> パスワードをコピー</button>
+  </div>
+
+  <button onclick="closeShareResultModal()" style="width:100%; margin-top:15px; background:#6c757d; color:white; border:none; padding:8px; border-radius:4px; cursor:pointer;">閉じる</button>
+</div>
+
+<div id="tab-config-modal" class="modal">
+  <h4>⚙️ タブ設定・色分け管理</h4>
+  <p style="font-size:11px; color:#666;">Excelの「タブ」列の文字に応じたピンの色を設定します。</p>
+  <table id="tab-rule-table">
+    <thead>
+      <tr><th>タブ文字</th><th>色</th><th>操作</th></tr>
+    </thead>
+    <tbody id="tab-rule-list"></tbody>
+  </table>
+  <div style="border-top:1px solid #eee; pt:10px; margin-top:10px;">
+    <input type="text" id="new-tab-name" placeholder="新しいタブ文字（例: 標識）" />
+    <select id="new-tab-color">
+      <option value="red">赤 (Red)</option>
+      <option value="blue">青 (Blue)</option>
+      <option value="green">緑 (Green)</option>
+      <option value="orange">オレンジ (Orange)</option>
+      <option value="violet">紫 (Violet)</option>
+      <option value="gold">黄色 (Yellow/Gold)</option>
+      <option value="yellow">イエロー (Yellow)</option>
+      <option value="black">黒 (Black)</option>
+      <option value="grey">グレー (Grey)</option>
+    </select>
+    <button onclick="addTabRule()" style="width:100%; background:#28a745; color:white; border:none; padding:8px; border-radius:4px; cursor:pointer; font-weight:bold;">＋ ルールを追加</button>
+  </div>
+  <button onclick="closeTabConfigModal()" style="width:100%; margin-top:10px; background:#6c757d; color:white; border:none; padding:8px; border-radius:4px; cursor:pointer;">閉じる</button>
+</div>
+
+<div id="form-container" class="modal">
+  <h4 id="form-modal-title">新しいポイントを追加</h4>
+  <p id="form-hint" style="font-size:11px; color:#0d6efd; margin:0 0 8px 0; display:none;">💡 地図上をクリックすると座標が自動入力されます</p>
+  <label>ピン表示名（任意 / 空欄時はスポット名）</label>
+  <input type="text" id="spot-display-title" placeholder="例: 1号標識" />
+  <label>スポット名（必須）</label>
+  <input type="text" id="spot-title" placeholder="例: D360425L3" />
+  <label>緯度</label>
+  <input type="number" step="any" id="spot-lat" placeholder="例: 40.220360" />
+  <label>経度</label>
+  <input type="number" step="any" id="spot-lng" placeholder="例: 141.781950" />
+  <label>グループ名</label>
+  <input type="text" id="spot-group" placeholder="例: 三陸 / 1工区 / A区画" />
+  <label>タブの内容</label>
+  <input type="text" id="spot-tab" placeholder="例: 標識" />
+  <label>画像添付</label>
+  <input type="file" id="spot-image" accept="image/*" multiple />
+  <div style="display: flex; justify-content: space-between; margin-top:10px;">
+    <button id="save-btn" onclick="savePoint()" style="padding:8px 16px; background:#0d6efd; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">保存</button>
+    <button onclick="closeForm()" style="padding:8px 16px; background:#6c757d; color:white; border:none; border-radius:4px; cursor:pointer;">キャンセル</button>
+  </div>
+  <div id="status-msg"></div>
+</div>
+
+<div id="edit-point-modal" class="modal">
+  <h4>✏️ ポイント情報変更</h4>
+  <input type="hidden" id="edit-point-id" />
+  <label>ピン表示名（任意 / 空欄時はスポット名）</label>
+  <input type="text" id="edit-spot-display-title" placeholder="例: 1号標識" />
+  <label>スポット名（必須）</label>
+  <input type="text" id="edit-spot-title" placeholder="例: D360425L3" />
+  <label>緯度（Latitude）</label>
+  <input type="number" step="any" id="edit-spot-lat" placeholder="例: 40.220360" />
+  <label>経度（Longitude）</label>
+  <input type="number" step="any" id="edit-spot-lng" placeholder="例: 141.781950" />
+  <div style="display: flex; justify-content: space-between; margin-top:15px;">
+    <button onclick="saveEditPointInfo()" style="padding:8px 16px; background:#0d6efd; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold; flex:1; margin-right:6px;">更新保存</button>
+    <button onclick="closeEditPointModal()" style="padding:8px 16px; background:#6c757d; color:white; border:none; border-radius:4px; cursor:pointer;">キャンセル</button>
+  </div>
+</div>
+
+<input type="file" id="single-image-input" accept="image/*" multiple style="display:none;" />
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+<script>
+  const SUPABASE_URL = 'https://yrtismmwpbinvceugvqm.supabase.co'; 
+  const SUPABASE_KEY = 'sb_publishable_M9om9CnvIBVUyZDWvqMSfA_dzF-oCT0';        
+  const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  let selectedLatLng = null;
+  const markers = {};   
+  let allPoints = [];   
+  let tabRules = []; 
+  let customGroups = new Set();
+  
+  let isReadOnly = false;
+  let isSharedEditMode = false;
+
+  let targetPointIdForImage = null;
+  let isManualRegisterMode = false;
+
+  const openGroupIds = new Set();
+  const checkedPointIds = new Set();
+  let activePopupPointId = null;
+  let isSelfOperating = false;
+
+  let generatedShareUrl = '';
+  let generatedSharePw = '';
+  let shareParamsFromUrl = null;
+
+  const DIRECTIONS_16 = Array.from({ length: 16 }, (_, i) => {
+    const angle = (i * 22.5) * (Math.PI / 180);
+    return { x: Math.cos(angle), y: Math.sin(angle) };
+  });
+
+  const sidebar = document.getElementById('sidebar');
+  const mapElem = document.getElementById('map');
+  const resizer = document.getElementById('resizer');
+  let isResizing = false;
+
+  resizer.addEventListener('mousedown', (e) => {
+    if (window.innerWidth > 768) {
+      isResizing = true;
+      resizer.classList.add('resizing');
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
     }
   });
-}
 
-// ★ 後から「画像」ボタン等で取り込む際のアップロード処理（修正済）
-document.getElementById('single-image-input').addEventListener('change', async (e) => {
-  const files = Array.from(e.target.files);
-  if (files.length === 0 || !targetPointIdForImage) return;
-
-  const targetId = Number(targetPointIdForImage);
-  const wasVisible = checkedPointIds.has(targetId) || (markers[targetId] && map.hasLayer(markers[targetId]));
-
-  isSelfOperating = true;
-  activePopupPointId = targetId;
-
-  try {
-    const uploadedImageObjects = [];
-    for (const file of files) {
-      // 50KB以下になるよう自動圧縮（ループ処理）
-      const compressedBase64 = await compressImageFile(file, 50 * 1024);
-      const publicUrl = await uploadImageToStorage(compressedBase64, 'manual');
-      if (publicUrl) {
-        uploadedImageObjects.push({ url: publicUrl, comment: '', judge: '' });
-      }
+  document.addEventListener('mousemove', (e) => {
+    if (!isResizing || window.innerWidth <= 768) return;
+    const newWidth = e.clientX;
+    if (newWidth >= 240 && newWidth <= window.innerWidth * 0.85) {
+      sidebar.style.width = `${newWidth}px`;
+      map.invalidateSize();
     }
+  });
 
-    if (uploadedImageObjects.length === 0) {
-      throw new Error('画像の保存（Storageアップロード）に失敗しました。');
+  document.addEventListener('mouseup', () => {
+    if (isResizing && window.innerWidth > 768) {
+      isResizing = false;
+      resizer.classList.remove('resizing');
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      map.invalidateSize();
     }
+  });
 
-    const { data } = await supabaseClient.from('points').select('image_url').eq('id', targetId).single();
-    let currentImages = [];
-    if (data && data.image_url) {
+  resizer.addEventListener('touchstart', (e) => {
+    if (window.innerWidth <= 768) {
+      isResizing = true;
+      resizer.classList.add('resizing');
+    }
+  }, { passive: true });
+
+  document.addEventListener('touchmove', (e) => {
+    if (!isResizing || window.innerWidth > 768) return;
+    const touch = e.touches[0];
+    const totalHeight = window.innerHeight;
+    const newSidebarHeight = totalHeight - touch.clientY;
+    const newSidebarPercent = (newSidebarHeight / totalHeight) * 100;
+
+    if (newSidebarPercent >= 15 && newSidebarPercent <= 85) {
+      sidebar.style.height = `${newSidebarPercent}vh`;
+      mapElem.style.height = `${100 - newSidebarPercent}vh`;
+      map.invalidateSize();
+    }
+  }, { passive: true });
+
+  document.addEventListener('touchend', () => {
+    if (isResizing && window.innerWidth <= 768) {
+      isResizing = false;
+      resizer.classList.remove('resizing');
+      map.invalidateSize();
+    }
+  });
+
+  function generateStrongPassword(length = 8) {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+    let result = '';
+    for (let i = 0; i < length; i++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+  }
+
+  async function fetchWithRetry(queryFn, maxRetries = 3, delayMs = 1500) {
+    let lastError = null;
+    for (let i = 0; i < maxRetries; i++) {
       try {
-        currentImages = JSON.parse(data.image_url);
-        if (!Array.isArray(currentImages)) currentImages = [{ url: data.image_url, comment: '', judge: '' }];
+        const result = await queryFn();
+        if (!result.error) return result;
+        lastError = result.error;
       } catch (err) {
-        currentImages = [{ url: data.image_url, comment: '', judge: '' }];
+        lastError = err;
+      }
+      await new Promise(r => setTimeout(r, delayMs));
+    }
+    return { data: null, error: lastError };
+  }
+
+  async function deleteStorageImagesForPoints(pointsToDelete) {
+    const filesToRemove = [];
+    pointsToDelete.forEach(p => {
+      if (p.image_url) {
+        try {
+          let list = JSON.parse(p.image_url);
+          if (!Array.isArray(list)) list = [p.image_url];
+          list.forEach(item => {
+             const url = typeof item === 'object' ? item.url : item;
+             if (url) {
+               const match = url.match(/\/point-images\/(.+)$/);
+               if (match && match[1]) filesToRemove.push(match[1]);
+             }
+          });
+        } catch(e) {
+          const match = p.image_url.match(/\/point-images\/(.+)$/);
+          if (match && match[1]) filesToRemove.push(match[1]);
+        }
+      }
+    });
+
+    if (filesToRemove.length > 0) {
+      try {
+        await supabaseClient.storage.from('point-images').remove(filesToRemove);
+      } catch(e) {
+        console.warn('Storage一括削除エラー:', e);
+      }
+    }
+  }
+
+  async function uploadImageToStorage(fileOrBase64, filenamePrefix = 'img') {
+    try {
+      let fileBlob = null;
+      let ext = 'webp'; 
+
+      if (typeof fileOrBase64 === 'string' && fileOrBase64.startsWith('data:')) {
+        const arr = fileOrBase64.split(',');
+        const mime = arr[0].match(/:(.*?);/)[1];
+        const bstr = atob(arr[1]);
+        let n = bstr.length;
+        const u8arr = new Uint8Array(n);
+        while (n--) { u8arr[n] = bstr.charCodeAt(n); }
+        fileBlob = new Blob([u8arr], { type: mime });
+        ext = mime.split('/')[1] || 'webp';
+      } else if (fileOrBase64 instanceof Blob || fileOrBase64 instanceof File) {
+        fileBlob = fileOrBase64;
+        ext = fileOrBase64.name ? fileOrBase64.name.split('.').pop() : 'webp';
+      } else {
+        return fileOrBase64;
+      }
+
+      const fileName = `${filenamePrefix}_${Date.now()}_${Math.random().toString(36).substring(2, 8)}.${ext}`;
+      const { data, error } = await supabaseClient.storage.from('point-images').upload(fileName, fileBlob);
+
+      if (error) {
+        console.error('Storageアップロードエラー詳細:', error);
+        alert('画像保存エラー: ' + error.message + '\nSupabase StorageのPolicy設定をご確認ください。');
+        return null;
+      }
+
+      const { data: publicUrlData } = supabaseClient.storage.from('point-images').getPublicUrl(fileName);
+      return publicUrlData.publicUrl;
+    } catch (e) {
+      console.error('Storage処理例外:', e);
+      return null;
+    }
+  }
+
+  function showCustomConfirm(message) {
+    return new Promise((resolve) => {
+      const modal = document.getElementById('custom-confirm-modal');
+      const btnYes = document.getElementById('btn-confirm-yes');
+      const btnNo = document.getElementById('btn-confirm-no');
+      modal.style.display = 'flex';
+
+      const onYes = (e) => { e.stopPropagation(); cleanup(); resolve(true); };
+      const onNo = (e) => { e.stopPropagation(); cleanup(); resolve(false); };
+
+      function cleanup() {
+        modal.style.display = 'none';
+        btnYes.removeEventListener('click', onYes);
+        btnNo.removeEventListener('click', onNo);
+      }
+
+      btnYes.addEventListener('click', onYes);
+      btnNo.addEventListener('click', onNo);
+    });
+  }
+
+  async function checkSession() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const sharedIds = urlParams.get('ids') ? urlParams.get('ids').split(',') : (urlParams.get('id') ? [urlParams.get('id')] : null);
+    const expTime = urlParams.get('exp');
+    const token = urlParams.get('token');
+    const shareMode = urlParams.get('mode') || 'view';
+
+    if (sharedIds) {
+      document.getElementById('login-overlay').style.display = 'none';
+      
+      if (expTime && expTime !== '0') {
+        const now = Date.now();
+        if (now > parseInt(expTime, 10)) {
+          alert('この共有URLは有効期限が切れているためアクセスできません。');
+          return;
+        }
+      }
+
+      shareParamsFromUrl = { sharedIds, token, expTime, shareMode };
+      document.getElementById('share-auth-overlay').style.display = 'flex';
+      return;
+    }
+
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    if (session) {
+      document.getElementById('login-overlay').style.display = 'none';
+      isReadOnly = false;
+      isSharedEditMode = false;
+      loadInitialPoints();
+    } else {
+      document.getElementById('login-overlay').style.display = 'flex';
+    }
+  }
+
+  function verifySharePassword() {
+    const inputPw = document.getElementById('share-access-pw').value.trim();
+    const errDiv = document.getElementById('share-auth-error');
+    errDiv.style.display = 'none';
+
+    if (!inputPw) {
+      errDiv.textContent = 'パスワードを入力してください';
+      errDiv.style.display = 'block';
+      return;
+    }
+
+    const expectedToken = shareParamsFromUrl ? shareParamsFromUrl.token : '';
+    const inputToken = btoa(encodeURIComponent(inputPw));
+
+    if (expectedToken && inputToken !== expectedToken) {
+      errDiv.textContent = 'パスワードが正しくありません';
+      errDiv.style.display = 'block';
+      return;
+    }
+
+    document.getElementById('share-auth-overlay').style.display = 'none';
+    
+    const mode = shareParamsFromUrl.shareMode || 'view';
+    const banner = document.getElementById('readonly-banner');
+    
+    if (mode === 'edit') {
+      isReadOnly = false;
+      isSharedEditMode = true;
+      banner.style.display = 'block';
+      banner.textContent = '📝 共有モード (データ消去不可)';
+      banner.style.background = '#17a2b8';
+      banner.style.color = '#fff';
+      document.querySelectorAll('.original-only').forEach(el => el.style.display = 'none');
+    } else {
+      isReadOnly = true;
+      isSharedEditMode = false;
+      banner.style.display = 'block';
+      banner.textContent = '🔒 共有閲覧モード (編集不可)';
+      banner.style.background = '#ffc107';
+      banner.style.color = '#333';
+      document.querySelectorAll('.editable-only, .original-only').forEach(el => el.style.display = 'none');
+    }
+    
+    loadInitialPoints();
+  }
+
+  async function loginWithSupabase() {
+    const email = document.getElementById('login-email').value.trim();
+    const password = document.getElementById('login-pw').value;
+    const errDiv = document.getElementById('login-error');
+    errDiv.style.display = 'none';
+
+    if (!email || !password) {
+      errDiv.textContent = 'メールアドレスとパスワードを入力してください';
+      errDiv.style.display = 'block';
+      return;
+    }
+
+    const { data, error } = await supabaseClient.auth.signInWithPassword({
+      email: email,
+      password: password,
+    });
+
+    if (error) {
+      errDiv.textContent = 'ログインエラー: ' + error.message;
+      errDiv.style.display = 'block';
+    } else {
+      document.getElementById('login-overlay').style.display = 'none';
+      isReadOnly = false;
+      isSharedEditMode = false;
+      document.querySelectorAll('.editable-only, .original-only').forEach(el => el.style.display = '');
+      loadInitialPoints();
+    }
+  }
+
+  async function logoutSupabase() {
+    if (confirm('ログアウトしますか？')) {
+      await supabaseClient.auth.signOut();
+      window.location.reload();
+    }
+  }
+
+  const map = L.map('map', { minZoom: 5, maxZoom: 21 }).setView([40.220360, 141.781950], 13);
+
+  const gsiPale = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png', {
+    maxZoom: 21, maxNativeZoom: 18,
+    attribution: "<a href='https://maps.gsi.go.jp/development/ichiran.html' target='_blank'>国土地理院(淡色)</a>"
+  });
+
+  const gsiStandard = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png', {
+    maxZoom: 21, maxNativeZoom: 18,
+    attribution: "<a href='https://maps.gsi.go.jp/development/ichiran.html' target='_blank'>国土地理院(標準)</a>"
+  });
+
+  const gsiBlank = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/blank/{z}/{x}/{y}.png', {
+    maxZoom: 21, maxNativeZoom: 14,
+    attribution: "<a href='https://maps.gsi.go.jp/development/ichiran.html' target='_blank'>国土地理院(白地図)</a>"
+  });
+
+  gsiPale.addTo(map);
+
+  const baseMaps = {
+    "🌍 地理院地図 (淡色)": gsiPale,
+    "🗺️ 地理院地図 (標準)": gsiStandard,
+    "📄 地理院地図 (白地図)": gsiBlank
+  };
+
+  L.control.layers(baseMaps, null, { position: 'topright' }).addTo(map);
+
+  const colorHexMap = {
+    red: '#dc3545', blue: '#0d6efd', green: '#198754', orange: '#fd7e14',
+    violet: '#6f42c1', gold: '#ffc107', black: '#212529', grey: '#6c757d',
+    yellow: '#ffc107'
+  };
+
+  function createCombinedIcon(dispName, color = 'blue') {
+    const hexColor = colorHexMap[color] || '#0d6efd';
+
+    const iconHtml = `
+      <div class="circle-marker-badge" style="background-color:${hexColor};">
+        <span class="circle-marker-label">${dispName}</span>
+      </div>
+    `;
+
+    return L.divIcon({
+      className: 'combined-marker-wrapper',
+      html: iconHtml,
+      iconSize: [0, 0],
+      iconAnchor: [0, 0]
+    });
+  }
+
+  function adjustLabelsOverlap() {
+    const currentZoom = map.getZoom();
+    const placedRects = [];
+    const pinRects = [];
+
+    allPoints.forEach(p => {
+      const m = markers[p.id];
+      if (!m || !map.hasLayer(m)) return;
+      const pix = map.latLngToContainerPoint([p.lat, p.lng]);
+      pinRects.push({
+        id: p.id,
+        left: pix.x - 6,
+        right: pix.x + 6,
+        top: pix.y - 6,
+        bottom: pix.y + 6
+      });
+    });
+
+    allPoints.forEach(point => {
+      const marker = markers[point.id];
+      if (!marker || !map.hasLayer(marker)) return;
+
+      const iconElem = marker.getElement();
+      if (!iconElem) return;
+
+      const labelElem = iconElem.querySelector('.circle-marker-label');
+      if (!labelElem) return;
+
+      if (currentZoom <= 15) {
+        labelElem.classList.add('zoom-hide');
+        return;
+      } else {
+        labelElem.classList.remove('zoom-hide');
+      }
+
+      const pinPixel = map.latLngToContainerPoint([point.lat, point.lng]);
+      const radius = 22; 
+
+      const isBehindOther = allPoints.some(other => {
+        if (other.id === point.id) return false;
+        const otherPixel = map.latLngToContainerPoint([other.lat, other.lng]);
+        const dist = Math.hypot(pinPixel.x - otherPixel.x, pinPixel.y - otherPixel.y);
+        return dist < 28 && Number(other.id) > Number(point.id);
+      });
+
+      if (!isBehindOther) {
+        labelElem.classList.remove('is-escaped');
+        labelElem.style.left = '';
+        labelElem.style.top = '';
+        labelElem.style.transform = '';
+        return;
+      }
+
+      labelElem.classList.add('is-escaped');
+      const labelWidth = labelElem.offsetWidth || 30;
+      const labelHeight = labelElem.offsetHeight || 18;
+
+      let bestDir = DIRECTIONS_16[0];
+      let foundFreeSpot = false;
+
+      for (const dir of DIRECTIONS_16) {
+        const candX = pinPixel.x + dir.x * (radius + labelWidth / 2);
+        const candY = pinPixel.y + dir.y * (radius + labelHeight / 2);
+
+        const candRect = {
+          left: candX - labelWidth / 2,
+          right: candX + labelWidth / 2,
+          top: candY - labelHeight / 2,
+          bottom: candY + labelHeight / 2
+        };
+
+        const overlapLabel = placedRects.some(r => !(
+          candRect.right < r.left ||
+          candRect.left > r.right ||
+          candRect.bottom < r.top ||
+          candRect.top > r.bottom
+        ));
+
+        const overlapPin = pinRects.some(r => r.id !== point.id && !(
+          candRect.right < r.left ||
+          candRect.left > r.right ||
+          candRect.bottom < r.top ||
+          candRect.top > r.bottom
+        ));
+
+        if (!overlapLabel && !overlapPin) {
+          bestDir = dir;
+          placedRects.push(candRect);
+          foundFreeSpot = true;
+          break;
+        }
+      }
+
+      if (!foundFreeSpot) {
+        bestDir = DIRECTIONS_16[12] || DIRECTIONS_16[0];
+        const candX = pinPixel.x + bestDir.x * (radius + labelWidth / 2);
+        const candY = pinPixel.y + bestDir.y * (radius + labelHeight / 2);
+        placedRects.push({
+          left: candX - labelWidth / 2, right: candX + labelWidth / 2,
+          top: candY - labelHeight / 2, bottom: candY + labelHeight / 2
+        });
+      }
+
+      const offsetX = bestDir.x * radius;
+      const offsetY = bestDir.y * radius;
+
+      labelElem.style.left = `calc(50% + ${offsetX}px)`;
+      labelElem.style.top = `calc(50% + ${offsetY}px)`;
+      labelElem.style.transform = 'translate(-50%, -50%)';
+    });
+  }
+
+  map.on('moveend zoomend', adjustLabelsOverlap);
+
+  function getTabColor(tabText) {
+    if (!tabText) return 'blue';
+    const trimmed = String(tabText).trim().toLowerCase();
+    const matchedRule = tabRules.find(r => r.tab_name.toLowerCase() === trimmed);
+    return matchedRule ? matchedRule.color : 'blue';
+  }
+
+  // ★ 確実指定：画像を指定したバイト数（デフォルト50KB）以下に繰り返しループで再圧縮する関数
+  function compressImageFile(fileOrBase64, maxSizeBytes = 50 * 1024) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+
+      img.onload = () => {
+        let maxWidth = 800; // 初期最大幅
+        let quality = 0.7;  // 初期画質
+
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+
+        function attemptCompress() {
+          let w = img.width;
+          let h = img.height;
+
+          // リサイズ計算
+          if (w > maxWidth) {
+            h = Math.round((h * maxWidth) / w);
+            w = maxWidth;
+          }
+
+          canvas.width = w;
+          canvas.height = h;
+          ctx.clearRect(0, 0, w, h);
+          ctx.drawImage(img, 0, 0, w, h);
+
+          // WebPフォーマットに変換
+          const dataUrl = canvas.toDataURL('image/webp', quality);
+          
+          // Base64データから実際のファイル容量（バイト数）を算出
+          const head = 'data:image/webp;base64,';
+          const base64Str = dataUrl.substr(head.length);
+          const sizeInBytes = Math.round((base64Str.length * 3) / 4);
+
+          // 50KB以下になるか限界値に達した場合はそのデータを返却
+          if (sizeInBytes <= maxSizeBytes || (quality <= 0.15 && maxWidth <= 300)) {
+            resolve(dataUrl);
+          } else {
+            // 超えている場合は画質とサイズを一段階下げて再試行
+            if (quality > 0.2) {
+              quality -= 0.15;
+            } else {
+              maxWidth = Math.round(maxWidth * 0.75);
+              quality = 0.5;
+            }
+            attemptCompress();
+          }
+        }
+
+        attemptCompress();
+      };
+
+      img.onerror = (err) => reject(err);
+
+      if (typeof fileOrBase64 === 'string') {
+        img.src = fileOrBase64;
+      } else if (fileOrBase64 instanceof Blob || fileOrBase64 instanceof File) {
+        const reader = new FileReader();
+        reader.onload = (e) => { img.src = e.target.result; };
+        reader.readAsDataURL(fileOrBase64);
+      }
+    });
+  }
+
+  async function loadTabRules() {
+    const { data } = await fetchWithRetry(() => supabaseClient.from('tab_settings').select('*'));
+    tabRules = data || [];
+
+    renderTabRuleTable();
+    renderLegend();
+    updateFilterTabOptions();
+  }
+
+  function updateFilterTabOptions() {
+    const select = document.getElementById('filter-tab-select');
+    if (!select) return;
+
+    const currentVal = select.value;
+    select.innerHTML = '<option value="">🏷️ 全てのタブを表示</option>';
+    
+    const optDone = document.createElement('option');
+    optDone.value = '__STATUS_DONE__';
+    optDone.textContent = '✅ 点検済';
+    select.appendChild(optDone);
+
+    const optPending = document.createElement('option');
+    optPending.value = '__STATUS_PENDING__';
+    optPending.textContent = '⏳ 未実施';
+    select.appendChild(optPending);
+
+    const uniqueTabs = new Set(tabRules.map(r => r.tab_name));
+    allPoints.forEach(p => { if (p.tab_name) uniqueTabs.add(p.tab_name); });
+
+    uniqueTabs.forEach(tName => {
+      const opt = document.createElement('option');
+      opt.value = tName;
+      opt.textContent = `🏷️ ${tName}`;
+      select.appendChild(opt);
+    });
+
+    select.value = currentVal;
+  }
+
+  function renderLegend() {
+    const legendList = document.getElementById('legend-list');
+    if (tabRules.length === 0) {
+      legendList.innerHTML = '<span style="color:#888;">タブ未設定</span>';
+      return;
+    }
+    legendList.innerHTML = tabRules.map(r => `
+      <div class="legend-item">
+        <span class="legend-color" style="background:${colorHexMap[r.color] || '#0d6efd'};"></span>
+        <span>${r.tab_name}</span>
+      </div>
+    `).join('');
+  }
+
+  function openTabConfigModal(e) {
+    if (e) e.stopPropagation();
+    document.getElementById('tab-config-modal').style.display = 'block';
+  }
+  function closeTabConfigModal() {
+    document.getElementById('tab-config-modal').style.display = 'none';
+  }
+
+  function openManualModal() {
+    document.getElementById('manual-modal').style.display = 'flex';
+  }
+  function closeManualModal() {
+    document.getElementById('manual-modal').style.display = 'none';
+  }
+
+  function renderTabRuleTable() {
+    const tbody = document.getElementById('tab-rule-list');
+    tbody.innerHTML = '';
+    tabRules.forEach(r => {
+      const deleteBtn = (!isReadOnly && !isSharedEditMode) ? `<button onclick="deleteTabRule(${r.id})" style="color:red; cursor:pointer; border:none; background:none;">✕</button>` : '';
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${r.tab_name}</td>
+        <td><span style="color:${colorHexMap[r.color] || '#333'}; font-weight:bold;">${r.color}</span></td>
+        <td>${deleteBtn}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  async function addTabRule() {
+    const name = document.getElementById('new-tab-name').value.trim();
+    const color = document.getElementById('new-tab-color').value;
+
+    if (!name) { alert('タブ文字を入力してください'); return; }
+
+    const { data, error } = await supabaseClient.from('tab_settings').insert([{ tab_name: name, color: color }]).select();
+    if (!error && data) {
+      tabRules.push(data[0]);
+      renderTabRuleTable();
+      renderLegend();
+      updateFilterTabOptions();
+      document.getElementById('new-tab-name').value = '';
+      loadInitialPoints();
+    }
+  }
+
+  async function deleteTabRule(id) {
+    if (isReadOnly || isSharedEditMode) return;
+    const { error } = await supabaseClient.from('tab_settings').delete().eq('id', id);
+    if (!error) {
+      tabRules = tabRules.filter(r => r.id !== id);
+      renderTabRuleTable();
+      renderLegend();
+      updateFilterTabOptions();
+      loadInitialPoints();
+    }
+  }
+
+  function openLightbox(src, comment) {
+    const modal = document.getElementById('lightbox-modal');
+    const img = document.getElementById('lightbox-img');
+    const caption = document.getElementById('lightbox-caption');
+    img.src = src;
+    caption.innerText = comment || '';
+    modal.style.display = 'flex';
+  }
+
+  function closeLightbox() {
+    document.getElementById('lightbox-modal').style.display = 'none';
+  }
+
+  async function loadImagesForPopup(pointId) {
+    const container = document.getElementById(`popup-img-area-${pointId}`);
+    if (!container) return;
+
+    const point = allPoints.find(p => Number(p.id) === Number(pointId));
+    
+    if (point && point.image_url === undefined) {
+      container.innerHTML = '<p style="font-size:11px; color:#666; margin-top:6px;">⏳ 画像を読み込み中...</p>';
+      const { data } = await fetchWithRetry(() => supabaseClient
+        .from('points')
+        .select('image_url')
+        .eq('id', pointId)
+        .single()
+      );
+      if (data && data.image_url) {
+        point.image_url = data.image_url;
+      } else {
+        point.image_url = null;
       }
     }
 
-    const newImageList = [...currentImages, ...uploadedImageObjects];
-    const jsonImageString = JSON.stringify(newImageList);
+    if (!point || !point.image_url) {
+      container.innerHTML = '<p style="font-size:11px; color:#999; margin-top:6px;">画像なし</p>';
+      return;
+    }
 
-    const { error } = await supabaseClient.from('points').update({ image_url: jsonImageString }).eq('id', targetId);
+    let rawList = [];
+    try {
+      rawList = JSON.parse(point.image_url);
+      if (!Array.isArray(rawList)) rawList = [point.image_url];
+    } catch (e) {
+      rawList = [point.image_url];
+    }
+
+    if (rawList.length === 0) {
+      container.innerHTML = '<p style="font-size:11px; color:#999; margin-top:6px;">画像なし</p>';
+      return;
+    }
+
+    const cardsHtml = rawList.map((item, idx) => {
+      const url = typeof item === 'object' ? item.url : item;
+      const comment = typeof item === 'object' ? (item.comment || '') : '';
+      const judge = typeof item === 'object' ? (item.judge || '') : '';
+      const safeComment = comment.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+
+      const deleteBtnHtml = (isReadOnly || isSharedEditMode) ? '' : `
+        <button class="img-delete-btn" onclick="deleteSingleImage(event, ${pointId}, ${idx})" title="この画像を削除">✕</button>
+      `;
+
+      const judges = ['', 'Ⅰ', 'Ⅱ', 'Ⅲ', 'Ⅳ'];
+      const judgeOptions = judges.map(j => `<option value="${j}" ${judge === j ? 'selected' : ''}>${j || '未選択'}</option>`).join('');
+
+      return `
+        <div class="img-card" id="img-card-${pointId}-${idx}">
+          ${deleteBtnHtml}
+          <img src="${url}" class="popup-img" onclick="openLightbox('${url}', '${safeComment}')" title="クリックで拡大" />
+          <div class="img-comment-box">
+            <input type="text" class="comment-direct-input" value="${safeComment}" placeholder="(コメントなし)" ${isReadOnly ? 'readonly' : ''} onchange="saveImageCommentDirect(${pointId}, ${idx}, this.value)" />
+            <div class="judge-row">
+              <span>判定:</span>
+              ${isReadOnly ? `<strong>${judge || 'なし'}</strong>` : `
+                <select class="judge-select" onchange="saveImageJudgeDirect(${pointId}, ${idx}, this.value)">
+                  ${judgeOptions}
+                </select>
+              `}
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    container.innerHTML = `<div class="popup-img-container">${cardsHtml}</div>`;
+  }
+
+  async function saveImageCommentDirect(pointId, imgIndex, newComment) {
+    if (isReadOnly) return;
+    isSelfOperating = true;
+    activePopupPointId = Number(pointId);
+
+    const point = allPoints.find(p => Number(p.id) === Number(pointId));
+    if (!point || !point.image_url) return;
+
+    let imgList = [];
+    try {
+      imgList = JSON.parse(point.image_url);
+      if (!Array.isArray(imgList)) imgList = [{ url: point.image_url, comment: '', judge: '' }];
+    } catch (err) {
+      imgList = [{ url: point.image_url, comment: '', judge: '' }];
+    }
+
+    if (typeof imgList[imgIndex] === 'string') {
+      imgList[imgIndex] = { url: imgList[imgIndex], comment: newComment.trim(), judge: '' };
+    } else {
+      imgList[imgIndex].comment = newComment.trim();
+    }
+
+    const updatedJson = JSON.stringify(imgList);
+    point.image_url = updatedJson;
+
+    await supabaseClient.from('points').update({ image_url: updatedJson }).eq('id', pointId);
+    setTimeout(() => { isSelfOperating = false; }, 1000);
+  }
+
+  async function saveImageJudgeDirect(pointId, imgIndex, newJudge) {
+    if (isReadOnly) return;
+    isSelfOperating = true;
+    activePopupPointId = Number(pointId);
+
+    const point = allPoints.find(p => Number(p.id) === Number(pointId));
+    if (!point || !point.image_url) return;
+
+    let imgList = [];
+    try {
+      imgList = JSON.parse(point.image_url);
+      if (!Array.isArray(imgList)) imgList = [{ url: point.image_url, comment: '', judge: '' }];
+    } catch (err) {
+      imgList = [{ url: point.image_url, comment: '', judge: '' }];
+    }
+
+    if (typeof imgList[imgIndex] === 'string') {
+      imgList[imgIndex] = { url: imgList[imgIndex], comment: '', judge: newJudge };
+    } else {
+      imgList[imgIndex].judge = newJudge;
+    }
+
+    const updatedJson = JSON.stringify(imgList);
+    point.image_url = updatedJson;
+
+    await supabaseClient.from('points').update({ image_url: updatedJson }).eq('id', pointId);
+    renderSidebarTree();
+    setTimeout(() => { isSelfOperating = false; }, 1000);
+  }
+
+  async function deleteSingleImage(e, pointId, imgIndex) {
+    if (e) e.stopPropagation();
+    if (isReadOnly || isSharedEditMode) return;
     
-    if (error) { 
-      alert('画像の保存に失敗しました: ' + error.message); 
+    isSelfOperating = true;
+    activePopupPointId = Number(pointId);
+
+    const isConfirmed = await showCustomConfirm();
+
+    if (!isConfirmed) {
+      isSelfOperating = false;
+      return;
+    }
+
+    const point = allPoints.find(p => Number(p.id) === Number(pointId));
+    if (!point || !point.image_url) {
+      isSelfOperating = false;
+      return;
+    }
+
+    let imgList = [];
+    try {
+      imgList = JSON.parse(point.image_url);
+      if (!Array.isArray(imgList)) imgList = [{ url: point.image_url, comment: '', judge: '' }];
+    } catch (err) {
+      imgList = [{ url: point.image_url, comment: '', judge: '' }];
+    }
+
+    const deletedImg = imgList[imgIndex];
+    const deletedUrl = typeof deletedImg === 'object' ? deletedImg.url : deletedImg;
+
+    imgList.splice(imgIndex, 1);
+    const updatedJson = imgList.length > 0 ? JSON.stringify(imgList) : null;
+    point.image_url = updatedJson;
+
+    const targetCard = document.getElementById(`img-card-${pointId}-${imgIndex}`);
+    if (targetCard) {
+      targetCard.remove();
+    } else {
+      await loadImagesForPopup(pointId);
+    }
+
+    const { error } = await supabaseClient.from('points').update({ image_url: updatedJson }).eq('id', pointId);
+
+    if (error) {
+      alert('画像の削除に失敗しました: ' + error.message);
+      await loadImagesForPopup(pointId);
+    } else {
+      try {
+        const match = deletedUrl.match(/\/point-images\/(.+)$/);
+        if (match && match[1]) {
+          await supabaseClient.storage.from('point-images').remove([match[1]]);
+        }
+      } catch (err) {
+        console.warn('Storage実ファイルの削除に失敗:', err);
+      }
+      renderSidebarTree();
+    }
+
+    setTimeout(() => { isSelfOperating = false; }, 1000);
+  }
+
+  function addMarkerToMap(point) {
+    const pId = Number(point.id);
+    if (markers[pId]) return;
+
+    const isCheckedDone = !!point.is_checked;
+    const dispName = point.display_title || point.title;
+
+    const popupContent = `
+      <div style="width: auto; white-space: nowrap;">
+        <small style="color:#666;">${point.group_name || 'グループなし'}</small>
+        <h3 class="popup-title">${point.title} <small style="font-weight:normal; font-size:12px; color:#555;">(${dispName})</small></h3>
+        <div style="display:flex; gap:4px; align-items:center;">
+          ${point.tab_name ? `<span style="font-size:10px; background:${colorHexMap[point.color]||'#0d6efd'}; color:white; padding:2px 6px; border-radius:10px; display:inline-block;">${point.tab_name}</span>` : ''}
+          <span style="font-size:10px; background:${isCheckedDone ? '#6c757d' : '#ffffff'}; color:${isCheckedDone ? '#ffffff' : '#333333'}; border:1px solid ${isCheckedDone ? '#6c757d' : '#999999'}; padding:2px 6px; border-radius:10px; display:inline-block;">${isCheckedDone ? '点検済' : '未実施'}</span>
+        </div>
+        <div id="popup-img-area-${point.id}"></div>
+      </div>
+    `;
+
+    const currentColor = isCheckedDone ? 'grey' : (point.color || 'blue');
+
+    const marker = L.marker([point.lat, point.lng], {
+      icon: createCombinedIcon(dispName, currentColor),
+      zIndexOffset: pId
+    }).bindPopup(popupContent, { maxWidth: "none" });
+
+    marker.on('popupopen', () => {
+      activePopupPointId = pId;
+      loadImagesForPopup(pId);
+    });
+
+    marker.on('popupclose', () => {
+      if (!isSelfOperating && activePopupPointId === pId) {
+        activePopupPointId = null;
+      }
+    });
+
+    markers[pId] = marker;
+  }
+
+  function getFilteredPoints() {
+    const keyword = (document.getElementById('search-keyword')?.value || '').trim().toLowerCase();
+    const selectedTab = (document.getElementById('filter-tab-select')?.value || '').trim();
+
+    return allPoints.filter(p => {
+      const dispName = p.display_title || '';
+      const matchKeyword = !keyword || 
+        (p.title && p.title.toLowerCase().includes(keyword)) ||
+        (dispName && dispName.toLowerCase().includes(keyword));
+      
+      let matchTab = true;
+      if (selectedTab === '__STATUS_DONE__') {
+        matchTab = !!p.is_checked;
+      } else if (selectedTab === '__STATUS_PENDING__') {
+        matchTab = !p.is_checked;
+      } else if (selectedTab) {
+        matchTab = (p.tab_name && p.tab_name === selectedTab);
+      }
+
+      return matchKeyword && matchTab;
+    });
+  }
+
+  function onFilterChange() {
+    renderSidebarTree();
+  }
+
+  function addNewGroupModal() {
+    const input = prompt("新しいグループ名を入力してください。\n階層を分ける場合は '/' で区切ってください。\n（例: '三陸 / 1工区 / A区画'）");
+    if (!input) return;
+    const groupName = input.trim();
+    if (groupName) {
+      customGroups.add(groupName);
+      renderSidebarTree();
+    }
+  }
+
+  async function deleteGroupUI(groupPath) {
+    if (isReadOnly || isSharedEditMode) return;
+    const targetPoints = allPoints.filter(p => {
+      const g = p.group_name || '未分類';
+      return g === groupPath || g.startsWith(groupPath + ' /');
+    });
+
+    const msg = `グループ「${groupPath}」と、内部に含まれる ${targetPoints.length} 件のスポットをすべて削除しますか？\n（この操作は取り消せません）`;
+    if (!confirm(msg)) return;
+
+    customGroups.delete(groupPath);
+
+    if (targetPoints.length > 0) {
+      const targetIds = targetPoints.map(p => p.id);
+      const { error } = await supabaseClient.from('points').delete().in('id', targetIds);
+
+      if (error) {
+        alert('グループ内データの削除に失敗しました: ' + error.message);
+        return;
+      }
+
+      await deleteStorageImagesForPoints(targetPoints);
+
+      targetIds.forEach(id => {
+        if (markers[id]) { map.removeLayer(markers[id]); delete markers[id]; }
+        checkedPointIds.delete(id);
+      });
+      allPoints = allPoints.filter(p => !targetIds.includes(p.id));
+    }
+
+    updateFilterTabOptions();
+    renderSidebarTree();
+  }
+
+  async function editGroupUI(oldGroupPath) {
+    if (isReadOnly) return;
+
+    const pathParts = oldGroupPath.split('/').map(s => s.trim());
+    const currentName = pathParts[pathParts.length - 1];
+
+    const input = prompt(`グループ名変更: 「${currentName}」の新しい名称を入力してください。`, currentName);
+    if (!input) return;
+    const newName = input.trim();
+    if (!newName || newName === currentName) return;
+
+    pathParts[pathParts.length - 1] = newName;
+    const newGroupPath = pathParts.join(' / ');
+
+    if (customGroups.has(oldGroupPath)) {
+      customGroups.delete(oldGroupPath);
+      customGroups.add(newGroupPath);
+    }
+
+    const targets = allPoints.filter(p => {
+      const g = p.group_name || '未分類';
+      return g === oldGroupPath || g.startsWith(oldGroupPath + ' /');
+    });
+
+    if (targets.length > 0) {
+      const targetIds = targets.map(p => p.id);
+      
+      targets.forEach(p => {
+        if (p.group_name === oldGroupPath) {
+          p.group_name = newGroupPath;
+        } else if (p.group_name.startsWith(oldGroupPath + ' /')) {
+          p.group_name = p.group_name.replace(oldGroupPath, newGroupPath);
+        }
+      });
+
+      const { error } = await supabaseClient
+        .from('points')
+        .update({ group_name: newGroupPath })
+        .in('id', targetIds);
+
+      if (error) {
+        alert('グループ名の更新に失敗しました: ' + error.message);
+        loadInitialPoints();
+        return;
+      }
+    }
+
+    renderSidebarTree();
+  }
+
+  function openEditPointModal(pointId) {
+    if (isReadOnly) return;
+    const point = allPoints.find(p => Number(p.id) === Number(pointId));
+    if (!point) return;
+
+    document.getElementById('edit-point-id').value = point.id;
+    document.getElementById('edit-spot-display-title').value = point.display_title || '';
+    document.getElementById('edit-spot-title').value = point.title || '';
+    document.getElementById('edit-spot-lat').value = point.lat;
+    document.getElementById('edit-spot-lng').value = point.lng;
+
+    document.getElementById('edit-point-modal').style.display = 'block';
+  }
+
+  function closeEditPointModal() {
+    document.getElementById('edit-point-modal').style.display = 'none';
+  }
+
+  async function saveEditPointInfo() {
+    if (isReadOnly) return;
+    const pointId = Number(document.getElementById('edit-point-id').value);
+    const point = allPoints.find(p => Number(p.id) === pointId);
+    if (!point) return;
+
+    const newDisplayTitle = document.getElementById('edit-spot-display-title').value.trim();
+    const newTitle = document.getElementById('edit-spot-title').value.trim();
+    const newLat = parseFloat(document.getElementById('edit-spot-lat').value);
+    const newLng = parseFloat(document.getElementById('edit-spot-lng').value);
+
+    if (!newTitle) { alert('スポット名を入力してください'); return; }
+    if (isNaN(newLat) || isNaN(newLng)) { alert('有効な緯度と経度を入力してください'); return; }
+
+    const updateData = {
+      display_title: newDisplayTitle || null,
+      title: newTitle,
+      lat: newLat,
+      lng: newLng
+    };
+
+    const { error } = await supabaseClient.from('points').update(updateData).eq('id', pointId);
+
+    if (error) {
+      alert('ポイント情報の更新に失敗しました: ' + error.message);
+    } else {
+      point.display_title = newDisplayTitle || null;
+      point.title = newTitle;
+      point.lat = newLat;
+      point.lng = newLng;
+
+      if (markers[pointId]) {
+        const isVisible = map.hasLayer(markers[pointId]);
+        map.removeLayer(markers[pointId]);
+        delete markers[pointId];
+        addMarkerToMap(point);
+        if (isVisible) map.addLayer(markers[pointId]);
+      }
+
+      closeEditPointModal();
+      renderSidebarTree();
+    }
+  }
+
+  function toggleGroupVisibilityByPath(groupPath, isChecked) {
+    allPoints.forEach(p => {
+      const gName = p.group_name || '未分類';
+      if (gName === groupPath || gName.startsWith(groupPath + ' /')) {
+        togglePointVisibility(p.id, isChecked);
+      }
+    });
+  }
+
+  async function moveGroupPathToNewParent(sourceGroupPath, targetParentName) {
+    if (sourceGroupPath === targetParentName || sourceGroupPath.startsWith(targetParentName + ' /')) return;
+
+    const targets = allPoints.filter(p => {
+      const g = p.group_name || '未分類';
+      return g === sourceGroupPath || g.startsWith(sourceGroupPath + ' /');
+    });
+
+    if (targets.length === 0) return;
+
+    const targetIds = targets.map(p => p.id);
+    
+    targets.forEach(p => {
+      const oldGroup = p.group_name || '未分類';
+      let newGroupName = '未分類';
+
+      if (oldGroup === sourceGroupPath) {
+        newGroupName = `${targetParentName} / ${sourceGroupPath}`;
+      } else if (oldGroup.startsWith(sourceGroupPath + ' /')) {
+        const subSuffix = oldGroup.replace(sourceGroupPath + ' /', '');
+        newGroupName = `${targetParentName} / ${sourceGroupPath} / ${subSuffix}`;
+      }
+      p.group_name = newGroupName;
+    });
+
+    await supabaseClient.from('points').update({ group_name: `${targetParentName} / ${sourceGroupPath}` }).in('id', targetIds);
+
+    renderSidebarTree();
+  }
+
+  function renderSidebarTree() {
+    try {
+      const treeContainer = document.getElementById('point-tree');
+      treeContainer.innerHTML = '';
+
+      const filteredPoints = getFilteredPoints();
+
+      const countBadge = document.getElementById('search-count-badge');
+      if (countBadge) {
+        countBadge.textContent = `${filteredPoints.length} / ${allPoints.length} 件`;
+      }
+
+      const groupTree = {};
+
+      function ensureGroupPath(p, c, gc) {
+        if (!groupTree[p]) groupTree[p] = { _items: [], _children: {} };
+        if (c && !groupTree[p]._children[c]) {
+          groupTree[p]._children[c] = { _items: [], _grandchildren: {} };
+        }
+        if (c && gc && !groupTree[p]._children[c]._grandchildren[gc]) {
+          groupTree[p]._children[c]._grandchildren[gc] = [];
+        }
+      }
+
+      customGroups.forEach(gPath => {
+        const parts = gPath.split('/').map(s => s.trim());
+        const p = parts[0] || '未分類';
+        const c = parts[1] || null;
+        const gc = parts[2] || null;
+        ensureGroupPath(p, c, gc);
+      });
+
+      filteredPoints.forEach(p => {
+        const rawG = p.group_name || '未分類';
+        const parts = rawG.split('/').map(s => s.trim());
+        const pName = parts[0] || '未分類';
+        const cName = parts[1] || null;
+        const gcName = parts[2] || null;
+
+        ensureGroupPath(pName, cName, gcName);
+
+        if (cName && gcName) {
+          groupTree[pName]._children[cName]._grandchildren[gcName].push(p);
+        } else if (cName) {
+          groupTree[pName]._children[cName]._items.push(p);
+        } else {
+          groupTree[pName]._items.push(p);
+        }
+      });
+
+      if (Object.keys(groupTree).length === 0) {
+        treeContainer.innerHTML = '<div style="font-size:12px; color:#888; text-align:center; padding:20px;">該当するスポットが見つかりません</div>';
+        return;
+      }
+
+      Object.keys(groupTree).forEach(pName => {
+        const parentData = groupTree[pName];
+        
+        let parentTotalCount = parentData._items.length;
+        Object.keys(parentData._children).forEach(cName => {
+          const cData = parentData._children[cName];
+          parentTotalCount += cData._items.length;
+          Object.keys(cData._grandchildren).forEach(gcName => {
+            parentTotalCount += cData._grandchildren[gcName].length;
+          });
+        });
+
+        const parentDiv = document.createElement('div');
+        parentDiv.className = 'parent-group-item';
+
+        if (!isReadOnly) {
+          parentDiv.addEventListener('dragover', e => { e.preventDefault(); parentDiv.classList.add('drag-over-active'); });
+          parentDiv.addEventListener('dragleave', () => parentDiv.classList.remove('drag-over-active'));
+          parentDiv.addEventListener('drop', async e => {
+            e.preventDefault(); e.stopPropagation();
+            parentDiv.classList.remove('drag-over-active');
+            const pointId = e.dataTransfer.getData('text/point-id');
+            const groupPath = e.dataTransfer.getData('text/group-path');
+            if (pointId) await updatePointGroup(pointId, pName);
+            else if (groupPath) await moveGroupPathToNewParent(groupPath, pName);
+          });
+        }
+
+        const parentHeader = document.createElement('div');
+        parentHeader.className = 'parent-group-header';
+        if (!isReadOnly) parentHeader.draggable = true;
+        parentHeader.addEventListener('dragstart', e => { e.dataTransfer.setData('text/group-path', pName); });
+
+        const pSafeId = encodeURIComponent(pName).replace(/%/g, '_');
+        const isParentOpen = openGroupIds.has(`p-${pSafeId}`);
+
+        parentHeader.innerHTML = `
+          <input type="checkbox" onchange="toggleGroupVisibilityByPath('${pName}', this.checked)" title="親グループ内を一括表示/非表示" />
+          <span class="group-title-text" onclick="toggleFold('p-${pSafeId}')">
+            <span id="fold-icon-p-${pSafeId}">${isParentOpen ? '📂' : '📁'}</span> <strong>${pName} (${parentTotalCount})</strong>
+          </span>
+          ${!isReadOnly ? `
+            <button class="btn-group-action btn-group-edit" onclick="editGroupUI('${pName}')" title="グループ名を変更">✏️</button>
+            ${!isSharedEditMode ? `<button class="btn-group-action btn-group-del" onclick="deleteGroupUI('${pName}')" title="削除">✕</button>` : ''}
+          ` : ''}
+        `;
+        parentDiv.appendChild(parentHeader);
+
+        const childContainer = document.createElement('div');
+        childContainer.className = `child-container ${isParentOpen ? '' : 'collapsed'}`;
+        childContainer.id = `container-p-${pSafeId}`;
+
+        if (parentData._items.length > 0) {
+          childContainer.appendChild(renderPointList(parentData._items, pName));
+        }
+
+        Object.keys(parentData._children).forEach(cName => {
+          const childData = parentData._children[cName];
+          
+          let childTotalCount = childData._items.length;
+          Object.keys(childData._grandchildren).forEach(gcName => {
+            childTotalCount += childData._grandchildren[gcName].length;
+          });
+
+          const childDiv = document.createElement('div');
+          childDiv.className = 'child-group-item';
+          const childPath = `${pName} / ${cName}`;
+          const cSafeId = encodeURIComponent(childPath).replace(/%/g, '_');
+          const isChildOpen = openGroupIds.has(`c-${cSafeId}`);
+
+          if (!isReadOnly) {
+            childDiv.addEventListener('dragover', e => { e.preventDefault(); childDiv.classList.add('drag-over-active'); });
+            childDiv.addEventListener('dragleave', () => childDiv.classList.remove('drag-over-active'));
+            childDiv.addEventListener('drop', async e => {
+              e.preventDefault(); e.stopPropagation();
+              childDiv.classList.remove('drag-over-active');
+              const pointId = e.dataTransfer.getData('text/point-id');
+              if (pointId) await updatePointGroup(pointId, childPath);
+            });
+          }
+
+          const childHeader = document.createElement('div');
+          childHeader.className = 'child-group-header';
+          if (!isReadOnly) childHeader.draggable = true;
+          childHeader.addEventListener('dragstart', e => { e.stopPropagation(); e.dataTransfer.setData('text/group-path', childPath); });
+
+          childHeader.innerHTML = `
+            <input type="checkbox" onchange="toggleGroupVisibilityByPath('${childPath}', this.checked)" title="子グループ内を一括表示/非表示" />
+            <span class="group-title-text" onclick="toggleFold('c-${cSafeId}')">
+              <span id="fold-icon-c-${cSafeId}">${isChildOpen ? '📂' : '📁'}</span> ${cName} (${childTotalCount})
+            </span>
+            ${!isReadOnly ? `
+              <button class="btn-group-action btn-group-edit" onclick="editGroupUI('${childPath}')">✏️</button>
+              ${!isSharedEditMode ? `<button class="btn-group-action btn-group-del" onclick="deleteGroupUI('${childPath}')">✕</button>` : ''}
+            ` : ''}
+          `;
+          childDiv.appendChild(childHeader);
+
+          const grandchildContainer = document.createElement('div');
+          grandchildContainer.className = `grandchild-container ${isChildOpen ? '' : 'collapsed'}`;
+          grandchildContainer.id = `container-c-${cSafeId}`;
+
+          if (childData._items.length > 0) {
+            grandchildContainer.appendChild(renderPointList(childData._items, childPath));
+          }
+
+          Object.keys(childData._grandchildren).forEach(gcName => {
+            const gcPoints = childData._grandchildren[gcName];
+            const gcDiv = document.createElement('div');
+            gcDiv.className = 'grandchild-group-item';
+            const gcPath = `${pName} / ${cName} / ${gcName}`;
+            const gcSafeId = encodeURIComponent(gcPath).replace(/%/g, '_');
+            const isGcOpen = openGroupIds.has(`gc-${gcSafeId}`);
+
+            if (!isReadOnly) {
+              gcDiv.addEventListener('dragover', e => { e.preventDefault(); gcDiv.classList.add('drag-over-active'); });
+              gcDiv.addEventListener('dragleave', () => gcDiv.classList.remove('drag-over-active'));
+              gcDiv.addEventListener('drop', async e => {
+                e.preventDefault(); e.stopPropagation();
+                gcDiv.classList.remove('drag-over-active');
+                const pointId = e.dataTransfer.getData('text/point-id');
+                if (pointId) await updatePointGroup(pointId, gcPath);
+              });
+            }
+
+            const gcHeader = document.createElement('div');
+            gcHeader.className = 'grandchild-group-header';
+            if (!isReadOnly) gcHeader.draggable = true;
+            gcHeader.addEventListener('dragstart', e => { e.stopPropagation(); e.dataTransfer.setData('text/group-path', gcPath); });
+
+            gcHeader.innerHTML = `
+              <input type="checkbox" onchange="toggleGroupVisibilityByPath('${gcPath}', this.checked)" title="孫グループ内を一括表示/非表示" />
+              <span class="group-title-text" onclick="toggleFold('gc-${gcSafeId}')">
+                <span id="fold-icon-gc-${gcSafeId}">${isGcOpen ? '📂' : '📁'}</span> ${gcName} (${gcPoints.length})
+              </span>
+              ${!isReadOnly ? `
+                <button class="btn-group-action btn-group-edit" onclick="editGroupUI('${gcPath}')">✏️</button>
+                ${!isSharedEditMode ? `<button class="btn-group-action btn-group-del" onclick="deleteGroupUI('${gcPath}')">✕</button>` : ''}
+              ` : ''}
+            `;
+            gcDiv.appendChild(gcHeader);
+
+            const gcUl = renderPointList(gcPoints, gcPath);
+            gcUl.id = `container-gc-${gcSafeId}`;
+            if (!isGcOpen) gcUl.classList.add('collapsed');
+
+            gcDiv.appendChild(gcUl);
+            grandchildContainer.appendChild(gcDiv);
+          });
+
+          childDiv.appendChild(grandchildContainer);
+          childContainer.appendChild(childDiv);
+        });
+
+        parentDiv.appendChild(childContainer);
+        treeContainer.appendChild(parentDiv);
+      });
+
+      if (activePopupPointId && markers[activePopupPointId]) {
+        setTimeout(() => {
+          if (markers[activePopupPointId] && map.hasLayer(markers[activePopupPointId])) {
+            markers[activePopupPointId].openPopup();
+          }
+        }, 50);
+      }
+
+      setTimeout(adjustLabelsOverlap, 100);
+    } catch (err) {
+      console.error('サイドバー描画エラー:', err);
+      document.getElementById('point-tree').innerHTML = '<div style="color:red; font-size:12px; padding:10px;">表示エラーが発生しました</div>';
+    }
+  }
+
+  function getHighestJudge(point) {
+    if (!point || !point.image_url) return '';
+    let imgList = [];
+    try {
+      imgList = JSON.parse(point.image_url);
+      if (!Array.isArray(imgList)) imgList = [];
+    } catch (e) { return ''; }
+
+    const priorityOrder = ['Ⅳ', 'Ⅲ', 'Ⅱ', 'Ⅰ'];
+    for (const p of priorityOrder) {
+      if (imgList.some(item => typeof item === 'object' && item.judge === p)) {
+        return p;
+      }
+    }
+    return '';
+  }
+
+  function renderPointList(points, groupPath) {
+    const ul = document.createElement('ul');
+    ul.className = 'point-list';
+
+    points.forEach(p => {
+      const pId = Number(p.id);
+      const li = document.createElement('li');
+      li.className = 'point-item';
+      if (!isReadOnly) li.draggable = true;
+
+      li.addEventListener('dragstart', e => {
+        e.stopPropagation();
+        e.dataTransfer.setData('text/point-id', String(p.id));
+        li.classList.add('dragging');
+      });
+      li.addEventListener('dragend', () => li.classList.remove('dragging'));
+
+      const originalTabColor = getTabColor(p.tab_name);
+
+      let tabBadgeHtml = '';
+      if (isReadOnly) {
+        tabBadgeHtml = p.tab_name ? `<span class="tab-badge-select" style="background:${colorHexMap[originalTabColor]||'#0d6efd'}; pointer-events:none;">${p.tab_name}</span>` : '';
+      } else {
+        const optionsHtml = tabRules.map(r => `<option value="${r.tab_name}" ${p.tab_name === r.tab_name ? 'selected' : ''}>${r.tab_name}</option>`).join('');
+        tabBadgeHtml = `
+          <select class="tab-badge-select" style="background:${colorHexMap[originalTabColor]||'#0d6efd'};" onclick="event.stopPropagation()" onchange="changePointTabDirect(${p.id}, this.value)">
+            ${optionsHtml}
+          </select>
+        `;
+      }
+
+      const isChecked = !!p.is_checked;
+      let statusBadgeHtml = '';
+      if (isReadOnly) {
+        statusBadgeHtml = `<span class="status-badge-select ${isChecked ? 'is-done' : 'is-pending'}" style="pointer-events:none;">${isChecked ? '点検済' : '未実施'}</span>`;
+      } else {
+        statusBadgeHtml = `
+          <select class="status-badge-select ${isChecked ? 'is-done' : 'is-pending'}" onclick="event.stopPropagation()" onchange="togglePointCheckedStatus(${p.id}, this.value === 'true')">
+            <option value="false" ${!isChecked ? 'selected' : ''}>未実施</option>
+            <option value="true" ${isChecked ? 'selected' : ''}>点検済</option>
+          </select>
+        `;
+      }
+
+      const highestJudge = getHighestJudge(p);
+      const judgeRedHtml = highestJudge ? `<span class="judge-red-text">${highestJudge}</span>` : '';
+
+      const isVisible = checkedPointIds.has(pId);
+      if (isVisible) {
+        addMarkerToMap(p);
+        if (markers[pId] && !map.hasLayer(markers[pId])) {
+          map.addLayer(markers[pId]);
+        }
+      }
+
+      let actionsHtml = '';
+      if (!isReadOnly) {
+        actionsHtml = `
+          <div class="btn-group-actions">
+            <button class="btn-item-action ${isChecked ? 'btn-checked-pending' : 'btn-checked-done'}" onclick="togglePointCheckedStatus(${p.id})">${isChecked ? '未実施' : '点検済'}</button>
+            <button class="btn-item-action" onclick="openEditPointModal(${p.id})" title="ピン表示名・スポット名・緯度・経度を変更">情報変更</button>
+            <button class="btn-item-action" onclick="openImageUploader(${p.id})">画像</button>
+          </div>
+        `;
+      }
+
+      const dispText = p.display_title ? `${p.title} (${p.display_title})` : p.title;
+
+      li.innerHTML = `
+        <input type="checkbox" ${isVisible ? 'checked' : ''} id="chk-point-${p.id}" value="${p.id}" class="chk-point" onchange="togglePointVisibility(${p.id}, this.checked)" />
+        <span class="point-name" onclick="focusToPoint(${p.id})">
+          <span class="point-text" title="${dispText}">${p.title}</span>
+          ${judgeRedHtml}
+          ${tabBadgeHtml}
+          ${statusBadgeHtml}
+        </span>
+        ${actionsHtml}
+      `;
+      ul.appendChild(li);
+    });
+
+    return ul;
+  }
+
+  function toggleFold(key) {
+    const container = document.getElementById(`container-${key}`);
+    const icon = document.getElementById(`fold-icon-${key}`);
+    if (container) {
+      container.classList.toggle('collapsed');
+      const isCollapsed = container.classList.contains('collapsed');
+      if (icon) icon.innerText = isCollapsed ? '📁' : '📂';
+      if (isCollapsed) openGroupIds.delete(key);
+      else openGroupIds.add(key);
+    }
+  }
+
+  async function changePointTabDirect(pointId, newTabName) {
+    const point = allPoints.find(p => Number(p.id) === Number(pointId));
+    if (!point) return;
+
+    const newColor = point.is_checked ? 'grey' : getTabColor(newTabName);
+    const { error } = await supabaseClient.from('points').update({ tab_name: newTabName, color: newColor }).eq('id', pointId);
+    
+    if (!error) {
+      point.tab_name = newTabName;
+      point.color = newColor;
+      if (markers[pointId]) {
+        const isVisible = map.hasLayer(markers[pointId]);
+        map.removeLayer(markers[pointId]);
+        delete markers[pointId];
+        addMarkerToMap(point);
+        if (isVisible) map.addLayer(markers[pointId]);
+      }
+      updateFilterTabOptions();
+      renderSidebarTree();
+    } else {
+      alert('タブ変更に失敗しました: ' + error.message);
+    }
+  }
+
+  async function togglePointCheckedStatus(pointId, explicitValue = null) {
+    const point = allPoints.find(p => Number(p.id) === Number(pointId));
+    if (!point) return;
+
+    const newChecked = explicitValue !== null ? explicitValue : !point.is_checked;
+    const newColor = newChecked ? 'grey' : getTabColor(point.tab_name);
+
+    const { error } = await supabaseClient.from('points').update({ 
+      is_checked: newChecked,
+      color: newColor 
+    }).eq('id', pointId);
+
+    if (!error) {
+      point.is_checked = newChecked;
+      point.color = newColor;
+
+      if (markers[pointId]) {
+        const isVisible = map.hasLayer(markers[pointId]);
+        map.removeLayer(markers[pointId]);
+        delete markers[pointId];
+        addMarkerToMap(point);
+        if (isVisible) map.addLayer(markers[pointId]);
+      }
+      renderSidebarTree();
+    } else {
+      alert('点検状態の更新に失敗しました: ' + error.message);
+    }
+  }
+
+  function togglePointVisibility(id, isVisible) {
+    const idNum = Number(id);
+    const point = allPoints.find(p => Number(p.id) === idNum);
+    if (!point) return;
+
+    if (!markers[idNum]) {
+      addMarkerToMap(point);
+    }
+
+    const chk = document.getElementById(`chk-point-${idNum}`);
+
+    if (isVisible) {
+      map.addLayer(markers[idNum]);
+      checkedPointIds.add(idNum);
+      if (chk) chk.checked = true;
+    } else {
+      map.removeLayer(markers[idNum]);
+      checkedPointIds.delete(idNum);
+      if (chk) chk.checked = false;
+    }
+    setTimeout(adjustLabelsOverlap, 50);
+  }
+
+  function toggleSelectAll(isChecked) {
+    document.querySelectorAll('.chk-point').forEach(chk => {
+      togglePointVisibility(chk.value, isChecked);
+    });
+  }
+
+  async function deleteSelectedPoints() {
+    if (isReadOnly || isSharedEditMode) return;
+    const selectedCheckboxes = Array.from(document.querySelectorAll('.chk-point:checked'));
+    const selectedIds = selectedCheckboxes.map(chk => Number(chk.value)).filter(id => !isNaN(id));
+    
+    if (selectedIds.length === 0) { alert('削除したいポイントを選択してください'); return; }
+
+    if (confirm(`選択した ${selectedIds.length} 件のポイントを完全削除しますか？`)) {
+      const targets = allPoints.filter(p => selectedIds.includes(Number(p.id)));
+
+      const { error } = await supabaseClient.from('points').delete().in('id', selectedIds);
+      if (error) { 
+        alert('削除失敗: ' + error.message); 
+      } else {
+        await deleteStorageImagesForPoints(targets);
+
+        selectedIds.forEach(id => {
+          if (markers[id]) { map.removeLayer(markers[id]); delete markers[id]; }
+          checkedPointIds.delete(id);
+        });
+        allPoints = allPoints.filter(p => !selectedIds.includes(Number(p.id)));
+        updateFilterTabOptions();
+        renderSidebarTree();
+      }
+    }
+  }
+
+  function downloadExcelTemplate() {
+    const templateData = [
+      { 'ピン表示名': '1号標識', 'スポット名': 'D360425L3', '緯度': 40.220360, '経度': 141.781950, '親グループ': '三陸', '子グループ': '1工区', '孫グループ': 'A区画', 'タブ': '標識', '基本画像': '※画像高さは2cm程度にする' },
+      { 'ピン表示名': '', 'スポット名': 'D360471L1', '緯度': 40.220653, '経度': 141.781794, '親グループ': '三陸', '子グループ': '2工区', '孫グループ': '', 'タブ': '点検済', '基本画像': '' }
+    ];
+    const ws = XLSX.utils.json_to_sheet(templateData);
+    
+    ws['!cols'] = [
+      { wch: 15 }, { wch: 18 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 15 }
+    ];
+
+    ws['!rows'] = [ { hpt: 24 }, { hpt: 63 }, { hpt: 63 } ];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, '集計結果');
+    XLSX.writeFile(wb, 'Point_Import_Template.xlsx');
+  }
+
+  async function updatePointGroup(pointId, newGroup) {
+    const idNum = Number(pointId);
+    if (isNaN(idNum)) return;
+
+    const point = allPoints.find(p => Number(p.id) === idNum);
+    if (point && point.group_name !== newGroup) {
+      point.group_name = newGroup;
+      await supabaseClient.from('points').update({ group_name: newGroup }).eq('id', idNum);
+      renderSidebarTree();
+    }
+  }
+
+  function openImageUploader(pointId) {
+    if (isReadOnly) return;
+    targetPointIdForImage = Number(pointId);
+    if (isNaN(targetPointIdForImage) || targetPointIdForImage <= 0) {
+      alert('エラー: ポイントIDが無効です');
+      return;
+    }
+    activePopupPointId = targetPointIdForImage;
+
+    const area = document.getElementById(`popup-img-area-${targetPointIdForImage}`);
+    if (area) {
+      area.innerHTML = '<p style="font-size:11px; color:#0d6efd; margin-top:6px; font-weight:bold;">⏳ 画像アップロード中...</p>';
+    }
+    if (markers[targetPointIdForImage]) {
+      markers[targetPointIdForImage].openPopup();
+    }
+
+    document.getElementById('single-image-input').click();
+  }
+
+  // ★ 画像ボタン経由で追加する画像の取り込み・自動圧縮処理
+  document.getElementById('single-image-input').addEventListener('change', async (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length === 0 || !targetPointIdForImage) return;
+
+    const targetId = Number(targetPointIdForImage);
+    const wasVisible = checkedPointIds.has(targetId) || (markers[targetId] && map.hasLayer(markers[targetId]));
+
+    isSelfOperating = true;
+    activePopupPointId = targetId;
+
+    try {
+      const uploadedImageObjects = [];
+      for (const file of files) {
+        // 50KB以下に自動圧縮
+        const compressedBase64 = await compressImageFile(file, 50 * 1024);
+        const publicUrl = await uploadImageToStorage(compressedBase64, 'manual');
+        if (publicUrl) {
+          uploadedImageObjects.push({ url: publicUrl, comment: '', judge: '' });
+        }
+      }
+
+      if (uploadedImageObjects.length === 0) {
+        throw new Error('画像の保存（Storageアップロード）に失敗しました。');
+      }
+
+      const { data } = await supabaseClient.from('points').select('image_url').eq('id', targetId).single();
+      let currentImages = [];
+      if (data && data.image_url) {
+        try {
+          currentImages = JSON.parse(data.image_url);
+          if (!Array.isArray(currentImages)) currentImages = [{ url: data.image_url, comment: '', judge: '' }];
+        } catch (err) {
+          currentImages = [{ url: data.image_url, comment: '', judge: '' }];
+        }
+      }
+
+      const newImageList = [...currentImages, ...uploadedImageObjects];
+      const jsonImageString = JSON.stringify(newImageList);
+
+      const { error } = await supabaseClient.from('points').update({ image_url: jsonImageString }).eq('id', targetId);
+      
+      if (error) { 
+        alert('画像の保存に失敗しました: ' + error.message); 
+        return; 
+      }
+
+      const point = allPoints.find(p => Number(p.id) === targetId);
+      if (point) point.image_url = jsonImageString;
+
+      if (wasVisible) {
+        checkedPointIds.add(targetId);
+        if (point) {
+          addMarkerToMap(point);
+          if (markers[targetId] && !map.hasLayer(markers[targetId])) {
+            map.addLayer(markers[targetId]);
+          }
+        }
+      }
+
+      if (markers[targetId]) {
+        markers[targetId].openPopup();
+      }
+      await loadImagesForPopup(targetId);
+
+      renderSidebarTree();
+    } catch (err) {
+      alert('アップロード処理中にエラーが発生しました: ' + err.message);
+      console.error(err);
+    } finally {
+      e.target.value = '';
+      targetPointIdForImage = null;
+      setTimeout(() => { isSelfOperating = false; }, 1000);
+    }
+  });
+
+  function openShareConfigModal() {
+    const selectedIds = [];
+    allPoints.forEach(p => {
+      const chk = document.getElementById(`chk-point-${p.id}`);
+      const isChecked = chk && chk.checked;
+      const isVisibleOnMap = markers[p.id] && map.hasLayer(markers[p.id]);
+
+      if (isChecked || isVisibleOnMap) {
+        selectedIds.push(p.id);
+      }
+    });
+
+    if (selectedIds.length === 0) { 
+      alert('共有したいポイントのチェックボックスをオン（画面に表示）にしてください'); 
       return; 
     }
 
-    const point = allPoints.find(p => Number(p.id) === targetId);
-    if (point) point.image_url = jsonImageString;
+    document.getElementById('share-setting-pw').value = generateStrongPassword(8);
+    document.getElementById('share-setting-days').value = '7';
+    document.getElementById('share-config-modal').style.display = 'block';
+  }
 
-    if (wasVisible) {
-      checkedPointIds.add(targetId);
-      if (point) {
-        addMarkerToMap(point);
-        if (markers[targetId] && !map.hasLayer(markers[targetId])) {
-          map.addLayer(markers[targetId]);
+  function regenerateSharePwInModal() {
+    document.getElementById('share-setting-pw').value = generateStrongPassword(8);
+  }
+
+  function closeShareConfigModal() {
+    document.getElementById('share-config-modal').style.display = 'none';
+  }
+
+  function generateShareLink() {
+    const selectedIds = [];
+    allPoints.forEach(p => {
+      const chk = document.getElementById(`chk-point-${p.id}`);
+      const isChecked = chk && chk.checked;
+      const isVisibleOnMap = markers[p.id] && map.hasLayer(markers[p.id]);
+
+      if (isChecked || isVisibleOnMap) {
+        selectedIds.push(p.id);
+      }
+    });
+
+    const pw = document.getElementById('share-setting-pw').value.trim();
+    const mode = document.querySelector('input[name="share-setting-mode"]:checked').value;
+    
+    if (!pw) {
+      alert('閲覧用パスワードを入力してください');
+      return;
+    }
+
+    const days = parseInt(document.getElementById('share-setting-days').value, 10);
+    let expireTimestamp = 0;
+    
+    if (days > 0) {
+      expireTimestamp = Date.now() + (days * 24 * 60 * 60 * 1000);
+    }
+    
+    const token = btoa(encodeURIComponent(pw));
+
+    generatedSharePw = pw;
+    generatedShareUrl = `${window.location.origin}${window.location.pathname}?ids=${selectedIds.join(',')}&exp=${expireTimestamp}&token=${token}&mode=${mode}`;
+
+    closeShareConfigModal();
+    document.getElementById('share-result-modal').style.display = 'block';
+  }
+
+  function closeShareResultModal() {
+    document.getElementById('share-result-modal').style.display = 'none';
+  }
+
+  function copyShareUrl() {
+    navigator.clipboard.writeText(generatedShareUrl).then(() => {
+      const icon = document.getElementById('icon-copy-url');
+      if (icon) icon.textContent = '✅';
+      alert('共有URLをクリップボードにコピーしました！');
+      setTimeout(() => { if (icon) icon.textContent = '📋'; }, 2000);
+    }).catch(() => {
+      prompt('共有URL:', generatedShareUrl);
+    });
+  }
+
+  function copySharePw() {
+    navigator.clipboard.writeText(generatedSharePw).then(() => {
+      const icon = document.getElementById('icon-copy-pw');
+      if (icon) icon.textContent = '✅';
+      alert('パスワードをクリップボードにコピーしました！');
+      setTimeout(() => { if (icon) icon.textContent = '🔑'; }, 2000);
+    }).catch(() => {
+      prompt('閲覧パスワード:', generatedSharePw);
+    });
+  }
+
+  function focusToPoint(id) {
+    const point = allPoints.find(p => Number(p.id) === Number(id));
+    if (!point) return;
+
+    togglePointVisibility(id, true);
+
+    const marker = markers[id];
+    if (marker) {
+      const targetLatLng = marker.getLatLng();
+      map.panTo(targetLatLng, { animate: true });
+      setTimeout(() => {
+        marker.openPopup();
+      }, 200);
+    }
+  }
+
+  async function loadInitialPoints() {
+    try {
+      await loadTabRules();
+
+      const urlParams = new URLSearchParams(window.location.search);
+      const sharedIds = urlParams.get('ids') ? urlParams.get('ids').split(',') : (urlParams.get('id') ? [urlParams.get('id')] : null);
+
+      const { data: points, error } = await fetchWithRetry(() => supabaseClient
+        .from('points')
+        .select('id, title, display_title, lat, lng, group_name, tab_name, color, is_checked, image_url')
+        .order('id', { ascending: true })
+      );
+
+      if (error) {
+        console.error('Pointsデータ取得エラー:', error);
+        document.getElementById('point-tree').innerHTML = '<div style="color:red; font-size:12px; padding:10px;">データ取得に失敗しました</div>';
+        return;
+      }
+
+      if (sharedIds) {
+        allPoints = (points || []).filter(p => sharedIds.includes(String(p.id)));
+      } else {
+        allPoints = points || [];
+      }
+
+      allPoints.forEach(p => {
+        if (p.is_checked === undefined) p.is_checked = false;
+        if (p.is_checked) p.color = 'grey';
+      });
+
+      const bounds = [];
+      Object.keys(markers).forEach(id => { map.removeLayer(markers[id]); delete markers[id]; });
+
+      if (sharedIds) {
+        allPoints.forEach(p => {
+          addMarkerToMap(p);
+          map.addLayer(markers[p.id]);
+          checkedPointIds.add(Number(p.id));
+          bounds.push([p.lat, p.lng]);
+        });
+      }
+
+      updateFilterTabOptions();
+      renderSidebarTree();
+
+      if (sharedIds && bounds.length > 0) {
+        map.fitBounds(bounds, { padding: [50, 50] });
+      }
+    } catch (err) {
+      console.error('初期化処理全般エラー:', err);
+      document.getElementById('point-tree').innerHTML = '<div style="color:red; font-size:12px; padding:10px;">初期化エラーが発生しました</div>';
+    }
+  }
+
+  // ★ Excelファイル取り込み処理（取り込んだ画像も50KB以下へ圧縮）
+  async function handleFileSelect(e) {
+    if (isReadOnly) return;
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const progressContainer = document.getElementById('import-progress-container');
+    const progressFill = document.getElementById('import-progress-fill');
+    const dropText = document.getElementById('drop-zone-text');
+
+    if (progressContainer && progressFill) {
+      progressContainer.style.display = 'block';
+      progressFill.style.width = '10%';
+      if (dropText) dropText.textContent = '⏳ 解析・画像圧縮・アップロード中...';
+    }
+
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const rowImageMap = {}; 
+
+      try {
+        const zip = await JSZip.loadAsync(arrayBuffer);
+        const drawingXml = await zip.files['xl/drawings/drawing1.xml']?.async('text');
+        const relsXml = await zip.files['xl/drawings/_rels/drawing1.xml.rels']?.async('text');
+
+        if (drawingXml && relsXml) {
+          const parser = new DOMParser();
+          const relsDoc = parser.parseFromString(relsXml, 'text/xml');
+          const rels = {};
+          relsDoc.querySelectorAll('Relationship').forEach(r => {
+            rels[r.getAttribute('Id')] = r.getAttribute('Target').replace('../media/', '');
+          });
+
+          const drawDoc = parser.parseFromString(drawingXml, 'text/xml');
+          const anchors = drawDoc.querySelectorAll('oneCellAnchor, twoCellAnchor');
+          
+          for (const anchor of anchors) {
+            const rowElem = anchor.querySelector('from > row');
+            const blipElem = anchor.querySelector('blip');
+            if (rowElem && blipElem) {
+              const rowIdx = parseInt(rowElem.textContent, 10);
+              const rId = blipElem.getAttribute('r:embed');
+              const mediaName = rels[rId];
+              if (mediaName && zip.files[`xl/media/${mediaName}`]) {
+                const base64 = await zip.files[`xl/media/${mediaName}`].async('base64');
+                rowImageMap[rowIdx] = `data:image/jpeg;base64,${base64}`;
+              }
+            }
+          }
+        }
+      } catch (zipErr) {
+        console.warn('Zip解析スキップ:', zipErr);
+      }
+
+      if (progressFill) progressFill.style.width = '40%';
+
+      const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+      const json = XLSX.utils.sheet_to_json(worksheet);
+
+      const newPoints = [];
+      for (let i = 0; i < json.length; i++) {
+        const row = json[i];
+        const display_title = String(row['ピン表示名'] || row['表示名'] || '').trim();
+        const title = row['スポット名'] || row['title'] || row['名称'] || row['名前'];
+        const lat = parseFloat(row['緯度'] || row['lat'] || row['latitude']);
+        const lng = parseFloat(row['経度'] || row['lng'] || row['longitude']);
+        
+        const parentG = String(row['親グループ'] || row['グループ'] || row['group'] || '').trim();
+        const childG = String(row['子グループ'] || '').trim();
+        const grandchildG = String(row['孫グループ'] || '').trim();
+        
+        let group_name = 'インポート';
+        if (parentG) {
+          const gParts = [parentG];
+          if (childG) gParts.push(childG);
+          if (grandchildG) gParts.push(grandchildG);
+          group_name = gParts.join(' / ');
+        }
+
+        const tabText = row['タブ'] || row['tab'] || '';
+        let rawImg = rowImageMap[i + 1] || row['基本画像'] || row['画像URL'] || row['画像'] || null;
+
+        let imageUrl = null;
+        if (rawImg && !String(rawImg).startsWith('※')) {
+          // 50KB以下に自動圧縮
+          const compressedBase64 = await compressImageFile(rawImg, 50 * 1024);
+          const publicUrl = await uploadImageToStorage(compressedBase64, 'import');
+          if (publicUrl) {
+            imageUrl = JSON.stringify([{ url: publicUrl, comment: '', judge: '' }]);
+          }
+        }
+
+        if (title && !isNaN(lat) && !isNaN(lng)) {
+          const pointColor = getTabColor(tabText);
+
+          newPoints.push({
+            display_title: display_title || null,
+            title: String(title),
+            lat: lat,
+            lng: lng,
+            group_name: String(group_name),
+            tab_name: String(tabText || ''),
+            color: pointColor,
+            image_url: imageUrl
+          });
         }
       }
-    }
 
-    if (markers[targetId]) {
-      markers[targetId].openPopup();
-    }
-    await loadImagesForPopup(targetId);
+      if (progressFill) progressFill.style.width = '100%';
 
-    renderSidebarTree();
-  } catch (err) {
-    alert('アップロード処理中にエラーが発生しました: ' + err.message);
-    console.error(err);
-  } finally {
-    e.target.value = '';
-    targetPointIdForImage = null;
-    setTimeout(() => { isSelfOperating = false; }, 1000);
-  }
-});
-
-// ★ Excelインポート時（handleFileSelect）の画像圧縮部分も修正
-// handleFileSelect 関数内の以下の部分を置き換えてください：
-/*
-  let imageUrl = null;
-  if (rawImg && !String(rawImg).startsWith('※')) {
-    const compressedBase64 = await compressImageFile(rawImg, 50 * 1024); // 50KB以下に圧縮
-    const publicUrl = await uploadImageToStorage(compressedBase64, 'import');
-    if (publicUrl) {
-      imageUrl = JSON.stringify([{ url: publicUrl, comment: '', judge: '' }]);
+      if (confirm(`${newPoints.length} 件のポイントを一括登録しますか？`)) {
+        const { error } = await supabaseClient.from('points').insert(newPoints);
+        if (error) alert('一括登録エラー: ' + error.message);
+        else { alert('一括登録が完了しました！'); loadInitialPoints(); }
+      }
+    } catch (err) {
+      alert('ファイルの解析に失敗しました');
+      console.error(err);
+    } finally {
+      if (progressContainer) progressContainer.style.display = 'none';
+      if (progressFill) progressFill.style.width = '0%';
+      if (dropText) dropText.textContent = '📂 Excelをドロップ';
+      e.target.value = '';
     }
   }
-*/
+
+  const dropZone = document.getElementById('drop-zone');
+  dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.style.background = '#e2e6ea'; });
+  dropZone.addEventListener('dragleave', (e) => { e.preventDefault(); dropZone.style.background = '#fff'; });
+  dropZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropZone.style.background = '#fff';
+    if (!isReadOnly && e.dataTransfer.files.length > 0) {
+      document.getElementById('excel-input').files = e.dataTransfer.files;
+      handleFileSelect({ target: { files: e.dataTransfer.files } });
+    }
+  });
+
+  map.on('click', (e) => {
+    if (isReadOnly) return;
+    if (isManualRegisterMode) {
+      selectedLatLng = e.latlng;
+      document.getElementById('spot-lat').value = e.latlng.lat.toFixed(6);
+      document.getElementById('spot-lng').value = e.latlng.lng.toFixed(6);
+    }
+  });
+
+  function openManualRegisterModal() {
+    if (isReadOnly) return;
+    isManualRegisterMode = true;
+    selectedLatLng = null;
+    document.getElementById('form-modal-title').textContent = 'ポイントを手動（個別）登録';
+    document.getElementById('form-hint').style.display = 'block';
+    document.getElementById('spot-display-title').value = '';
+    document.getElementById('spot-title').value = '';
+    document.getElementById('spot-lat').value = '';
+    document.getElementById('spot-lng').value = '';
+    document.getElementById('spot-group').value = '';
+    document.getElementById('spot-tab').value = '';
+    document.getElementById('spot-image').value = '';
+    document.getElementById('form-container').style.display = 'block';
+  }
+
+  function closeForm() {
+    isManualRegisterMode = false;
+    document.getElementById('form-container').style.display = 'none';
+    document.getElementById('form-hint').style.display = 'none';
+    document.getElementById('spot-display-title').value = '';
+    document.getElementById('spot-title').value = '';
+    document.getElementById('spot-lat').value = '';
+    document.getElementById('spot-lng').value = '';
+    document.getElementById('spot-group').value = '';
+    document.getElementById('spot-tab').value = '';
+    document.getElementById('spot-image').value = '';
+    selectedLatLng = null;
+  }
+
+  // ★ 個別登録モーダルでの画像取り込み・自動圧縮処理
+  async function savePoint() {
+    if (isReadOnly) return;
+    const dispTitle = document.getElementById('spot-display-title').value.trim();
+    const title = document.getElementById('spot-title').value.trim();
+    const latVal = parseFloat(document.getElementById('spot-lat').value);
+    const lngVal = parseFloat(document.getElementById('spot-lng').value);
+    const group = document.getElementById('spot-group').value.trim() || '未分類';
+    const tabText = document.getElementById('spot-tab').value.trim() || '';
+    const color = getTabColor(tabText);
+    const files = Array.from(document.getElementById('spot-image').files);
+    const saveBtn = document.getElementById('save-btn');
+
+    if (!title) { alert('スポット名を入力してください'); return; }
+    if (isNaN(latVal) || isNaN(lngVal)) { alert('有効な緯度と経度を入力（または個別登録モードで地図上をクリック）してください'); return; }
+
+    saveBtn.disabled = true;
+    let imageUrl = null;
+
+    try {
+      if (files.length > 0) {
+        const compressedList = [];
+        for (const f of files) {
+          // 50KB以下に自動圧縮
+          const b64 = await compressImageFile(f, 50 * 1024);
+          const publicUrl = await uploadImageToStorage(b64, 'manual');
+          if (publicUrl) {
+            compressedList.push({ url: publicUrl, comment: '', judge: '' });
+          }
+        }
+        if (compressedList.length > 0) {
+          imageUrl = JSON.stringify(compressedList);
+        }
+      }
+
+      const { error } = await supabaseClient.from('points').insert([
+        { display_title: dispTitle || null, title, lat: latVal, lng: lngVal, group_name: group, tab_name: tabText, color: color, image_url: imageUrl }
+      ]);
+      if (!error) {
+        closeForm();
+        loadInitialPoints();
+      } else {
+        alert('保存エラー: ' + error.message);
+      }
+    } catch (err) {
+      alert('保存失敗');
+      console.error(err);
+    } finally {
+      saveBtn.disabled = false;
+    }
+  }
+
+  supabaseClient.channel('public:points')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'points' }, () => {
+      if (!isReadOnly && !isSelfOperating) {
+        loadInitialPoints();
+      }
+    })
+    .subscribe();
+
+  checkSession();
+</script>
+</body>
+</html>
