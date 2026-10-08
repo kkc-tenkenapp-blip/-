@@ -524,6 +524,7 @@
   
   let isReadOnly = false;
   let isSharedEditMode = false;
+  let initialMapSet = false; // ★ 初期表示管理フラグ
 
   let targetPointIdForImage = null;
   let isManualRegisterMode = false;
@@ -856,7 +857,6 @@
       isSharedEditMode = false;
       document.querySelectorAll('.editable-only, .original-only').forEach(el => el.style.display = '');
       
-      map.setView([38.260132, 140.882434], 13);
       loadInitialPoints();
     }
   }
@@ -868,6 +868,7 @@
     }
   }
 
+  // ★ 地図初期化 ★
   const map = L.map('map', { minZoom: 5, maxZoom: 21 }).setView([38.260132, 140.882434], 13);
 
   const gsiPale = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png', {
@@ -901,6 +902,7 @@
     yellow: '#ffc107'
   };
 
+  // ★ 現在地取得（赤色マーカー・文字表示なし） ★
   function getCurrentLocation() {
     if (!navigator.geolocation) {
       alert("お使いの端末・ブラウザは位置情報（GPS）に対応していません。");
@@ -917,12 +919,12 @@
 
       userLocationMarker = L.circleMarker([lat, lng], {
         radius: 8,
-        fillColor: "#007bff",
+        fillColor: "#dc3545", // 赤色に変更
         color: "#ffffff",
         weight: 3,
         opacity: 1,
         fillOpacity: 0.9
-      }).addTo(map).bindPopup("📍 あなたの現在地").openPopup();
+      }).addTo(map); // bindPopupとopenPopupを削除
 
       map.setView([lat, lng], 16);
     }, (error) => {
@@ -1708,7 +1710,6 @@
     }
   }
 
-  // ★ 追加：表示中の全ポイントが画面に収まるように画角を自動調整する関数 ★
   function fitMapToVisiblePoints() {
     const bounds = [];
     allPoints.forEach(p => {
@@ -1717,10 +1718,9 @@
       }
     });
     
+    // ★ 表示されているポイントがある場合のみ画角を合わせ、無い場合は何もしない（その場に留まる）
     if (bounds.length > 0) {
       map.fitBounds(bounds, { padding: [50, 50], maxZoom: 18 });
-    } else {
-      map.setView([38.260132, 140.882434], 13);
     }
   }
 
@@ -1728,10 +1728,9 @@
     allPoints.forEach(p => {
       const gName = p.group_name || '未分類';
       if (gName === groupPath || gName.startsWith(groupPath + ' /')) {
-        togglePointVisibility(p.id, isChecked, true); // 飛び回り防止
+        togglePointVisibility(p.id, isChecked, true); 
       }
     });
-    // ★ グループ一括チェック時に全体が収まるようにズーム調整
     fitMapToVisiblePoints();
   }
 
@@ -2192,7 +2191,6 @@
     setTimeout(adjustLabelsOverlap, 50);
   }
 
-  // ★ 全選択時に全体が収まるようにズーム調整
   function toggleSelectAll(isChecked) {
     document.querySelectorAll('.chk-point').forEach(chk => {
       togglePointVisibility(chk.value, isChecked, true);
@@ -2504,10 +2502,15 @@
       updateFilterTabOptions();
       renderSidebarTree();
 
+      // 初期表示位置を仙台駅にする処理 (最初の一度だけ実行)
       if (sharedIds && bounds.length > 0) {
         map.fitBounds(bounds, { padding: [50, 50] });
+        initialMapSet = true;
       } else {
-        map.setView([38.260132, 140.882434], 13);
+        if (!initialMapSet) {
+          map.setView([38.260132, 140.882434], 13);
+          initialMapSet = true;
+        }
       }
     } catch (err) {
       console.error('初期化処理全般エラー:', err);
