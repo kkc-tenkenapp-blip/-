@@ -144,11 +144,21 @@
     .legend-item { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; }
     .legend-color { width: 12px; height: 12px; border-radius: 50%; display: inline-block; border: 1px solid rgba(0,0,0,0.2); }
 
-    /* ★ モバイル専用の現在地表示ボタン (左下・フォント微調整) ★ */
+    /* モバイル専用の現在地表示ボタン (左下) */
     #mobile-location-btn {
       display: none;
       position: absolute; bottom: 25px; left: 10px; z-index: 1000;
       background: #007bff; color: white; border: none; padding: 8px 12px;
+      border-radius: 20px; font-size: 11px; font-weight: bold;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3); cursor: pointer;
+      transition: background 0.3s;
+    }
+
+    /* ★ モバイル専用のリスト表示・非表示トグルボタン (左下・現在地ボタンの上) ★ */
+    #mobile-list-toggle-btn {
+      display: none;
+      position: absolute; bottom: 65px; left: 10px; z-index: 1000;
+      background: #28a745; color: white; border: none; padding: 8px 12px;
       border-radius: 20px; font-size: 11px; font-weight: bold;
       box-shadow: 0 2px 6px rgba(0,0,0,0.3); cursor: pointer;
       transition: background 0.3s;
@@ -254,7 +264,7 @@
       #map { width: 100%; height: 45vh; }
       #import-area, #share-bar { display: none !important; }
       .btn-manual-header { display: none !important; }
-      #mobile-location-btn { display: block; }
+      #mobile-location-btn, #mobile-list-toggle-btn { display: block; }
     }
   </style>
 </head>
@@ -347,8 +357,8 @@
 <div id="resizer"></div>
 
 <div id="map">
-  <!-- ★ 追跡オンオフを切り替えるボタン ★ -->
   <button id="mobile-location-btn" onclick="toggleCurrentLocation()">📍 現在地 (追跡オフ)</button>
+  <button id="mobile-list-toggle-btn" onclick="toggleMobileList()">⬇️ リストを隠す</button>
   <div id="legend-box" onclick="openTabConfigModal(event)">
     <h5>凡例 (クリックで編集 ⚙️)</h5>
     <div id="legend-list">タブ設定なし</div>
@@ -523,7 +533,6 @@
   let tabRules = []; 
   let customGroups = new Set();
   
-  // ★ 追跡用変数 ★
   let userLocationMarker = null; 
   let watchPositionId = null;
   
@@ -542,6 +551,11 @@
   let generatedShareUrl = '';
   let generatedSharePw = '';
   let shareParamsFromUrl = null;
+
+  // ★ スマホ表示時のリスト開閉管理フラグ ★
+  let isListVisible = true;
+  let lastSidebarHeight = '55vh';
+  let lastMapHeight = '45vh';
 
   const DIRECTIONS_16 = Array.from({ length: 16 }, (_, i) => {
     const angle = (i * 22.5) * (Math.PI / 180);
@@ -609,6 +623,31 @@
       map.invalidateSize();
     }
   });
+
+  // ★ スマホでのリスト表示・非表示を切り替える関数 ★
+  function toggleMobileList() {
+    const btn = document.getElementById('mobile-list-toggle-btn');
+
+    if (isListVisible) {
+      // 隠す前に現在の高さを保存
+      lastSidebarHeight = sidebar.style.height || '55vh';
+      lastMapHeight = mapElem.style.height || '45vh';
+
+      sidebar.style.display = 'none';
+      resizer.style.display = 'none';
+      mapElem.style.height = '100vh';
+      btn.innerHTML = '⬆️ リストを表示';
+      isListVisible = false;
+    } else {
+      sidebar.style.display = 'flex';
+      resizer.style.display = 'block';
+      sidebar.style.height = lastSidebarHeight;
+      mapElem.style.height = lastMapHeight;
+      btn.innerHTML = '⬇️ リストを隠す';
+      isListVisible = true;
+    }
+    setTimeout(() => map.invalidateSize(), 50);
+  }
 
   function generateStrongPassword(length = 8) {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
@@ -906,7 +945,6 @@
     yellow: '#ffc107'
   };
 
-  // ★ 現在地のリアルタイム追跡（オンオフ切り替え）処理 ★
   function toggleCurrentLocation() {
     const btn = document.getElementById('mobile-location-btn');
     
@@ -915,7 +953,6 @@
       return;
     }
 
-    // すでに追跡中の場合は、追跡を停止する
     if (watchPositionId !== null) {
       navigator.geolocation.clearWatch(watchPositionId);
       watchPositionId = null;
@@ -930,19 +967,16 @@
       return;
     }
 
-    // 追跡を開始する
     btn.innerHTML = "📍 追跡中 (タップで停止)";
-    btn.style.background = "#dc3545"; // 追跡中は赤色ボタン
+    btn.style.background = "#dc3545"; 
 
     watchPositionId = navigator.geolocation.watchPosition((position) => {
       const lat = position.coords.latitude;
       const lng = position.coords.longitude;
 
       if (userLocationMarker) {
-        // すでにマーカーがある場合は、位置だけを更新（画面移動はしない）
         userLocationMarker.setLatLng([lat, lng]);
       } else {
-        // 初回取得時のみ、マーカーを作成して画面を現在地にズームする
         userLocationMarker = L.circleMarker([lat, lng], {
           radius: 8,
           fillColor: "#dc3545",
@@ -956,7 +990,6 @@
     }, (error) => {
       alert("位置情報の取得に失敗しました。スマホの設定で位置情報の利用を許可してください。");
       
-      // エラー時は追跡をオフに戻す
       navigator.geolocation.clearWatch(watchPositionId);
       watchPositionId = null;
       btn.innerHTML = "📍 現在地 (追跡オフ)";
@@ -1750,7 +1783,6 @@
       }
     });
     
-    // 表示されているポイントがある場合のみ画角を調整（無い場合は移動しない）
     if (bounds.length > 0) {
       map.fitBounds(bounds, { padding: [50, 50], maxZoom: 18 });
     }
@@ -2534,7 +2566,6 @@
       updateFilterTabOptions();
       renderSidebarTree();
 
-      // ★ 初期表示位置の設定（最初の一度のみ）
       if (sharedIds && bounds.length > 0) {
         map.fitBounds(bounds, { padding: [50, 50] });
         initialMapSet = true;
