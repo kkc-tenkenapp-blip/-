@@ -670,7 +670,8 @@
       return parseFloat(str);
     }
 
-    const regex = /(-?)\s*(\d+)[°度\s]+(\d+)[\'分\s]+(\d+(?:\.\d+)?)[\"秒\s]*([NnSsEeWw]?)/;
+    // ★修正箇所: プライム(′)やダブルプライム(″)、全角クォート('’"”)にも対応するように正規表現を修正
+    const regex = /(-?)\s*(\d+)[°度\s]+(\d+)['’′分\s]+(\d+(?:\.\d+)?)["”″秒\s]*([NnSsEeWw]?)/;
     const match = str.match(regex);
 
     if (match) {
