@@ -670,7 +670,7 @@
       return parseFloat(str);
     }
 
-    // ★修正箇所: プライム(′)やダブルプライム(″)、全角クォート('’"”)にも対応するように正規表現を修正
+    // ★修正箇所: プライム(′)やダブルプライム(″)、全角クォート('’"”)にも対応
     const regex = /(-?)\s*(\d+)[°度\s]+(\d+)['’′分\s]+(\d+(?:\.\d+)?)["”″秒\s]*([NnSsEeWw]?)/;
     const match = str.match(regex);
 
@@ -2188,6 +2188,25 @@
                 ${!isSharedEditMode ? `<button class="btn-group-action btn-group-del" onclick="deleteGroupUI('${gcPath}')">✕</button>` : ''}
               ` : ''}
             `;
+            gcHeader.addEventListener('drop', async e => {
+              e.preventDefault(); e.stopPropagation();
+              gcHeader.classList.remove('drag-over-active');
+              
+              const pointId = e.dataTransfer.getData('text/point-id');
+              const draggedGroupPath = e.dataTransfer.getData('text/group-path');
+              
+              if (pointId) {
+                await updatePointGroup(pointId, gcPath);
+              } else if (draggedGroupPath) {
+                const dragParts = draggedGroupPath.split(' / ');
+                const targetParts = gcPath.split(' / ');
+                if (dragParts.length === targetParts.length) {
+                  await reorderGroups(draggedGroupPath, gcPath);
+                } else {
+                  await moveGroupPathToNewParent(draggedGroupPath, gcPath);
+                }
+              }
+            });
             gcDiv.appendChild(gcHeader);
 
             const gcUl = renderPointList(gcPoints, gcPath);
@@ -2981,10 +3000,59 @@
     }
   }
 
+  // ★ リアルタイム機能（Egress通信量削減版） ★
   supabaseClient.channel('public:points')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'points' }, () => {
-      if (!isReadOnly && !isSelfOperating) {
-        loadInitialPoints();
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'points' }, (payload) => {
+      // 自分が操作中の場合は無視（無限ループ・重複防止）
+      if (isReadOnly || isSelfOperating) return;
+
+      const eventType = payload.eventType;
+
+      if (eventType === 'INSERT') {
+        const newPoint = payload.new;
+        if (newPoint.is_checked === undefined) newPoint.is_checked = false;
+        if (newPoint.is_checked) newPoint.color = 'grey';
+
+        // 重複追加を防ぐ処理
+        if (!allPoints.some(p => Number(p.id) === Number(newPoint.id))) {
+          allPoints.push(newPoint);
+          renderSidebarTree();
+          updateFilterTabOptions();
+        }
+
+      } else if (eventType === 'UPDATE') {
+        const updatedPoint = payload.new;
+        if (updatedPoint.is_checked === undefined) updatedPoint.is_checked = false;
+        if (updatedPoint.is_checked) updatedPoint.color = 'grey';
+
+        const index = allPoints.findIndex(p => Number(p.id) === Number(updatedPoint.id));
+        if (index !== -1) {
+          allPoints[index] = updatedPoint;
+          
+          // 地図上のマーカーを一度削除して再描画（表示されていた場合のみ）
+          if (markers[updatedPoint.id]) {
+            const isVisible = map.hasLayer(markers[updatedPoint.id]);
+            map.removeLayer(markers[updatedPoint.id]);
+            delete markers[updatedPoint.id];
+            addMarkerToMap(updatedPoint);
+            if (isVisible) map.addLayer(markers[updatedPoint.id]);
+          }
+          renderSidebarTree();
+          updateFilterTabOptions();
+        }
+
+      } else if (eventType === 'DELETE') {
+        const deletedId = payload.old.id;
+        allPoints = allPoints.filter(p => Number(p.id) !== Number(deletedId));
+        
+        if (markers[deletedId]) {
+          map.removeLayer(markers[deletedId]);
+          delete markers[deletedId];
+        }
+        checkedPointIds.delete(deletedId);
+        
+        renderSidebarTree();
+        updateFilterTabOptions();
       }
     })
     .subscribe();
