@@ -356,7 +356,7 @@
 <div id="resizer"></div>
 
 <div id="map">
-  <!-- ★ ボタンの配置（モバイル表示時）★ -->
+  <!-- モバイル表示時ボタン -->
   <button id="mobile-location-btn" onclick="toggleCurrentLocation()">📍 現在地 (追跡オフ)</button>
   <button id="mobile-list-toggle-btn" onclick="toggleMobileList()">⬇️ リストを隠す</button>
   <div id="legend-box" onclick="openTabConfigModal(event)">
@@ -399,7 +399,7 @@
 
     <h5>4. 選択共有 (URL発行)</h5>
     <ul>
-      <li>共有したいポイントをチェックし「🔗 選択共有」からパスワードと有効期限を設定して専用URLを発行できます。</li>
+      <li>共有したいポイントをチェックし「🔗 選択共有」からパスワードと有効期限を設定して専用の短縮URLを発行できます。</li>
       <li>「閲覧モード（編集不可）」と「共有モード（消去以外の編集が可能）」の2つの権限を選んで発行できます。</li>
     </ul>
   </div>
@@ -557,7 +557,6 @@
   let lastSidebarHeight = '55vh';
   let lastMapHeight = '45vh';
 
-  // ★ フォルダの順番をキャッシュするオブジェクト ★
   let groupOrders = {};
 
   const DIRECTIONS_16 = Array.from({ length: 16 }, (_, i) => {
@@ -670,7 +669,6 @@
       return parseFloat(str);
     }
 
-    // ★修正箇所: プライム(′)やダブルプライム(″)、全角クォート('’"”)にも対応
     const regex = /(-?)\s*(\d+)[°度\s]+(\d+)['’′分\s]+(\d+(?:\.\d+)?)["”″秒\s]*([NnSsEeWw]?)/;
     const match = str.match(regex);
 
@@ -708,7 +706,6 @@
     return { data: null, error: lastError };
   }
 
-  // ★ データベースからグループの順番を取得する ★
   async function loadGroupOrders() {
     const { data, error } = await supabaseClient.from('group_orders').select('*');
     if (!error && data) {
@@ -807,17 +804,42 @@
     });
   }
 
+  // ★ 短縮URL対応版 checkSession ★
   async function checkSession() {
     const urlParams = new URLSearchParams(window.location.search);
-    const sharedIds = urlParams.get('ids') ? urlParams.get('ids').split(',') : (urlParams.get('id') ? [urlParams.get('id')] : null);
-    const expTime = urlParams.get('exp');
-    const token = urlParams.get('token');
-    const shareMode = urlParams.get('mode') || 'view';
+    const shortId = urlParams.get('s');
+
+    let sharedIds, expTime, token, shareMode;
+
+    if (shortId) {
+      // Supabaseの shared_links テーブルから共有情報を復元
+      const { data, error } = await supabaseClient
+        .from('shared_links')
+        .select('*')
+        .eq('short_id', shortId)
+        .single();
+
+      if (error || !data) {
+        alert('無効な共有URL、または削除されたリンクです。');
+        return;
+      }
+
+      sharedIds = data.ids ? data.ids.split(',') : null;
+      expTime = data.exp;
+      token = data.token;
+      shareMode = data.mode;
+    } else {
+      // 従来の長文URL形式の互換性サポート
+      sharedIds = urlParams.get('ids') ? urlParams.get('ids').split(',') : (urlParams.get('id') ? [urlParams.get('id')] : null);
+      expTime = urlParams.get('exp');
+      token = urlParams.get('token');
+      shareMode = urlParams.get('mode') || 'view';
+    }
 
     if (sharedIds) {
       document.getElementById('login-overlay').style.display = 'none';
       
-      if (expTime && expTime !== '0') {
+      if (expTime && expTime !== '0' && expTime !== 0) {
         const now = Date.now();
         if (now > parseInt(expTime, 10)) {
           alert('この共有URLは有効期限が切れているためアクセスできません。');
@@ -912,7 +934,6 @@
       isReadOnly = false;
       isSharedEditMode = false;
       document.querySelectorAll('.editable-only, .original-only').forEach(el => el.style.display = '');
-      
       loadInitialPoints();
     }
   }
@@ -1810,20 +1831,17 @@
     fitMapToVisiblePoints();
   }
 
-  // ★ フォルダの順番を入れ替えてDBに保存する関数 ★
   async function reorderGroups(draggedPath, targetPath) {
     if (isReadOnly || isSharedEditMode || draggedPath === targetPath) return;
 
     const dragParts = draggedPath.split(' / ');
     const targetParts = targetPath.split(' / ');
 
-    // 階層が違う場合は移動させない（移動は別のドロップ処理で行う）
     if (dragParts.length !== targetParts.length) return;
     const dragParent = dragParts.slice(0, -1).join(' / ');
     const targetParent = targetParts.slice(0, -1).join(' / ');
     if (dragParent !== targetParent) return;
 
-    // 同じ階層（兄弟）のグループパスを全て収集
     const siblings = new Set();
     customGroups.forEach(g => {
       const parts = g.split(' / ');
@@ -1841,7 +1859,6 @@
       }
     });
 
-    // 今の順番でソート
     let keys = Array.from(siblings);
     keys.sort((a, b) => {
       const orderA = groupOrders[a] ?? 99999;
@@ -1850,7 +1867,6 @@
       return a.localeCompare(b, 'ja', { numeric: true });
     });
 
-    // ドラッグしたものをドロップした場所の前（または後）に移動
     const dragIdx = keys.indexOf(draggedPath);
     const targetIdx = keys.indexOf(targetPath);
     if (dragIdx > -1 && targetIdx > -1) {
@@ -1864,10 +1880,8 @@
       updates.push({ group_path: k, sort_order: idx });
     });
 
-    // 画面を更新してすぐに反映させる
     renderSidebarTree();
 
-    // Supabaseに一括保存
     const { error } = await supabaseClient.from('group_orders').upsert(updates, { onConflict: 'group_path' });
     if (error) {
       console.warn("グループ順番の保存に失敗:", error);
@@ -1959,7 +1973,6 @@
         return;
       }
 
-      // ★ 保存された順番（groupOrders）に基づいてソート ★
       const parentKeys = Object.keys(groupTree).sort((a, b) => {
         const orderA = groupOrders[a] ?? 99999;
         const orderB = groupOrders[b] ?? 99999;
@@ -1985,7 +1998,6 @@
         const parentHeader = document.createElement('div');
         parentHeader.className = 'parent-group-header';
         
-        // ★ ヘッダー領域でのドラッグ＆ドロップ判定 ★
         if (!isReadOnly) {
           parentHeader.draggable = true;
           parentHeader.addEventListener('dragstart', e => { 
@@ -2011,10 +2023,8 @@
               const dragParts = draggedGroupPath.split(' / ');
               const targetParts = pName.split(' / ');
               if (dragParts.length === targetParts.length) {
-                // 同じ階層なら並べ替え
                 await reorderGroups(draggedGroupPath, pName);
               } else {
-                // 違う階層なら移動
                 await moveGroupPathToNewParent(draggedGroupPath, pName);
               }
             }
@@ -2627,7 +2637,8 @@
     document.getElementById('share-config-modal').style.display = 'none';
   }
 
-  function generateShareLink() {
+  // ★ 短縮URL対応版 generateShareLink ★
+  async function generateShareLink() {
     const selectedIds = [];
     allPoints.forEach(p => {
       const chk = document.getElementById(`chk-point-${p.id}`);
@@ -2655,9 +2666,24 @@
     }
     
     const token = btoa(encodeURIComponent(pw));
+    const shortId = generateStrongPassword(8);
+
+    // Supabaseの shared_links テーブルに書き込み
+    const { error } = await supabaseClient.from('shared_links').insert([{
+      short_id: shortId,
+      ids: selectedIds.join(','),
+      exp: expireTimestamp,
+      token: token,
+      mode: mode
+    }]);
+
+    if (error) {
+      alert('共有リンクの生成に失敗しました: ' + error.message);
+      return;
+    }
 
     generatedSharePw = pw;
-    generatedShareUrl = `${window.location.origin}${window.location.pathname}?ids=${selectedIds.join(',')}&exp=${expireTimestamp}&token=${token}&mode=${mode}`;
+    generatedShareUrl = `${window.location.origin}${window.location.pathname}?s=${shortId}`;
 
     closeShareConfigModal();
     document.getElementById('share-result-modal').style.display = 'block';
@@ -2708,7 +2734,7 @@
   async function loadInitialPoints() {
     try {
       await loadTabRules();
-      await loadGroupOrders(); // ★ グループの順番をDBから読み込む
+      await loadGroupOrders();
 
       const urlParams = new URLSearchParams(window.location.search);
       const sharedIds = urlParams.get('ids') ? urlParams.get('ids').split(',') : (urlParams.get('id') ? [urlParams.get('id')] : null);
@@ -3000,10 +3026,9 @@
     }
   }
 
-  // ★ リアルタイム機能（Egress通信量削減版） ★
+  // リアルタイム機能
   supabaseClient.channel('public:points')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'points' }, (payload) => {
-      // 自分が操作中の場合は無視（無限ループ・重複防止）
       if (isReadOnly || isSelfOperating) return;
 
       const eventType = payload.eventType;
@@ -3013,7 +3038,6 @@
         if (newPoint.is_checked === undefined) newPoint.is_checked = false;
         if (newPoint.is_checked) newPoint.color = 'grey';
 
-        // 重複追加を防ぐ処理
         if (!allPoints.some(p => Number(p.id) === Number(newPoint.id))) {
           allPoints.push(newPoint);
           renderSidebarTree();
@@ -3029,7 +3053,6 @@
         if (index !== -1) {
           allPoints[index] = updatedPoint;
           
-          // 地図上のマーカーを一度削除して再描画（表示されていた場合のみ）
           if (markers[updatedPoint.id]) {
             const isVisible = map.hasLayer(markers[updatedPoint.id]);
             map.removeLayer(markers[updatedPoint.id]);
