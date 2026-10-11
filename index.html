@@ -901,7 +901,7 @@
       shareMode = urlParams.get('mode') || 'view';
     }
 
-    if (sharedIds) {
+    if (sharedIds || shortId) {
       document.getElementById('login-overlay').style.display = 'none';
       
       if (expTime && expTime !== '0' && expTime !== 0) {
@@ -986,6 +986,12 @@
       // サーバーから正しくチケット（JWT）が返ってきた場合
       document.getElementById('share-auth-overlay').style.display = 'none';
       
+      // 許可されたIDリストを更新
+      if (resData.allowedIds) {
+        if (!shareParamsFromUrl) shareParamsFromUrl = {};
+        shareParamsFromUrl.sharedIds = resData.allowedIds;
+      }
+
       const mode = resData.mode || 'view';
       const banner = document.getElementById('readonly-banner');
       
@@ -2854,7 +2860,12 @@
       await loadGroupOrders();
 
       const urlParams = new URLSearchParams(window.location.search);
-      const sharedIds = urlParams.get('ids') ? urlParams.get('ids').split(',') : (urlParams.get('id') ? [urlParams.get('id')] : null);
+      const urlSharedIds = urlParams.get('ids') ? urlParams.get('ids').split(',') : (urlParams.get('id') ? [urlParams.get('id')] : null);
+
+      // Edge Functionから受け取った許可リストがあればそちらを最優先で使用
+      const effectiveSharedIds = (shareParamsFromUrl && shareParamsFromUrl.sharedIds) 
+        ? shareParamsFromUrl.sharedIds 
+        : urlSharedIds;
 
       const { data: points, error } = await fetchWithRetry(() => supabaseClient
         .from('points')
@@ -2868,8 +2879,8 @@
         return;
       }
 
-      if (sharedIds) {
-        allPoints = (points || []).filter(p => sharedIds.includes(String(p.id)));
+      if (effectiveSharedIds && effectiveSharedIds.length > 0) {
+        allPoints = (points || []).filter(p => effectiveSharedIds.includes(String(p.id)));
       } else {
         allPoints = points || [];
       }
@@ -2882,7 +2893,7 @@
       const bounds = [];
       Object.keys(markers).forEach(id => { map.removeLayer(markers[id]); delete markers[id]; });
 
-      if (sharedIds) {
+      if (effectiveSharedIds && effectiveSharedIds.length > 0) {
         allPoints.forEach(p => {
           addMarkerToMap(p);
           map.addLayer(markers[p.id]);
@@ -2894,7 +2905,7 @@
       updateFilterTabOptions();
       renderSidebarTree();
 
-      if (sharedIds && bounds.length > 0) {
+      if (effectiveSharedIds && bounds.length > 0) {
         map.fitBounds(bounds, { padding: [50, 50] });
         initialMapSet = true;
       } else {
@@ -2938,7 +2949,7 @@
           const relsDoc = parser.parseFromString(relsXml, 'text/xml');
           const rels = {};
           relsDoc.querySelectorAll('Relationship').forEach(r => {
-            rels[r.getAttribute('Id')] = r.getAttribute('Target').replace('../replace/', '');
+            rels[r.getAttribute('Id')] = r.getAttribute('Target').replace('../media/', '');
           });
 
           const drawDoc = parser.parseFromString(drawingXml, 'text/xml');
