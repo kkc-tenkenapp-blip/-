@@ -282,9 +282,7 @@
   </div>
 </div>
 
-<!-- ============================================== -->
-<!-- ここに追加：初回パスワード設定モーダル -->
-<!-- ============================================== -->
+<!-- 初回パスワード設定モーダル -->
 <div id="setup-password-overlay" style="display:none;">
   <div class="login-card">
     <h2>🎉 歓迎します！</h2>
@@ -372,7 +370,6 @@
 <div id="resizer"></div>
 
 <div id="map">
-  <!-- モバイル表示時ボタン -->
   <button id="mobile-location-btn" onclick="toggleCurrentLocation()">📍 現在地 (追跡オフ)</button>
   <button id="mobile-list-toggle-btn" onclick="toggleMobileList()">⬇️ リストを隠す</button>
   <div id="legend-box" onclick="openTabConfigModal(event)">
@@ -576,15 +573,13 @@
   let groupOrders = {};
 
   // ==========================================
-  // ここに追加：Supabaseの認証状態の変化を監視（招待リンク判定）
+  // Supabaseの認証状態の変化を監視
   // ==========================================
   supabaseClient.auth.onAuthStateChange((event, session) => {
     if (event === 'PASSWORD_RECOVERY') {
-      // パスワードリセット処理のイベント
       document.getElementById('login-overlay').style.display = 'none';
       document.getElementById('setup-password-overlay').style.display = 'flex';
     } else if (event === 'SIGNED_IN') {
-      // ログイン成功時。URLのパラメータに type=invite または type=recovery が含まれているかチェック
       const urlStr = window.location.href;
       if (urlStr.includes('type=invite') || urlStr.includes('type=recovery') || urlStr.includes('access_token=')) {
         document.getElementById('login-overlay').style.display = 'none';
@@ -594,7 +589,7 @@
   });
 
   // ==========================================
-  // ここに追加：招待ユーザー用：初回パスワード設定処理
+  // 招待ユーザー用：初回パスワード設定処理
   // ==========================================
   async function setInitialPassword() {
     const pw = document.getElementById('new-setup-pw').value;
@@ -613,7 +608,6 @@
       return;
     }
 
-    // Supabaseに新しいパスワードを登録
     const { data, error } = await supabaseClient.auth.updateUser({
       password: pw
     });
@@ -625,10 +619,8 @@
       alert('パスワードの設定が完了しました！\n次回からはこのパスワードでログインできます。');
       document.getElementById('setup-password-overlay').style.display = 'none';
       
-      // URLに残った招待用のパラメータ（ハッシュ等）を消去して綺麗なURLに戻す
       window.history.replaceState({}, document.title, window.location.pathname);
       
-      // 引き続きアプリを読み込む
       document.querySelectorAll('.editable-only, .original-only').forEach(el => el.style.display = '');
       loadInitialPoints();
     }
@@ -887,7 +879,6 @@
     let sharedIds, expTime, token, shareMode;
 
     if (shortId) {
-      // Supabaseの shared_links テーブルから共有情報を復元
       const { data, error } = await supabaseClient
         .from('shared_links')
         .select('*')
@@ -904,7 +895,6 @@
       token = data.token;
       shareMode = data.mode;
     } else {
-      // 従来の長文URL形式の互換性サポート
       sharedIds = urlParams.get('ids') ? urlParams.get('ids').split(',') : (urlParams.get('id') ? [urlParams.get('id')] : null);
       expTime = urlParams.get('exp');
       token = urlParams.get('token');
@@ -927,9 +917,20 @@
       return;
     }
 
+    // ==========================================
+    // 招待リンクからのアクセスを強制的に判定
+    // ==========================================
+    const urlStr = window.location.href;
+    const isInviteOrRecovery = urlStr.includes('type=invite') || urlStr.includes('type=recovery') || urlStr.includes('#access_token=');
+
+    if (isInviteOrRecovery) {
+      document.getElementById('login-overlay').style.display = 'none';
+      document.getElementById('setup-password-overlay').style.display = 'flex';
+      return; // ここで処理を終了し、下の通常のセッション確認に行かない
+    }
+
     const { data: { session } } = await supabaseClient.auth.getSession();
     if (session) {
-      // setup-password-overlay が表示されていない場合のみ通常ロード
       if (document.getElementById('setup-password-overlay').style.display !== 'flex') {
         document.getElementById('login-overlay').style.display = 'none';
         isReadOnly = false;
@@ -937,11 +938,7 @@
         loadInitialPoints();
       }
     } else {
-      // URLに招待フラグが含まれていない場合は通常ログイン画面を出す
-      const urlStr = window.location.href;
-      if (!urlStr.includes('type=invite') && !urlStr.includes('access_token=')) {
-        document.getElementById('login-overlay').style.display = 'flex';
-      }
+      document.getElementById('login-overlay').style.display = 'flex';
     }
   }
 
