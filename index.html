@@ -912,7 +912,8 @@
         }
       }
 
-      shareParamsFromUrl = { sharedIds, token, expTime, shareMode };
+      // shortId を保持して検証時に Edge Function へ送れるようにする
+      shareParamsFromUrl = { shortId, sharedIds, token, expTime, shareMode };
       document.getElementById('share-auth-overlay').style.display = 'flex';
       return;
     }
@@ -926,7 +927,7 @@
     if (isInviteOrRecovery) {
       document.getElementById('login-overlay').style.display = 'none';
       document.getElementById('setup-password-overlay').style.display = 'flex';
-      return; // ここで処理を終了し、下の通常のセッション確認に行かない
+      return;
     }
 
     const { data: { session } } = await supabaseClient.auth.getSession();
@@ -942,7 +943,10 @@
     }
   }
 
-  function verifySharePassword() {
+  // ==========================================
+  // 共有パスワード検証（Edge Function経由）
+  // ==========================================
+  async function verifySharePassword() {
     const inputPw = document.getElementById('share-access-pw').value.trim();
     const errDiv = document.getElementById('share-auth-error');
     errDiv.style.display = 'none';
@@ -953,39 +957,62 @@
       return;
     }
 
-    const expectedToken = shareParamsFromUrl ? shareParamsFromUrl.token : '';
-    const inputToken = btoa(encodeURIComponent(inputPw)); // この部分はサーバー側検証へ移行するまでの暫定対応
+    // パスワードをSHA-256でハッシュ化
+    const inputHash = await hashPassword(inputPw);
+    const shortId = shareParamsFromUrl ? shareParamsFromUrl.shortId : '';
 
-    if (expectedToken && inputToken !== expectedToken) {
-      errDiv.textContent = 'パスワードが正しくありません';
+    try {
+      // Supabase Edge Function (verify-share) を呼び出して検証
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/verify-share`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': SUPABASE_KEY
+        },
+        body: JSON.stringify({
+          shortId: shortId,
+          hashedPassword: inputHash
+        })
+      });
+
+      const resData = await response.json();
+
+      if (!response.ok) {
+        errDiv.textContent = resData.error || 'パスワードが正しくありません';
+        errDiv.style.display = 'block';
+        return;
+      }
+
+      // サーバーから正しくチケット（JWT）が返ってきた場合
+      document.getElementById('share-auth-overlay').style.display = 'none';
+      
+      const mode = resData.mode || 'view';
+      const banner = document.getElementById('readonly-banner');
+      
+      if (mode === 'edit') {
+        isReadOnly = false;
+        isSharedEditMode = true;
+        banner.style.display = 'block';
+        banner.textContent = '📝 共有モード (データ消去不可)';
+        banner.style.background = '#17a2b8';
+        banner.style.color = '#fff';
+        document.querySelectorAll('.original-only').forEach(el => el.style.display = 'none');
+      } else {
+        isReadOnly = true;
+        isSharedEditMode = false;
+        banner.style.display = 'block';
+        banner.textContent = '🔒 共有閲覧モード (編集不可)';
+        banner.style.background = '#ffc107';
+        banner.style.color = '#333';
+        document.querySelectorAll('.editable-only, .original-only').forEach(el => el.style.display = 'none');
+      }
+      
+      loadInitialPoints();
+
+    } catch (err) {
+      errDiv.textContent = '認証通信エラーが発生しました: ' + err.message;
       errDiv.style.display = 'block';
-      return;
     }
-
-    document.getElementById('share-auth-overlay').style.display = 'none';
-    
-    const mode = shareParamsFromUrl.shareMode || 'view';
-    const banner = document.getElementById('readonly-banner');
-    
-    if (mode === 'edit') {
-      isReadOnly = false;
-      isSharedEditMode = true;
-      banner.style.display = 'block';
-      banner.textContent = '📝 共有モード (データ消去不可)';
-      banner.style.background = '#17a2b8';
-      banner.style.color = '#fff';
-      document.querySelectorAll('.original-only').forEach(el => el.style.display = 'none');
-    } else {
-      isReadOnly = true;
-      isSharedEditMode = false;
-      banner.style.display = 'block';
-      banner.textContent = '🔒 共有閲覧モード (編集不可)';
-      banner.style.background = '#ffc107';
-      banner.style.color = '#333';
-      document.querySelectorAll('.editable-only, .original-only').forEach(el => el.style.display = 'none');
-    }
-    
-    loadInitialPoints();
   }
 
   async function loginWithSupabase() {
@@ -2717,7 +2744,7 @@
   }
 
   // ==========================================
-  // ここに追加：パスワードを安全にハッシュ化（SHA-256）する関数
+  // パスワードを安全にハッシュ化（SHA-256）する関数
   // ==========================================
   async function hashPassword(password) {
     const msgBuffer = new TextEncoder().encode(password);
@@ -2754,9 +2781,7 @@
       expireTimestamp = Date.now() + (days * 24 * 60 * 60 * 1000);
     }
     
-    // ==========================================
-    // 修正箇所：パスワードをハッシュ化して保存する
-    // ==========================================
+    // パスワードをハッシュ化して保存
     const token = await hashPassword(pw);
     const shortId = generateStrongPassword(8);
 
@@ -2913,7 +2938,7 @@
           const relsDoc = parser.parseFromString(relsXml, 'text/xml');
           const rels = {};
           relsDoc.querySelectorAll('Relationship').forEach(r => {
-            rels[r.getAttribute('Id')] = r.getAttribute('Target').replace('../media/', '');
+            rels[r.getAttribute('Id')] = r.getAttribute('Target').replace('../replace/', '');
           });
 
           const drawDoc = parser.parseFromString(drawingXml, 'text/xml');
